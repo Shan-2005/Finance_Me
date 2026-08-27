@@ -115,7 +115,6 @@ function renderGpayAvatars() {
   const container = document.getElementById('gpayAvatarsContainer');
   if (!container) return;
 
-  // Extract unique merchants from real transaction history
   const merchantsSet = new Set();
   transactions.forEach(t => {
     if (t.merchant) merchantsSet.add(t.merchant);
@@ -250,7 +249,7 @@ function triggerPwaInstall() {
     deferredPwaPrompt.userChoice.then((choiceResult) => {
       deferredPwaPrompt = null;
       const banner = document.getElementById('pwaInstallBanner');
-      if (banner) banner.style.display = 'none';
+      if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
     });
   } else {
     alert('To install Finance Me app on your home screen:\n\nChrome/Android: Tap menu (⋮) -> "Add to Home screen"\nSafari/iOS: Tap Share button (⎋) -> "Add to Home Screen"');
@@ -332,15 +331,6 @@ function switchTab(tabId) {
   if (targetNav) targetNav.classList.add('active');
 }
 
-// Aspect Ratio Switcher
-function setDeviceRatio(mode, btnElement) {
-  const frame = document.getElementById('deviceFrame');
-  document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.remove('active'));
-  btnElement.classList.add('active');
-
-  frame.className = `device-frame mode-${mode}`;
-}
-
 // Category Meta Mapping with GPay Color Scheme
 function getCategoryMeta(category) {
   switch (category) {
@@ -359,7 +349,7 @@ function getCategoryMeta(category) {
   }
 }
 
-// Render Transactions List in GPay Activity Style
+// Render Transactions List in Dynamic GPay Activity Style
 function renderTransactions() {
   const container = document.getElementById('txnContainer');
   const searchInput = document.getElementById('searchInput');
@@ -433,7 +423,7 @@ function renderTransactions() {
               <span>${t.mode}</span>
               ${tagBadges ? `• ${tagBadges}` : ''}
             </div>
-            ${t.notes ? `<div style="font-size: 11px; color: #c4c6cf; margin-top: 2px;">💬 ${t.notes}</div>` : ''}
+            ${t.notes ? `<div style="font-size: 11px; color: #c4c6cf; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💬 ${t.notes}</div>` : ''}
           </div>
         </div>
         <div class="txn-right">

@@ -17,413 +17,394 @@
 </head>
 <body>
 
-  <!-- Viewport Simulator Toolbar -->
-  <div class="ratio-bar">
-    <div class="ratio-title">
-      <i class="fa-solid fa-mobile-screen-button"></i> GPay Mobile Viewport:
-    </div>
-    <div class="ratio-selector">
-      <button class="ratio-btn active" onclick="setDeviceRatio('fullscreen', this)">Auto Mobile</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('iphone', this)">iPhone 15 Pro</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('pixel', this)">Pixel 8</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('galaxy', this)">Galaxy S24</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('tablet', this)">Tablet</button>
-    </div>
-  </div>
+  <!-- DYNAMIC FLUID CONTAINER (Fits Mobile, Tablet & Desktop Natively) -->
+  <div class="app-container">
+    
+    <!-- GPAY HEADER BAR WITH SEARCH & PROFILE -->
+    <header class="gpay-header">
+      <div class="gpay-search-bar">
+        <div class="gpay-logo-badge">
+          <span class="g-blue">G</span><span class="g-red">P</span><span class="g-yellow">a</span><span class="g-green">y</span>
+        </div>
 
-  <!-- Main Mobile Frame -->
-  <div class="app-viewport-wrapper">
-    <div class="device-frame mode-fullscreen" id="deviceFrame">
-      
-      <!-- Mobile Top Notch -->
-      <div class="device-notch"></div>
+        <input type="text" id="searchInput" class="gpay-search-input" placeholder="Pay friends, merchants, or search..." onkeyup="renderTransactions()">
 
-      <!-- GPAY HEADER BAR WITH SEARCH & PROFILE -->
-      <header class="gpay-header">
-        <div class="gpay-search-bar">
-          <div class="gpay-logo-badge">
-            <span class="g-blue">G</span><span class="g-red">P</span><span class="g-yellow">a</span><span class="g-green">y</span>
+        <div class="gpay-header-actions">
+          <!-- Manual Cloud Sync Button -->
+          <button class="refresh-btn" id="refreshBtn" onclick="manualSyncFromSupabase(this)" title="Sync Cloud Data">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+
+          <!-- User Profile Avatar Bubble -->
+          <div class="gpay-profile-pill" onclick="switchTab('settings')" id="gpayHeaderAvatar">
+            S
           </div>
+        </div>
+      </div>
+    </header>
 
-          <input type="text" id="searchInput" class="gpay-search-input" placeholder="Pay friends, merchants, or search..." onkeyup="renderTransactions()">
+    <!-- Scrollable Content Views -->
+    <main class="app-content">
 
-          <div class="gpay-header-actions">
-            <!-- Manual Cloud Sync Button -->
-            <button class="refresh-btn" id="refreshBtn" onclick="manualSyncFromSupabase(this)" title="Sync Cloud Data">
-              <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
+      <!-- PWA Install Popup Banner -->
+      <div class="pwa-install-banner" id="pwaInstallBanner" style="display: none;">
+        <div class="pwa-content">
+          <div class="pwa-icon"><i class="fa-brands fa-google-pay"></i></div>
+          <div class="pwa-text">
+            <strong>Install Finance Me App</strong>
+            <span>1-tap native GPay experience on home screen</span>
+          </div>
+        </div>
+        <div class="pwa-actions">
+          <button class="btn btn-secondary" onclick="dismissPwaBanner()" style="font-size: 10px; padding: 4px 8px;">Dismiss</button>
+          <button class="btn" onclick="triggerPwaInstall()" style="font-size: 11px; padding: 6px 12px;"><i class="fa-solid fa-download"></i> Install</button>
+        </div>
+      </div>
 
-            <!-- User Profile Avatar Bubble -->
-            <div class="gpay-profile-pill" onclick="switchTab('settings')" id="gpayHeaderAvatar">
-              S
+      <!-- ==========================================
+           TAB 1: GPAY DASHBOARD & ACTIVITY STREAM
+           ========================================== -->
+      <section id="tab-dashboard" class="tab-view active">
+        
+        <!-- Hero Financial Summary Card -->
+        <div class="card hero-card">
+          <div class="hero-balance-label">Net Monthly Cash Flow</div>
+          <div class="hero-balance-amount maskable-amount" id="dashNetCashFlow">₹0.00</div>
+          
+          <div class="hero-stats-grid">
+            <div class="stat-item">
+              <span class="stat-label"><i class="fa-solid fa-arrow-down-left" style="color: var(--gpay-green-light);"></i> Total Received</span>
+              <span class="stat-value credit maskable-amount" id="dashIncome">₹0.00</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label"><i class="fa-solid fa-arrow-up-right" style="color: var(--gpay-red-light);"></i> Total Paid</span>
+              <span class="stat-value debit maskable-amount" id="dashExpenses">₹0.00</span>
             </div>
           </div>
         </div>
-      </header>
 
-      <!-- Scrollable Content Views -->
-      <main class="app-content">
-
-        <!-- PWA Install Popup Banner -->
-        <div class="pwa-install-banner" id="pwaInstallBanner" style="display: none;">
-          <div class="pwa-content">
-            <div class="pwa-icon"><i class="fa-brands fa-google-pay"></i></div>
-            <div class="pwa-text">
-              <strong>Install Finance Me App</strong>
-              <span>1-tap native GPay experience on home screen</span>
+        <!-- GPAY QUICK ACTION BUTTONS -->
+        <div class="gpay-actions-grid">
+          <button class="gpay-action-btn" onclick="openAddModal()">
+            <div class="gpay-action-circle" style="background: rgba(66, 133, 244, 0.2); color: var(--gpay-blue-light);">
+              <i class="fa-solid fa-plus"></i>
             </div>
+            <span class="gpay-action-label">New Pay</span>
+          </button>
+
+          <button class="gpay-action-btn" onclick="switchTab('settings')">
+            <div class="gpay-action-circle" style="background: rgba(251, 188, 5, 0.2); color: var(--gpay-yellow-light);">
+              <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <span class="gpay-action-label">Scan / Parser</span>
+          </button>
+
+          <button class="gpay-action-btn" onclick="switchTab('taxonomy')">
+            <div class="gpay-action-circle" style="background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light);">
+              <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <span class="gpay-action-label">50/30/20 Rule</span>
+          </button>
+
+          <button class="gpay-action-btn" onclick="switchTab('strategy')">
+            <div class="gpay-action-circle" style="background: rgba(234, 67, 53, 0.2); color: var(--gpay-red-light);">
+              <i class="fa-solid fa-lightbulb"></i>
+            </div>
+            <span class="gpay-action-label">Advisor</span>
+          </button>
+        </div>
+
+        <!-- GPAY SIGNATURE: PEOPLE & RECENT MERCHANTS AVATAR ROW -->
+        <div>
+          <div class="gpay-section-header">
+            <span>People & Frequent Merchants</span>
+            <span onclick="openAddModal()"><i class="fa-solid fa-user-plus"></i> Add</span>
           </div>
-          <div class="pwa-actions">
-            <button class="btn btn-secondary" onclick="dismissPwaBanner()" style="font-size: 10px; padding: 4px 8px;">Dismiss</button>
-            <button class="btn" onclick="triggerPwaInstall()" style="font-size: 11px; padding: 6px 12px;"><i class="fa-solid fa-download"></i> Install</button>
+          
+          <div class="gpay-avatars-row" id="gpayAvatarsContainer">
+            <!-- Dynamically rendered by JS -->
           </div>
         </div>
 
-        <!-- ==========================================
-             TAB 1: GPAY DASHBOARD & ACTIVITY
-             ========================================== -->
-        <section id="tab-dashboard" class="tab-view active">
-          
-          <!-- Hero Financial Summary Card -->
-          <div class="card hero-card">
-            <div class="hero-balance-label">Net Monthly Cash Flow</div>
-            <div class="hero-balance-amount maskable-amount" id="dashNetCashFlow">₹0.00</div>
-            
-            <div class="hero-stats-grid">
-              <div class="stat-item">
-                <span class="stat-label"><i class="fa-solid fa-arrow-down-left" style="color: var(--gpay-green-light);"></i> Total Received</span>
-                <span class="stat-value credit maskable-amount" id="dashIncome">₹0.00</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-label"><i class="fa-solid fa-arrow-up-right" style="color: var(--gpay-red-light);"></i> Total Paid</span>
-                <span class="stat-value debit maskable-amount" id="dashExpenses">₹0.00</span>
-              </div>
-            </div>
-          </div>
+        <!-- Filter & Category Selector -->
+        <div style="display: flex; gap: 8px;">
+          <select id="categoryFilter" class="form-select" onchange="renderTransactions()" style="width: 100%;">
+            <option value="ALL">All Categories & Payments</option>
+            <option value="Unavoidable / Rent">🏠 Unavoidable (Rent / Bills)</option>
+            <option value="Unwanted / Leak">🛍️ Unwanted Leaks</option>
+            <option value="Investments">📈 Investments</option>
+            <option value="Income">💰 Income</option>
+          </select>
+        </div>
 
-          <!-- GPAY QUICK ACTION BUTTONS -->
-          <div class="gpay-actions-grid">
-            <button class="gpay-action-btn" onclick="openAddModal()">
-              <div class="gpay-action-circle" style="background: rgba(66, 133, 244, 0.2); color: var(--gpay-blue-light);">
-                <i class="fa-solid fa-plus"></i>
-              </div>
-              <span class="gpay-action-label">New Pay</span>
-            </button>
+        <!-- Transaction Activity Stream Header -->
+        <div class="gpay-section-header" style="margin-top: 4px;">
+          <span>Payment History & Transactions</span>
+          <span id="txnCountText">0 payments</span>
+        </div>
 
-            <button class="gpay-action-btn" onclick="switchTab('settings')">
-              <div class="gpay-action-circle" style="background: rgba(251, 188, 5, 0.2); color: var(--gpay-yellow-light);">
-                <i class="fa-solid fa-qrcode"></i>
-              </div>
-              <span class="gpay-action-label">Scan / Parser</span>
-            </button>
+        <!-- Dynamic Transactions Container -->
+        <div class="txn-list" id="txnContainer">
+          <!-- Rendered dynamically by JavaScript -->
+        </div>
+      </section>
 
-            <button class="gpay-action-btn" onclick="switchTab('taxonomy')">
-              <div class="gpay-action-circle" style="background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light);">
-                <i class="fa-solid fa-chart-pie"></i>
-              </div>
-              <span class="gpay-action-label">50/30/20 Rule</span>
-            </button>
-
-            <button class="gpay-action-btn" onclick="switchTab('strategy')">
-              <div class="gpay-action-circle" style="background: rgba(234, 67, 53, 0.2); color: var(--gpay-red-light);">
-                <i class="fa-solid fa-lightbulb"></i>
-              </div>
-              <span class="gpay-action-label">Advisor</span>
-            </button>
-          </div>
-
-          <!-- GPAY SIGNATURE: PEOPLE & RECENT MERCHANTS AVATAR ROW -->
-          <div>
-            <div class="gpay-section-header">
-              <span>People & Frequent Merchants</span>
-              <span onclick="openAddModal()"><i class="fa-solid fa-user-plus"></i> Add</span>
-            </div>
-            
-            <div class="gpay-avatars-row" id="gpayAvatarsContainer">
-              <!-- Dynamically rendered by JS -->
-            </div>
-          </div>
-
-          <!-- Filter & Category Selector -->
-          <div style="display: flex; gap: 8px;">
-            <select id="categoryFilter" class="form-select" onchange="renderTransactions()" style="width: 100%;">
-              <option value="ALL">All Categories & Payments</option>
-              <option value="Unavoidable / Rent">🏠 Unavoidable (Rent / Bills)</option>
-              <option value="Unwanted / Leak">🛍️ Unwanted Leaks</option>
-              <option value="Investments">📈 Investments</option>
-              <option value="Income">💰 Income</option>
-            </select>
-          </div>
-
-          <!-- Transaction Activity Stream Header -->
-          <div class="gpay-section-header" style="margin-top: 4px;">
-            <span>Payment History & Transactions</span>
-            <span id="txnCountText">0 payments</span>
-          </div>
-
-          <!-- Dynamic Transactions Container -->
-          <div class="txn-list" id="txnContainer">
-            <!-- Rendered dynamically by JavaScript -->
-          </div>
-        </section>
-
-        <!-- ==========================================
-             TAB 2: BUDGET & TAXONOMY (50/30/20)
-             ========================================== -->
-        <section id="tab-taxonomy" class="tab-view">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">
-                <i class="fa-solid fa-sitemap" style="color: var(--gpay-green-light);"></i> 50 / 30 / 20 Budget Rule Engine
-              </div>
-              <span class="card-subtitle">Google Analytics Split</span>
-            </div>
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-              Automatically splits logged income into Needs (50%), Unwanted Leaks (30%), Investments (15%), and Savings (5%).
-            </p>
-
-            <!-- Unavoidable Spending Bar -->
-            <div class="tax-bucket">
-              <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--gpay-blue-light);"></i> Needs (Rent/Bills 50%)</span>
-                <span class="tax-amount maskable-amount" id="taxNeedsVal">₹0 / ₹0</span>
-              </div>
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="taxNeedsBar" style="width: 0%; background: var(--gpay-blue);"></div>
-              </div>
-            </div>
-
-            <!-- Unwanted Spending Bar -->
-            <div class="tax-bucket">
-              <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--gpay-red-light);"></i> Unwanted Leaks (Target < 30%)</span>
-                <span class="tax-amount maskable-amount" id="taxWantsVal">₹0 / ₹0</span>
-              </div>
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="taxWantsBar" style="width: 0%; background: var(--gpay-red);"></div>
-              </div>
-            </div>
-
-            <!-- Investments Bar -->
-            <div class="tax-bucket">
-              <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-chart-line" style="color: var(--gpay-green-light);"></i> Investments (15% Target)</span>
-                <span class="tax-amount maskable-amount" id="taxInvestVal">₹0 / ₹0</span>
-              </div>
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="taxInvestBar" style="width: 0%; background: var(--gpay-green);"></div>
-              </div>
-            </div>
-
-            <!-- Savings Bar -->
-            <div class="tax-bucket">
-              <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-piggy-bank" style="color: var(--gpay-yellow-light);"></i> Savings/Reserve (5% Target)</span>
-                <span class="tax-amount maskable-amount" id="taxSavingsVal">₹0 / ₹0</span>
-              </div>
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="taxSavingsBar" style="width: 0%; background: var(--gpay-yellow);"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ==========================================
-             TAB 3: SAVINGS STRATEGY & ADVISOR
-             ========================================== -->
-        <section id="tab-strategy" class="tab-view">
-          
-          <div class="card" style="background: linear-gradient(135deg, rgba(52, 168, 83, 0.15), rgba(66, 133, 244, 0.1)); border-color: rgba(52, 168, 83, 0.3);">
-            <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); text-transform: uppercase; letter-spacing: 0.5px;">
-              <i class="fa-solid fa-piggy-bank"></i> How Much You Saved This Month
-            </div>
-            
-            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
-              <div style="font-size: 28px; font-weight: 800; color: #fff; font-family: var(--font-display);" class="maskable-amount" id="strategyTotalSaved">₹0.00</div>
-              <div style="font-size: 12px; font-weight: 700; background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
-                0% Savings Rate
-              </div>
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid var(--gpay-border); margin: 12px 0;">
-
-            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-              <i class="fa-solid fa-fire" style="color: var(--gpay-red-light);"></i> Where Did You Spend The Most?
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
-              <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--gpay-border);">
-                <div style="font-size: 10px; color: var(--text-muted);">Top Merchant</div>
-                <div style="font-weight: 700; color: #fff; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
-              </div>
-              <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--gpay-border);">
-                <div style="font-size: 10px; color: var(--text-muted);">Top Category</div>
-                <div style="font-weight: 700; color: var(--gpay-red-light); margin-top: 2px;" id="topCategoryVal">None logged</div>
-              </div>
-            </div>
-
-            <div style="display: flex; gap: 6px; margin-top: 10px;">
-              <div style="flex: 1; background: rgba(66, 133, 244, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(66, 133, 244, 0.2);">
-                <div style="font-size: 9px; color: var(--gpay-blue-light); font-weight: 700;">🏠 Rent/Needs</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unavoidableSum">₹0</div>
-              </div>
-
-              <div style="flex: 1; background: rgba(234, 67, 53, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(234, 67, 53, 0.2);">
-                <div style="font-size: 9px; color: var(--gpay-red-light); font-weight: 700;">🛍️ Unwanted Leaks</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unwantedSum">₹0</div>
-              </div>
-
-              <div style="flex: 1; background: rgba(52, 168, 83, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(52, 168, 83, 0.2);">
-                <div style="font-size: 9px; color: var(--gpay-green-light); font-weight: 700;">📈 Investments</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="investmentsSum">₹0</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="card-header" style="margin-top: 12px;">
+      <!-- ==========================================
+           TAB 2: BUDGET & TAXONOMY (50/30/20)
+           ========================================== -->
+      <section id="tab-taxonomy" class="tab-view">
+        <div class="card">
+          <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Actionable Ways To Save
+              <i class="fa-solid fa-sitemap" style="color: var(--gpay-green-light);"></i> 50 / 30 / 20 Budget Rule Engine
             </div>
-            <span class="card-subtitle">GPay Smart Advisor</span>
+            <span class="card-subtitle">Google Analytics Split</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+            Automatically splits logged income into Needs (50%), Unwanted Leaks (30%), Investments (15%), and Savings (5%).
+          </p>
+
+          <!-- Unavoidable Spending Bar -->
+          <div class="tax-bucket">
+            <div class="tax-header">
+              <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--gpay-blue-light);"></i> Needs (Rent/Bills 50%)</span>
+              <span class="tax-amount maskable-amount" id="taxNeedsVal">₹0 / ₹0</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="taxNeedsBar" style="width: 0%; background: var(--gpay-blue);"></div>
+            </div>
           </div>
 
-          <div id="waysToSaveContainer" style="display: flex; flex-direction: column; gap: 10px;">
-            <!-- Computed dynamically by JS -->
+          <!-- Unwanted Spending Bar -->
+          <div class="tax-bucket">
+            <div class="tax-header">
+              <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--gpay-red-light);"></i> Unwanted Leaks (Target < 30%)</span>
+              <span class="tax-amount maskable-amount" id="taxWantsVal">₹0 / ₹0</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="taxWantsBar" style="width: 0%; background: var(--gpay-red);"></div>
+            </div>
           </div>
-        </section>
 
-        <!-- ==========================================
-             TAB 4: SETTINGS, PROFILE & INGEST ENGINE
-             ========================================== -->
-        <section id="tab-settings" class="tab-view">
+          <!-- Investments Bar -->
+          <div class="tax-bucket">
+            <div class="tax-header">
+              <span class="tax-name"><i class="fa-solid fa-chart-line" style="color: var(--gpay-green-light);"></i> Investments (15% Target)</span>
+              <span class="tax-amount maskable-amount" id="taxInvestVal">₹0 / ₹0</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="taxInvestBar" style="width: 0%; background: var(--gpay-green);"></div>
+            </div>
+          </div>
+
+          <!-- Savings Bar -->
+          <div class="tax-bucket">
+            <div class="tax-header">
+              <span class="tax-name"><i class="fa-solid fa-piggy-bank" style="color: var(--gpay-yellow-light);"></i> Savings/Reserve (5% Target)</span>
+              <span class="tax-amount maskable-amount" id="taxSavingsVal">₹0 / ₹0</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="taxSavingsBar" style="width: 0%; background: var(--gpay-yellow);"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           TAB 3: SAVINGS STRATEGY & ADVISOR
+           ========================================== -->
+      <section id="tab-strategy" class="tab-view">
+        
+        <div class="card" style="background: linear-gradient(135deg, rgba(52, 168, 83, 0.15), rgba(66, 133, 244, 0.1)); border-color: rgba(52, 168, 83, 0.3);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-piggy-bank"></i> How Much You Saved This Month
+          </div>
           
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">
-                <i class="fa-solid fa-circle-user" style="color: var(--gpay-blue-light);"></i> Google Account & Profile
-              </div>
-              <span class="card-subtitle">User Settings</span>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
-              <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--gpay-blue), var(--gpay-green)); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; box-shadow: 0 0 16px rgba(66, 133, 244, 0.4);">
-                <span id="profileAvatarChar">S</span>
-              </div>
-              <div style="flex: 1;">
-                <input type="text" id="userNameInput" class="form-input" value="Shan" onchange="saveProfileSettings()" style="font-weight: 700; font-size: 15px; padding: 6px 10px;">
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Google Pay Verified Account</div>
-              </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <div class="form-group">
-                <label class="form-label">Monthly Target Income (₹)</label>
-                <input type="number" id="userSalaryInput" class="form-input" value="100000" onchange="saveProfileSettings()">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Currency Symbol</label>
-                <select id="userCurrencySelect" class="form-select" onchange="saveProfileSettings()">
-                  <option value="₹">₹ INR (Indian Rupee)</option>
-                  <option value="$">$ USD (US Dollar)</option>
-                  <option value="€">€ EUR (Euro)</option>
-                  <option value="£">£ GBP (Pound)</option>
-                </select>
-              </div>
+          <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
+            <div style="font-size: 28px; font-weight: 800; color: #fff; font-family: var(--font-display);" class="maskable-amount" id="strategyTotalSaved">₹0.00</div>
+            <div style="font-size: 12px; font-weight: 700; background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
+              0% Savings Rate
             </div>
           </div>
 
-          <!-- AUTOMATED INGESTION ENGINE -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">
-                <i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> MacroDroid & GPay Notification Webhook
-              </div>
-              <span class="card-subtitle">Automated Ingestion</span>
+          <hr style="border: 0; border-top: 1px solid var(--gpay-border); margin: 12px 0;">
+
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+            <i class="fa-solid fa-fire" style="color: var(--gpay-red-light);"></i> Where Did You Spend The Most?
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--gpay-border);">
+              <div style="font-size: 10px; color: var(--text-muted);">Top Merchant</div>
+              <div style="font-weight: 700; color: #fff; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
             </div>
-
-            <div style="background: var(--gpay-surface-elevated); border: 1px solid var(--gpay-border); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px;">
-              <div style="font-size: 10px; font-weight: 700; color: var(--gpay-blue-light); text-transform: uppercase; margin-bottom: 4px;">
-                <i class="fa-solid fa-link"></i> Live Webhook Endpoint URL
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <input type="text" readonly id="webhookUrlBox" class="form-input" value="https://finance-me-smoky-rho.vercel.app/api/ingest-notification" style="flex: 1; font-size: 11px; font-family: monospace; color: var(--gpay-green-light);" onclick="this.select()">
-                <button class="btn btn-secondary" onclick="copyWebhookUrl()" style="font-size: 11px; padding: 8px 12px;"><i class="fa-solid fa-copy"></i> Copy</button>
-              </div>
-            </div>
-
-            <div class="parser-box">
-              <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste real payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
-              <button class="btn btn-full" onclick="parseRawNotification()">
-                <i class="fa-solid fa-microchip"></i> Parse Notification RegEx
-              </button>
-            </div>
-
-            <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
-              <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><i class="fa-solid fa-check-circle"></i> REGEX MATCH CONFIRMED</span>
-                <span id="parsedConfidence">Status: Valid</span>
-              </div>
-              <div class="parsed-row"><span class="parsed-key">Merchant:</span> <span class="parsed-val" id="resMerchant">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Type:</span> <span class="parsed-val" id="resType">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Category:</span> <span class="parsed-val" id="resCategory">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
-
-              <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Save to GPay History & Supabase
-              </button>
+            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--gpay-border);">
+              <div style="font-size: 10px; color: var(--text-muted);">Top Category</div>
+              <div style="font-weight: 700; color: var(--gpay-red-light); margin-top: 2px;" id="topCategoryVal">None logged</div>
             </div>
           </div>
 
-          <!-- Cloud Sync & Controls -->
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">
-                <i class="fa-solid fa-cloud" style="color: var(--gpay-blue-light);"></i> Supabase Database Controls
-              </div>
-              <span class="card-subtitle">Cloud Status</span>
+          <div style="display: flex; gap: 6px; margin-top: 10px;">
+            <div style="flex: 1; background: rgba(66, 133, 244, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(66, 133, 244, 0.2);">
+              <div style="font-size: 9px; color: var(--gpay-blue-light); font-weight: 700;">🏠 Rent/Needs</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unavoidableSum">₹0</div>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
-              <button class="btn btn-secondary" onclick="togglePrivateMode()" style="justify-content: flex-start; font-size: 12px;">
-                <i class="fa-solid fa-eye-slash" id="privacyIcon"></i> <span id="privacyBtnText">Enable Privacy Mode (Blur Amounts)</span>
-              </button>
+            <div style="flex: 1; background: rgba(234, 67, 53, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(234, 67, 53, 0.2);">
+              <div style="font-size: 9px; color: var(--gpay-red-light); font-weight: 700;">🛍️ Unwanted Leaks</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unwantedSum">₹0</div>
+            </div>
 
-              <button class="btn btn-secondary" onclick="exportTransactionsCSV()" style="justify-content: flex-start; font-size: 12px;">
-                <i class="fa-solid fa-file-csv" style="color: var(--gpay-yellow-light);"></i> Export Transactions to CSV
-              </button>
+            <div style="flex: 1; background: rgba(52, 168, 83, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(52, 168, 83, 0.2);">
+              <div style="font-size: 9px; color: var(--gpay-green-light); font-weight: 700;">📈 Investments</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="investmentsSum">₹0</div>
+            </div>
+          </div>
+        </div>
 
-              <button class="btn btn-secondary" style="justify-content: flex-start; font-size: 12px; color: var(--gpay-red-light); border-color: rgba(234, 67, 53, 0.3);" onclick="clearAllRealData()">
-                <i class="fa-solid fa-trash-can"></i> Clear All Saved Data
-              </button>
+        <div class="card-header" style="margin-top: 12px;">
+          <div class="card-title">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Actionable Ways To Save
+          </div>
+          <span class="card-subtitle">GPay Smart Advisor</span>
+        </div>
+
+        <div id="waysToSaveContainer" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Computed dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- ==========================================
+           TAB 4: SETTINGS, PROFILE & INGEST ENGINE
+           ========================================== -->
+      <section id="tab-settings" class="tab-view">
+        
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-circle-user" style="color: var(--gpay-blue-light);"></i> Google Account & Profile
+            </div>
+            <span class="card-subtitle">User Settings</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--gpay-blue), var(--gpay-green)); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; box-shadow: 0 0 16px rgba(66, 133, 244, 0.4);">
+              <span id="profileAvatarChar">S</span>
+            </div>
+            <div style="flex: 1;">
+              <input type="text" id="userNameInput" class="form-input" value="Shan" onchange="saveProfileSettings()" style="font-weight: 700; font-size: 15px; padding: 6px 10px;">
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Google Pay Verified Account</div>
             </div>
           </div>
 
-        </section>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label">Monthly Target Income (₹)</label>
+              <input type="number" id="userSalaryInput" class="form-input" value="100000" onchange="saveProfileSettings()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Currency Symbol</label>
+              <select id="userCurrencySelect" class="form-select" onchange="saveProfileSettings()">
+                <option value="₹">₹ INR (Indian Rupee)</option>
+                <option value="$">$ USD (US Dollar)</option>
+                <option value="€">€ EUR (Euro)</option>
+                <option value="£">£ GBP (Pound)</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-      </main>
+        <!-- AUTOMATED INGESTION ENGINE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> MacroDroid & GPay Notification Webhook
+            </div>
+            <span class="card-subtitle">Automated Ingestion</span>
+          </div>
 
-      <!-- BOTTOM GPAY NAV BAR -->
-      <nav class="app-nav">
-        <a class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
-          <i class="fa-solid fa-house"></i>
-          <span>Home</span>
-        </a>
-        <a class="nav-item" onclick="switchTab('taxonomy')" id="nav-taxonomy">
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>Budget</span>
-        </a>
-        <a class="nav-item" onclick="switchTab('strategy')" id="nav-strategy">
-          <i class="fa-solid fa-lightbulb"></i>
-          <span>Strategy</span>
-        </a>
-        <a class="nav-item" onclick="switchTab('settings')" id="nav-settings">
-          <i class="fa-solid fa-gear"></i>
-          <span>Settings</span>
-        </a>
-      </nav>
+          <div style="background: var(--gpay-surface-elevated); border: 1px solid var(--gpay-border); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px;">
+            <div style="font-size: 10px; font-weight: 700; color: var(--gpay-blue-light); text-transform: uppercase; margin-bottom: 4px;">
+              <i class="fa-solid fa-link"></i> Live Webhook Endpoint URL
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="text" readonly id="webhookUrlBox" class="form-input" value="https://finance-me-smoky-rho.vercel.app/api/ingest-notification" style="flex: 1; font-size: 11px; font-family: monospace; color: var(--gpay-green-light);" onclick="this.select()">
+              <button class="btn btn-secondary" onclick="copyWebhookUrl()" style="font-size: 11px; padding: 8px 12px;"><i class="fa-solid fa-copy"></i> Copy</button>
+            </div>
+          </div>
 
-    </div>
+          <div class="parser-box">
+            <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste real payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
+            <button class="btn btn-full" onclick="parseRawNotification()">
+              <i class="fa-solid fa-microchip"></i> Parse Notification RegEx
+            </button>
+          </div>
+
+          <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); margin-bottom: 6px; display: flex; justify-content: space-between;">
+              <span><i class="fa-solid fa-check-circle"></i> REGEX MATCH CONFIRMED</span>
+              <span id="parsedConfidence">Status: Valid</span>
+            </div>
+            <div class="parsed-row"><span class="parsed-key">Merchant:</span> <span class="parsed-val" id="resMerchant">-</span></div>
+            <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
+            <div class="parsed-row"><span class="parsed-key">Type:</span> <span class="parsed-val" id="resType">-</span></div>
+            <div class="parsed-row"><span class="parsed-key">Category:</span> <span class="parsed-val" id="resCategory">-</span></div>
+            <div class="parsed-row"><span class="parsed-key">Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
+
+            <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Save to GPay History & Supabase
+            </button>
+          </div>
+        </div>
+
+        <!-- Cloud Sync & Controls -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-cloud" style="color: var(--gpay-blue-light);"></i> Supabase Database Controls
+            </div>
+            <span class="card-subtitle">Cloud Status</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+            <button class="btn btn-secondary" onclick="togglePrivateMode()" style="justify-content: flex-start; font-size: 12px;">
+              <i class="fa-solid fa-eye-slash" id="privacyIcon"></i> <span id="privacyBtnText">Enable Privacy Mode (Blur Amounts)</span>
+            </button>
+
+            <button class="btn btn-secondary" onclick="exportTransactionsCSV()" style="justify-content: flex-start; font-size: 12px;">
+              <i class="fa-solid fa-file-csv" style="color: var(--gpay-yellow-light);"></i> Export Transactions to CSV
+            </button>
+
+            <button class="btn btn-secondary" style="justify-content: flex-start; font-size: 12px; color: var(--gpay-red-light); border-color: rgba(234, 67, 53, 0.3);" onclick="clearAllRealData()">
+              <i class="fa-solid fa-trash-can"></i> Clear All Saved Data
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- BOTTOM GPAY NAV BAR -->
+    <nav class="app-nav">
+      <a class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
+        <i class="fa-solid fa-house"></i>
+        <span>Home</span>
+      </a>
+      <a class="nav-item" onclick="switchTab('taxonomy')" id="nav-taxonomy">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Budget</span>
+      </a>
+      <a class="nav-item" onclick="switchTab('strategy')" id="nav-strategy">
+        <i class="fa-solid fa-lightbulb"></i>
+        <span>Strategy</span>
+      </a>
+      <a class="nav-item" onclick="switchTab('settings')" id="nav-settings">
+        <i class="fa-solid fa-gear"></i>
+        <span>Settings</span>
+      </a>
+    </nav>
+
   </div>
 
   <!-- ADD / EDIT TRANSACTION MODAL -->
