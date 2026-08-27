@@ -12,25 +12,24 @@ module.exports = async (req, res) => {
 
   try {
     // Universal Payload Parser - Extract text from EVERY possible format MacroDroid can send
-    let rawText = '';
-
-    const ct = (req.headers['content-type'] || '').toLowerCase();
-
-    if (typeof req.body === 'string' && req.body.trim().length > 0) {
-      // Plain text/plain or raw string body
-      rawText = req.body;
-    } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
-      // JSON or form-encoded body — try every known key
-      const vals = Object.values(req.body).filter(v => typeof v === 'string' && v.trim().length > 2);
-      rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message ||
-                req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms ||
-                req.body.content || req.body.data ||
-                (vals.length > 0 ? vals.join(' ') : '');
+    // 1. Check URL Query Parameters FIRST (e.g. ?sms=[sms_body] from MacroDroid)
+    if (req.query) {
+      rawText = req.query.sms || req.query.rawText || req.query.text || req.query.message || req.query.body || '';
     }
 
-    // Check query string as final fallback
-    if ((!rawText || rawText.trim().length < 3) && req.query) {
-      rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || req.query.body || '';
+    // 2. If query parameter is empty, check HTTP Body (POST body)
+    if (!rawText || rawText.trim().length < 3) {
+      if (typeof req.body === 'string' && req.body.trim().length > 0) {
+        rawText = req.body;
+      } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+        rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message ||
+                  req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms ||
+                  req.body.content || req.body.data || '';
+        if (!rawText) {
+          const vals = Object.values(req.body).filter(v => typeof v === 'string' && v.trim().length > 3);
+          if (vals.length > 0) rawText = vals.join(' ');
+        }
+      }
     }
 
     // Check for un-expanded MacroDroid placeholder variables (e.g. "[sms_body]", "{sms_body}", "[not_text]")
