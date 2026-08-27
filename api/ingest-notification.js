@@ -30,36 +30,44 @@ module.exports = async (req, res) => {
       rawText = 'UPI Payment Notification';
     }
 
-    // High-Precision Amount Extractor (Matches "Sent Rs.1.00", "Rs.10.00 credited", "Re. 1")
-    const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|received|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
-    const amountMatch = rawText.match(amountRegex);
+    // Clean multiline newlines into single spaces for robust regex matching
+    const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // High-Precision Amount Extractor (Matches "Sent Rs.1.00", "Rs.10.00 credited", "Rs. 10.00")
+    const amountRegex = /(?:sent\s*rs\.?|sent\s*re\.?|rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|received|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
+    const amountMatch = cleanText.match(amountRegex);
 
     let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
     
-    // Fallback amount finder - Extracts the first standalone number/decimal
+    // Fallback amount finder - Extracts the first standalone number with decimal or digit
     if (!amount || amount === 0) {
-      const anyNumMatch = rawText.match(/(\d+(?:\.\d{1,2})?)/);
-      if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
+      const numMatches = cleanText.match(/\b(\d+(?:\.\d{1,2})?)\b/g);
+      if (numMatches && numMatches.length > 0) {
+        // Pick the number that represents transaction value (ignore bank A/C numbers or phone/ref numbers)
+        const validAmounts = numMatches.map(n => parseFloat(n)).filter(n => n > 0 && n < 1000000 && !n.toString().includes('1009') && !n.toString().includes('1800'));
+        if (validAmounts.length > 0) amount = validAmounts[0];
+      }
     }
 
     if (!amount || amount === 0) amount = 1.00;
 
-    // Bulletproof Credit (Received) vs Debit (Paid) Detection
-    const isCredit = /credit alert|credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(rawText) && 
-                     !/sent rs|debited|spent|paid|sent to|transferred to/i.test(rawText);
+    // Bulletproof Debit vs Credit Classification
+    const isDebit = /sent|debited|spent|paid|sent to|transferred to/i.test(cleanText);
+    const isCredit = /credit alert|credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(cleanText) && !isDebit;
+    
     const type = isCredit ? 'Credit' : 'Debit';
 
     let merchant = req.body?.sender || 'UPI Transfer';
 
     // 1. Sent Debit Format (e.g. "To SOPHY ROSE JOSEPHINA")
-    const toMatch = rawText.match(/To\s+([A-Za-z0-9\s&.\-@]+?)(?=\r?\n|On\s+|Ref\s+|\.|$)/i);
+    const toMatch = cleanText.match(/To\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+On|\s+Ref|\s+Not|\.|$)/i);
     if (toMatch && toMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(toMatch[1])) {
       merchant = toMatch[1].trim();
     }
 
     // 2. Credit Format (e.g. "from VPA sophyrosemanivarnan47744@okicici" or "from John Doe")
     if (isCredit) {
-      const fromMatch = rawText.match(/from\s+(?:VPA\s+)?([A-Za-z0-9\s&.\-@]+?)(?=\s+\(UPI|\s+Ref|\s+on|\r?\n|\.|$)/i);
+      const fromMatch = cleanText.match(/from\s+(?:VPA\s+)?([A-Za-z0-9\s&.\-@]+?)(?=\s+\(UPI|\s+Ref|\s+on|\.|$)/i);
       if (fromMatch && fromMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(fromMatch[1])) {
         let rawSender = fromMatch[1].trim();
         if (rawSender.includes('@')) {
@@ -75,17 +83,17 @@ module.exports = async (req, res) => {
     let category = 'Unwanted / Leak';
     if (isCredit) {
       category = 'Income';
-    } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(rawText + merchant)) {
+    } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(cleanText + merchant)) {
       category = 'Investments';
-    } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(rawText + merchant)) {
+    } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(cleanText + merchant)) {
       category = 'Unavoidable / Rent';
     }
 
     // Mode Detection
     let mode = 'GPay / UPI Auto-Sync';
-    if (/credit card|card ending|cc/i.test(rawText)) {
+    if (/credit card|card ending|cc/i.test(cleanText)) {
       mode = 'Credit Card';
-    } else if (/netbank|neft|rtgs|imps/i.test(rawText)) {
+    } else if (/netbank|neft|rtgs|imps/i.test(cleanText)) {
       mode = 'Net Banking';
     }
 
@@ -100,7 +108,7 @@ module.exports = async (req, res) => {
       mode,
       date: new Date(timestamp).toISOString().split('T')[0],
       tags: ['#auto-ingested', `#${(merchant || 'upi').toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-      notes: `Auto-ingested: "${rawText.substring(0, 60)}"`,
+      notes: `Auto-ingested: "${cleanText.substring(0, 60)}"`,
       raw_text: rawText
     };
 
