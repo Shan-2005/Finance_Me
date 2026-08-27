@@ -1,5 +1,4 @@
-// Finance Me PWA Service Worker — Network-First with Cache Cleanup (BUG-14 fix)
-const CACHE_VERSION = 'finance-me-v3';
+const CACHE_VERSION = 'finance-me-v4';
 const STATIC_ASSETS = ['/', '/index.html', '/app.js', '/styles.css', '/manifest.json', '/logo.png'];
 
 // Install: cache core static assets immediately

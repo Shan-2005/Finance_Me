@@ -263,7 +263,7 @@ function manualSyncFromSupabase(btnElement) {
   });
 }
 
-// Fetch Real Transactions from Supabase Database (Auto-Merging & Instant UI Sync)
+// Fetch Real Transactions from Supabase Database (Cloud Source of Truth & Instant UI Sync)
 function fetchTransactionsFromSupabase(onComplete) {
   if (!SUPABASE_KEY) {
     if (onComplete) onComplete();
@@ -279,26 +279,24 @@ function fetchTransactionsFromSupabase(onComplete) {
   .then(res => res.json())
   .then(data => {
     if (Array.isArray(data)) {
-      const txMap = new Map();
-      data.forEach(t => txMap.set(t.id, t));
-      transactions.forEach(t => {
-        if (!txMap.has(t.id)) txMap.set(t.id, t);
-      });
-
-      const merged = Array.from(txMap.values());
       // Sort by full ISO timestamp so newest SMS auto-sync always shows at top
-      merged.sort((a, b) => {
+      data.sort((a, b) => {
         const da = new Date(b.date);
         const db = new Date(a.date);
         if (!isNaN(da) && !isNaN(db)) return da - db;
         return String(b.id).localeCompare(String(a.id));
       });
 
-      if (JSON.stringify(merged) !== JSON.stringify(transactions)) {
-        transactions = merged;
-        saveToLocalStorage();
-      renderTransactions();
-        console.log('[Supabase Auto-Sync]: Updated', transactions.length, 'transactions');
+      if (JSON.stringify(data) !== JSON.stringify(transactions)) {
+        transactions = data;
+        localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
+        if (transactions.length === 0) {
+          localStorage.removeItem('finance_me_vault_snapshot');
+        } else {
+          saveToLocalStorage();
+        }
+        renderTransactions();
+        console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions from cloud');
       }
     }
     if (onComplete) onComplete();
@@ -830,8 +828,9 @@ function clearAllRealData() {
     if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
       const allIds = transactions.map(t => t.id);
       transactions = [];
-      saveToLocalStorage();
-        renderTransactions();
+      localStorage.removeItem('finance_me_transactions');
+      localStorage.removeItem('finance_me_vault_snapshot');
+      renderTransactions();
 
       if (SUPABASE_KEY && allIds.length > 0) {
         // BUG-15: PostgREST in() for text columns needs unquoted CSV values
