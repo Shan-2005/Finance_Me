@@ -57,6 +57,13 @@ html, body {
   justify-content: flex-start;
 }
 
+/* Privacy Mode Blur Filter */
+.privacy-blur {
+  filter: blur(6px) !important;
+  user-select: none !important;
+  transition: filter 0.2s ease;
+}
+
 /* Base Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

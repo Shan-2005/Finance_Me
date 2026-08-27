@@ -10,12 +10,17 @@ let transactions = JSON.parse(localStorage.getItem('finance_me_transactions') ||
 let lastParsedTransaction = null;
 let currentAppVersion = null;
 let deferredPwaPrompt = null;
+let isPrivateModeActive = false;
+
+// Profile Settings
+let userProfile = JSON.parse(localStorage.getItem('finance_me_profile') || '{"name":"Shan","salary":100000,"currency":"₹"}');
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('inputDate');
   if (dateInput) dateInput.valueAsDate = new Date();
   
+  loadProfileSettings();
   renderTransactions();
   updateMetricsAndTaxonomy();
 
@@ -31,18 +36,107 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => console.log('[PWA SW Error]:', err));
   }
 
-  // Handle PWA Install Prompt (Show ONLY if NOT already installed)
+  // Handle PWA Install Prompt
   initPwaInstallPrompt();
 });
 
-// PWA Installation Detector & Handler
+// Load & Save User Profile Settings
+function loadProfileSettings() {
+  const nameInput = document.getElementById('userNameInput');
+  const salaryInput = document.getElementById('userSalaryInput');
+  const currSelect = document.getElementById('userCurrencySelect');
+  const avatarChar = document.getElementById('profileAvatarChar');
+
+  if (nameInput) nameInput.value = userProfile.name || 'Shan';
+  if (salaryInput) salaryInput.value = userProfile.salary || 100000;
+  if (currSelect) currSelect.value = userProfile.currency || '₹';
+  if (avatarChar) avatarChar.innerText = (userProfile.name || 'S').charAt(0).toUpperCase();
+}
+
+function saveProfileSettings() {
+  const nameInput = document.getElementById('userNameInput');
+  const salaryInput = document.getElementById('userSalaryInput');
+  const currSelect = document.getElementById('userCurrencySelect');
+  const avatarChar = document.getElementById('profileAvatarChar');
+
+  userProfile.name = nameInput ? nameInput.value.trim() : 'Shan';
+  userProfile.salary = salaryInput ? parseFloat(salaryInput.value) || 100000 : 100000;
+  userProfile.currency = currSelect ? currSelect.value : '₹';
+
+  if (avatarChar) avatarChar.innerText = userProfile.name.charAt(0).toUpperCase();
+
+  localStorage.setItem('finance_me_profile', JSON.stringify(userProfile));
+  updateMetricsAndTaxonomy();
+}
+
+// Copy Webhook URL to Clipboard
+function copyWebhookUrl() {
+  const box = document.getElementById('webhookUrlBox');
+  if (!box) return;
+
+  box.select();
+  navigator.clipboard.writeText(box.value).then(() => {
+    alert('✅ Webhook URL copied to clipboard!\nPaste this into your MacroDroid HTTP POST action.');
+  }).catch(() => {
+    alert('Webhook URL selected! Press Ctrl+C / Cmd+C to copy.');
+  });
+}
+
+// Toggle Private Mode Blur
+function togglePrivateMode() {
+  isPrivateModeActive = !isPrivateModeActive;
+  const elements = document.querySelectorAll('.maskable-amount');
+  const btnText = document.getElementById('privacyBtnText');
+  const privacyIcon = document.getElementById('privacyIcon');
+
+  elements.forEach(el => {
+    if (isPrivateModeActive) {
+      el.classList.add('privacy-blur');
+    } else {
+      el.classList.remove('privacy-blur');
+    }
+  });
+
+  if (btnText) btnText.innerText = isPrivateModeActive ? 'Disable Privacy Mode (Show Amounts)' : 'Enable Privacy Mode (Blur Amounts)';
+  if (privacyIcon) privacyIcon.className = isPrivateModeActive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+}
+
+// Export Transactions to CSV
+function exportTransactionsCSV() {
+  if (transactions.length === 0) {
+    alert('No real transactions logged to export!');
+    return;
+  }
+
+  const headers = ['ID', 'Date', 'Merchant', 'Amount', 'Type', 'Category', 'Payment Mode', 'Notes'];
+  const rows = transactions.map(t => [
+    t.id,
+    t.date,
+    `"${(t.merchant || '').replace(/"/g, '""')}"`,
+    t.amount,
+    t.type,
+    `"${t.category}"`,
+    `"${t.mode}"`,
+    `"${(t.notes || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `Finance_Me_Report_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// PWA Installation Handler
 function initPwaInstallPrompt() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                        window.navigator.standalone || 
                        document.referrer.includes('android-app://');
 
   if (isStandalone) {
-    console.log('[PWA]: App is already installed and running in standalone mode. Hiding install banner.');
     const banner = document.getElementById('pwaInstallBanner');
     if (banner) banner.style.display = 'none';
     return;
@@ -58,21 +152,16 @@ function initPwaInstallPrompt() {
   });
 
   window.addEventListener('appinstalled', () => {
-    console.log('[PWA]: Finance Me successfully installed!');
     const banner = document.getElementById('pwaInstallBanner');
     if (banner) banner.style.display = 'none';
     deferredPwaPrompt = null;
   });
 }
 
-// User clicks Install on PWA Banner
 function triggerPwaInstall() {
   if (deferredPwaPrompt) {
     deferredPwaPrompt.prompt();
     deferredPwaPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('[PWA]: User accepted installation prompt');
-      }
       deferredPwaPrompt = null;
       const banner = document.getElementById('pwaInstallBanner');
       if (banner) banner.style.display = 'none';
@@ -82,14 +171,13 @@ function triggerPwaInstall() {
   }
 }
 
-// User dismisses PWA Banner
 function dismissPwaBanner() {
   const banner = document.getElementById('pwaInstallBanner');
   if (banner) banner.style.display = 'none';
   sessionStorage.setItem('pwa_banner_dismissed', 'true');
 }
 
-// Manual Refresh & Cloud Sync Button Handler
+// Manual Refresh & Cloud Sync Handler
 function manualSyncFromSupabase(btnElement) {
   const icon = btnElement ? btnElement.querySelector('i') : document.querySelector('#refreshBtn i');
   if (icon) icon.classList.add('spin-anim');
@@ -120,7 +208,6 @@ function fetchTransactionsFromSupabase(onComplete) {
       transactions = data;
       saveToLocalStorage();
       renderTransactions();
-      console.log('[Supabase Cloud Sync]: Loaded', data.length, 'transactions');
     }
     if (onComplete) onComplete();
   })
@@ -130,7 +217,7 @@ function fetchTransactionsFromSupabase(onComplete) {
   });
 }
 
-// Automatic Version Check to force fresh code on Git push
+// Automatic Version Check
 function checkAutoUpdate() {
   fetch('/api/version?t=' + Date.now(), { cache: 'no-store' })
     .then(res => res.json())
@@ -139,7 +226,6 @@ function checkAutoUpdate() {
         if (!currentAppVersion) {
           currentAppVersion = data.version;
         } else if (currentAppVersion !== data.version) {
-          console.log('[Auto-Update]: New Git build detected! Refreshing...');
           window.location.reload(true);
         }
       }
@@ -173,7 +259,7 @@ function setDeviceRatio(mode, btnElement) {
   frame.className = `device-frame mode-${mode}`;
 }
 
-// Category Icon & Color Mapping
+// Category Meta Mapping
 function getCategoryMeta(category) {
   switch (category) {
     case 'Unavoidable / Rent':
@@ -199,6 +285,7 @@ function renderTransactions() {
 
   const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
   const catFilter = catFilterInput ? catFilterInput.value : 'ALL';
+  const curr = userProfile.currency || '₹';
 
   const filtered = transactions.filter(t => {
     const matchesSearch = (t.merchant || '').toLowerCase().includes(searchQuery) ||
@@ -248,7 +335,7 @@ function renderTransactions() {
 
   container.innerHTML = filtered.map(t => {
     const meta = getCategoryMeta(t.category);
-    const formattedAmount = `₹${parseFloat(t.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    const formattedAmount = `${curr}${parseFloat(t.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
     const tagBadges = (t.tags || []).map(tag => `<span class="txn-tag">${tag}</span>`).join(' ');
 
     return `
@@ -268,7 +355,7 @@ function renderTransactions() {
           </div>
         </div>
         <div class="txn-right">
-          <span class="txn-amount ${t.type === 'Credit' ? 'credit' : 'debit'}">
+          <span class="txn-amount ${t.type === 'Credit' ? 'credit' : 'debit'} maskable-amount ${isPrivateModeActive ? 'privacy-blur' : ''}">
             ${t.type === 'Credit' ? '+' : '-'}${formattedAmount}
           </span>
           <div class="txn-actions">
@@ -283,17 +370,18 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Real Summary Metrics, Savings Intelligence & Dynamic Advice
+// Calculate Summary Metrics, Savings Intelligence & Strategy
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
 
-  let unavoidableSum = 0; // Rent, Bills, EMI, Needs
-  let unwantedSum = 0;     // Food delivery, Impulse, Discretionary
-  let investSum = 0;       // Stocks, SIPs, Gold
+  let unavoidableSum = 0;
+  let unwantedSum = 0;
+  let investSum = 0;
 
   const merchantTotals = {};
   const categoryTotals = {};
+  const curr = userProfile.currency || '₹';
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount || 0);
@@ -302,9 +390,8 @@ function updateMetricsAndTaxonomy() {
     } else {
       expenses += amt;
 
-      // Merchant spending tracking
       merchantTotals[t.merchant] = (merchantTotals[t.merchant] || 0) + amt;
-      categoryTotals[t.category] = (categoryTotals[c = t.category] || 0) + amt;
+      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + amt;
 
       if (t.category === 'Unavoidable / Rent' || t.category === 'Fixed Needs') {
         unavoidableSum += amt;
@@ -313,7 +400,7 @@ function updateMetricsAndTaxonomy() {
       } else if (t.category === 'Investments') {
         investSum += amt;
       } else {
-        unavoidableSum += amt; // Default fallback
+        unavoidableSum += amt;
       }
     }
   });
@@ -322,26 +409,26 @@ function updateMetricsAndTaxonomy() {
   const netSaved = Math.max(0, netCashFlow);
   const savingsRate = income > 0 ? ((netSaved / income) * 100).toFixed(1) : 0;
 
-  // 1. Dashboard Metrics
-  document.getElementById('dashIncome').innerText = `₹${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  document.getElementById('dashExpenses').innerText = `₹${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  document.getElementById('dashNetCashFlow').innerText = `₹${netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  // Dashboard Metrics
+  document.getElementById('dashIncome').innerText = `${curr}${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  document.getElementById('dashExpenses').innerText = `${curr}${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  document.getElementById('dashNetCashFlow').innerText = `${curr}${netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  // 2. Savings Strategy Tab Intelligence
-  document.getElementById('strategyTotalSaved').innerText = `₹${netSaved.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  // Strategy Tab Metrics
+  document.getElementById('strategyTotalSaved').innerText = `${curr}${netSaved.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('strategySavingsRate').innerText = `${savingsRate}% Savings Rate`;
 
-  document.getElementById('unavoidableSum').innerText = `₹${unavoidableSum.toLocaleString('en-IN')}`;
-  document.getElementById('unwantedSum').innerText = `₹${unwantedSum.toLocaleString('en-IN')}`;
-  document.getElementById('investmentsSum').innerText = `₹${investSum.toLocaleString('en-IN')}`;
+  document.getElementById('unavoidableSum').innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')}`;
+  document.getElementById('unwantedSum').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')}`;
+  document.getElementById('investmentsSum').innerText = `${curr}${investSum.toLocaleString('en-IN')}`;
 
-  // Find Top Merchant & Top Category
+  // Top Merchant & Category
   let topMerchant = 'None logged';
   let topMerchantMax = 0;
   for (const m in merchantTotals) {
     if (merchantTotals[m] > topMerchantMax) {
       topMerchantMax = merchantTotals[m];
-      topMerchant = `${m} (₹${topMerchantMax.toLocaleString()})`;
+      topMerchant = `${m} (${curr}${topMerchantMax.toLocaleString()})`;
     }
   }
 
@@ -350,92 +437,89 @@ function updateMetricsAndTaxonomy() {
   for (const c in categoryTotals) {
     if (categoryTotals[c] > topCatMax) {
       topCatMax = categoryTotals[c];
-      topCat = `${c} (₹${topCatMax.toLocaleString()})`;
+      topCat = `${c} (${curr}${topCatMax.toLocaleString()})`;
     }
   }
 
   document.getElementById('topMerchantVal').innerText = topMerchant;
   document.getElementById('topCategoryVal').innerText = topCat;
 
-  // 3. Taxonomy 50/30/20 Rule Targets based on Income
-  const targetNeeds = income > 0 ? income * 0.50 : 0;
-  const targetWants = income > 0 ? income * 0.30 : 0;
-  const targetInvest = income > 0 ? income * 0.15 : 0;
-  const targetSavings = income > 0 ? income * 0.05 : 0;
+  // 50/30/20 Budget Targets based on Salary or Income
+  const baseTargetIncome = income > 0 ? income : (userProfile.salary || 100000);
+  const targetNeeds = baseTargetIncome * 0.50;
+  const targetWants = baseTargetIncome * 0.30;
+  const targetInvest = baseTargetIncome * 0.15;
+  const targetSavings = baseTargetIncome * 0.05;
 
-  document.getElementById('taxNeedsVal').innerText = `₹${unavoidableSum.toLocaleString()} / ₹${targetNeeds.toLocaleString()}`;
-  document.getElementById('taxNeedsBar').style.width = `${income > 0 ? Math.min(100, (unavoidableSum / targetNeeds) * 100) : 0}%`;
+  document.getElementById('taxNeedsVal').innerText = `${curr}${unavoidableSum.toLocaleString()} / ${curr}${targetNeeds.toLocaleString()}`;
+  document.getElementById('taxNeedsBar').style.width = `${Math.min(100, (unavoidableSum / targetNeeds) * 100)}%`;
 
-  document.getElementById('taxWantsVal').innerText = `₹${unwantedSum.toLocaleString()} / ₹${targetWants.toLocaleString()}`;
-  document.getElementById('taxWantsBar').style.width = `${income > 0 ? Math.min(100, (unwantedSum / targetWants) * 100) : 0}%`;
+  document.getElementById('taxWantsVal').innerText = `${curr}${unwantedSum.toLocaleString()} / ${curr}${targetWants.toLocaleString()}`;
+  document.getElementById('taxWantsBar').style.width = `${Math.min(100, (unwantedSum / targetWants) * 100)}%`;
 
-  document.getElementById('taxInvestVal').innerText = `₹${investSum.toLocaleString()} / ₹${targetInvest.toLocaleString()}`;
-  document.getElementById('taxInvestBar').style.width = `${income > 0 ? Math.min(100, (investSum / targetInvest) * 100) : 0}%`;
+  document.getElementById('taxInvestVal').innerText = `${curr}${investSum.toLocaleString()} / ${curr}${targetInvest.toLocaleString()}`;
+  document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / targetInvest) * 100)}%`;
 
-  document.getElementById('taxSavingsVal').innerText = `₹${netSaved.toLocaleString()} / ₹${targetSavings.toLocaleString()}`;
-  document.getElementById('taxSavingsBar').style.width = `${income > 0 ? Math.min(100, (netSaved / targetSavings) * 100) : 0}%`;
+  document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString()} / ${curr}${targetSavings.toLocaleString()}`;
+  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / targetSavings) * 100)}%`;
 
-  // 4. Generate Calculated "Ways to Save" Advisory
-  renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, topMerchant);
+  // Dynamic Ways to Save
+  renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
 }
 
-// Generate Concrete Actionable "Ways to Save"
-function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest, saved, topMerchant) {
+// Generate Ways to Save Advice
+function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest, saved, curr) {
   const container = document.getElementById('waysToSaveContainer');
   if (!container) return;
 
   const adviceList = [];
 
-  // Advice 1: Unwanted Leaks Reduction
   if (unwanted > 0) {
     const potentialSaving = (unwanted * 0.30).toFixed(0);
     adviceList.push({
       icon: 'fa-triangle-exclamation',
       color: '#f43f5e',
       title: 'Unwanted Spending Leak Detected',
-      desc: `You spent <strong>₹${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Cutting this by 30% will save you <strong>₹${parseFloat(potentialSaving).toLocaleString()}/month</strong>!`
+      desc: `You spent <strong>${curr}${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Cutting this by 30% saves <strong>${curr}${parseFloat(potentialSaving).toLocaleString()}/month</strong>!`
     });
   } else {
     adviceList.push({
       icon: 'fa-circle-check',
       color: '#10b981',
       title: 'Zero Unwanted Leaks Logged',
-      desc: `No discretionary leaks logged yet! Keep flagging food delivery, impulsive buys, and subscriptions as 'Unwanted'.`
+      desc: `No discretionary leaks logged yet! Keep tagging food delivery, impulsive buys, and unused subscriptions as 'Unwanted'.`
     });
   }
 
-  // Advice 2: Unavoidable Spending & Rent Ratio
   if (income > 0 && unavoidable > 0) {
-    const unavoidableRatio = ((unavoidable / income) * 100).toFixed(1);
-    if (unavoidableRatio > 50) {
+    const ratio = ((unavoidable / income) * 100).toFixed(1);
+    if (ratio > 50) {
       adviceList.push({
         icon: 'fa-house-lock',
         color: '#f59e0b',
         title: 'High Unavoidable Expense Ratio',
-        desc: `Rent and fixed bills consume <strong>${unavoidableRatio}%</strong> of your income (Target: < 50%). Consider negotiating fixed utility bills or optimizing rent expenses.`
+        desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income (Target < 50%). Consider negotiating fixed utility contracts or optimizing rent.`
       });
     } else {
       adviceList.push({
         icon: 'fa-thumbs-up',
         color: '#06b6d4',
-        title: 'Healthy Unavoidable Rent Ratio',
-        desc: `Rent and fixed needs take up <strong>${unavoidableRatio}%</strong> of your monthly income. You are within safe financial margins.`
+        title: 'Healthy Rent & Fixed Needs Ratio',
+        desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income. You are within safe financial margins!`
       });
     }
   }
 
-  // Advice 3: Investment Sweep Recommendation
   if (saved > 5000 && invest < saved * 0.5) {
-    const recommendedSIP = (saved * 0.4).toFixed(0);
+    const sip = (saved * 0.4).toFixed(0);
     adviceList.push({
       icon: 'fa-chart-line',
       color: '#10b981',
       title: 'Surplus Cash Wealth Sweep',
-      desc: `You saved <strong>₹${saved.toLocaleString()}</strong> this month! We recommend sweeping <strong>₹${parseFloat(recommendedSIP).toLocaleString()}</strong> into Nifty 50 Index SIPs to compound wealth.`
+      desc: `You saved <strong>${curr}${saved.toLocaleString()}</strong> this month! We recommend sweeping <strong>${curr}${parseFloat(sip).toLocaleString()}</strong> into SIPs to compound wealth.`
     });
   }
 
-  // Render Advice Cards
   container.innerHTML = adviceList.map(adv => `
     <div class="advice-card">
       <div class="advice-icon" style="background: rgba(255,255,255,0.08); color: ${adv.color};">
@@ -561,28 +645,31 @@ function parseRawNotification() {
   if (!raw) return;
 
   const amountRegex = /(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
-  const merchantRegex = /(?:to|at|by|vpa|paid to|credited with|transferred to)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\.|$)/i;
-  const typeRegex = /(debited|credited|sent|received|paid)/i;
+  const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
+  const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
 
   const amountMatch = raw.match(amountRegex);
   const merchantMatch = raw.match(merchantRegex);
   const typeMatch = raw.match(typeRegex);
 
   const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0.00;
-  const merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
-  const isCredit = typeMatch && /credited|received/i.test(typeMatch[1]);
+  let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
+  merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32);
+
+  const isCredit = typeMatch && /credited|received|deposited/i.test(typeMatch[1]);
   const type = isCredit ? 'Credit' : 'Debit';
 
   let category = 'Unwanted / Leak';
   if (isCredit) {
     category = 'Income';
-  } else if (/sip|mutual|index|zerodha|groww|invest|stocks/i.test(raw + merchant)) {
+  } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(raw + merchant)) {
     category = 'Investments';
-  } else if (/rent|loan|emi|hdfc|bill|electricity|gas|maintenance|broadband/i.test(raw + merchant)) {
+  } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(raw + merchant)) {
     category = 'Unavoidable / Rent';
   }
 
   const timestamp = new Date().toISOString().split('T')[0];
+  const curr = userProfile.currency || '₹';
 
   lastParsedTransaction = {
     merchant,
@@ -596,7 +683,7 @@ function parseRawNotification() {
   };
 
   document.getElementById('resMerchant').innerText = merchant;
-  document.getElementById('resAmount').innerText = `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  document.getElementById('resAmount').innerText = `${curr}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('resType').innerText = type;
   document.getElementById('resCategory').innerText = category;
   document.getElementById('resTime').innerText = timestamp;

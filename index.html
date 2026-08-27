@@ -20,14 +20,14 @@
   <!-- Dynamic Aspect Ratio Selector Bar (For Testing Mobile Viewports) -->
   <div class="ratio-bar">
     <div class="ratio-title">
-      <i class="fa-solid fa-mobile-screen-button"></i> Mobile Viewport Ratio:
+      <i class="fa-solid fa-mobile-screen-button"></i> Viewport Simulator:
     </div>
     <div class="ratio-selector">
-      <button class="ratio-btn active" onclick="setDeviceRatio('fullscreen', this)">Auto / Native Mobile</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('iphone', this)">iPhone 15 Pro (19.5:9)</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('pixel', this)">Pixel 8 (20:9)</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('galaxy', this)">Galaxy S24 (19.5:9)</button>
-      <button class="ratio-btn" onclick="setDeviceRatio('tablet', this)">Tablet (4:3)</button>
+      <button class="ratio-btn active" onclick="setDeviceRatio('fullscreen', this)">Auto Mobile</button>
+      <button class="ratio-btn" onclick="setDeviceRatio('iphone', this)">iPhone 15 Pro</button>
+      <button class="ratio-btn" onclick="setDeviceRatio('pixel', this)">Pixel 8</button>
+      <button class="ratio-btn" onclick="setDeviceRatio('galaxy', this)">Galaxy S24</button>
+      <button class="ratio-btn" onclick="setDeviceRatio('tablet', this)">Tablet</button>
     </div>
   </div>
 
@@ -46,7 +46,7 @@
         </div>
         
         <div class="header-right">
-          <!-- Refresh Button -->
+          <!-- Refresh & Cloud Sync Button -->
           <button class="refresh-btn" id="refreshBtn" onclick="manualSyncFromSupabase(this)" title="Refresh & Sync Cloud Data">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
@@ -77,22 +77,22 @@
         </div>
 
         <!-- ==========================================
-             TAB 1: MANUAL OVERRIDE & DASHBOARD (Module 2)
+             TAB 1: DASHBOARD & TRANSACTIONS
              ========================================== -->
         <section id="tab-dashboard" class="tab-view active">
           <!-- Hero Financial Summary Card -->
           <div class="card hero-card">
             <div class="hero-balance-label">Net Monthly Cash Flow</div>
-            <div class="hero-balance-amount" id="dashNetCashFlow">₹0.00</div>
+            <div class="hero-balance-amount maskable-amount" id="dashNetCashFlow">₹0.00</div>
             
             <div class="hero-stats-grid">
               <div class="stat-item">
                 <span class="stat-label"><i class="fa-solid fa-arrow-down-left text-emerald"></i> Real Income</span>
-                <span class="stat-value credit" id="dashIncome">₹0.00</span>
+                <span class="stat-value credit maskable-amount" id="dashIncome">₹0.00</span>
               </div>
               <div class="stat-item">
                 <span class="stat-label"><i class="fa-solid fa-arrow-up-right text-rose"></i> Real Expenses</span>
-                <span class="stat-value debit" id="dashExpenses">₹0.00</span>
+                <span class="stat-value debit maskable-amount" id="dashExpenses">₹0.00</span>
               </div>
             </div>
           </div>
@@ -106,16 +106,9 @@
               <span class="action-label">Add Txn</span>
             </button>
 
-            <button class="action-btn" onclick="switchTab('ingestion')">
-              <div class="action-icon" style="background: rgba(99, 102, 241, 0.2); color: var(--accent-indigo);">
-                <i class="fa-solid fa-qrcode"></i>
-              </div>
-              <span class="action-label">GPay Parser</span>
-            </button>
-
             <button class="action-btn" onclick="switchTab('taxonomy')">
               <div class="action-icon" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber);">
-                <i class="fa-solid fa-pie-chart"></i>
+                <i class="fa-solid fa-chart-pie"></i>
               </div>
               <span class="action-label">50/30/20 Rule</span>
             </button>
@@ -125,6 +118,13 @@
                 <i class="fa-solid fa-lightbulb"></i>
               </div>
               <span class="action-label">Savings Advisor</span>
+            </button>
+
+            <button class="action-btn" onclick="switchTab('settings')">
+              <div class="action-icon" style="background: rgba(99, 102, 241, 0.2); color: var(--accent-indigo);">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <span class="action-label">Parser & Setup</span>
             </button>
           </div>
 
@@ -152,87 +152,28 @@
           <div class="txn-list" id="txnContainer">
             <!-- Rendered dynamically by JavaScript -->
           </div>
-
-          <!-- Clear Data Controls -->
-          <div style="text-align: center; margin-top: 10px;">
-            <button class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px; color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3);" onclick="clearAllRealData()">
-              <i class="fa-solid fa-trash-can"></i> Clear All Real Data
-            </button>
-          </div>
         </section>
 
         <!-- ==========================================
-             TAB 2: AUTOMATED INGESTION (Module 1)
-             ========================================== -->
-        <section id="tab-ingestion" class="tab-view">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">
-                <i class="fa-solid fa-bolt" style="color: var(--accent-amber);"></i> Notification Listener Engine
-              </div>
-              <span class="card-subtitle">GPay & Bank RegEx</span>
-            </div>
-            <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
-              Paste actual incoming GPay / PhonePe / Banking SMS text below or let MacroDroid post automatically to your endpoint.
-            </p>
-
-            <div class="parser-box">
-              <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste real payment SMS or notification text here (e.g. Paid ₹350 to Starbucks via GPay)..."></textarea>
-              <button class="btn btn-full" onclick="parseRawNotification()">
-                <i class="fa-solid fa-microchip"></i> Parse Notification Text
-              </button>
-            </div>
-
-            <!-- Parsed Result Card -->
-            <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
-              <div style="font-size: 11px; font-weight: 700; color: var(--primary-emerald); margin-bottom: 6px; display: flex; justify-content: space-between;">
-                <span><i class="fa-solid fa-check-circle"></i> REGEX EXTRACTED DATA</span>
-                <span id="parsedConfidence">Match Status: Valid</span>
-              </div>
-              <div class="parsed-row"><span class="parsed-key">Merchant / Recipient:</span> <span class="parsed-val" id="resMerchant">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Transaction Type:</span> <span class="parsed-val" id="resType">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Category Taxonomy:</span> <span class="parsed-val" id="resCategory">-</span></div>
-              <div class="parsed-row"><span class="parsed-key">Extracted Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
-
-              <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Auto-Ingest into Real Transaction Log
-              </button>
-            </div>
-          </div>
-
-          <!-- Architecture Android Listener Doc Card -->
-          <div class="card" style="background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.2);">
-            <div class="card-title" style="color: var(--accent-indigo);">
-              <i class="fa-solid fa-shield-halved"></i> Automated Webhook Configuration
-            </div>
-            <p style="font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-top: 8px;">
-              Point MacroDroid or Tasker to <code>https://finance-me-smoky-rho.vercel.app/api/ingest-notification</code>.<br>
-              HTTP POST Method with JSON body: <code>{"rawText": "[notification_text]"}</code>.
-            </p>
-          </div>
-        </section>
-
-        <!-- ==========================================
-             TAB 3: TAXONOMY & BUDGET (Module 3)
+             TAB 2: BUDGET & TAXONOMY (50/30/20)
              ========================================== -->
         <section id="tab-taxonomy" class="tab-view">
           <div class="card">
             <div class="card-header">
               <div class="card-title">
-                <i class="fa-solid fa-sitemap" style="color: var(--primary-emerald);"></i> 50 / 30 / 20 Real Budget Rule
+                <i class="fa-solid fa-sitemap" style="color: var(--primary-emerald);"></i> 50 / 30 / 20 Budget Rule Engine
               </div>
               <span class="card-subtitle">Calculated from Real Income</span>
             </div>
             <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-              Taxonomy automatically splits your logged real income into Unavoidable Needs (50%), Unwanted Leaks (30%), Investments (15%), and Reserve (5%).
+              Taxonomy automatically splits logged income into Unavoidable Needs (50%), Unwanted Leaks (30%), Investments (15%), and Reserve (5%).
             </p>
 
             <!-- Unavoidable Spending Bar -->
             <div class="tax-bucket">
               <div class="tax-header">
                 <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--accent-cyan);"></i> Unavoidable (Rent/Needs 50%)</span>
-                <span class="tax-amount" id="taxNeedsVal">₹0 / ₹0</span>
+                <span class="tax-amount maskable-amount" id="taxNeedsVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" id="taxNeedsBar" style="width: 0%; background: var(--accent-cyan);"></div>
@@ -243,7 +184,7 @@
             <div class="tax-bucket">
               <div class="tax-header">
                 <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--accent-rose);"></i> Unwanted Leaks (Target < 30%)</span>
-                <span class="tax-amount" id="taxWantsVal">₹0 / ₹0</span>
+                <span class="tax-amount maskable-amount" id="taxWantsVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" id="taxWantsBar" style="width: 0%; background: var(--accent-rose);"></div>
@@ -254,7 +195,7 @@
             <div class="tax-bucket">
               <div class="tax-header">
                 <span class="tax-name"><i class="fa-solid fa-chart-line" style="color: var(--primary-emerald);"></i> Investments (15% Target)</span>
-                <span class="tax-amount" id="taxInvestVal">₹0 / ₹0</span>
+                <span class="tax-amount maskable-amount" id="taxInvestVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" id="taxInvestBar" style="width: 0%; background: var(--primary-emerald);"></div>
@@ -265,7 +206,7 @@
             <div class="tax-bucket">
               <div class="tax-header">
                 <span class="tax-name"><i class="fa-solid fa-piggy-bank" style="color: var(--accent-amber);"></i> Savings/Reserve (5% Target)</span>
-                <span class="tax-amount" id="taxSavingsVal">₹0 / ₹0</span>
+                <span class="tax-amount maskable-amount" id="taxSavingsVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
                 <div class="progress-bar-fill" id="taxSavingsBar" style="width: 0%; background: var(--accent-amber);"></div>
@@ -275,7 +216,7 @@
         </section>
 
         <!-- ==========================================
-             TAB 4: SPENDING & SAVINGS STRATEGY (Module 4)
+             TAB 3: SAVINGS STRATEGY & ADVISOR
              ========================================== -->
         <section id="tab-strategy" class="tab-view">
           
@@ -286,7 +227,7 @@
             </div>
             
             <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
-              <div style="font-size: 26px; font-weight: 800; color: #fff;" id="strategyTotalSaved">₹0.00</div>
+              <div style="font-size: 26px; font-weight: 800; color: #fff;" class="maskable-amount" id="strategyTotalSaved">₹0.00</div>
               <div style="font-size: 12px; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: var(--primary-emerald); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
                 0% Savings Rate
               </div>
@@ -314,17 +255,17 @@
             <div style="display: flex; gap: 6px; margin-top: 10px;">
               <div style="flex: 1; background: rgba(6, 182, 212, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(6, 182, 212, 0.2);">
                 <div style="font-size: 9px; color: var(--accent-cyan); font-weight: 700;">🏠 Unavoidable/Rent</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="unavoidableSum">₹0</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unavoidableSum">₹0</div>
               </div>
 
               <div style="flex: 1; background: rgba(244, 63, 94, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(244, 63, 94, 0.2);">
                 <div style="font-size: 9px; color: var(--accent-rose); font-weight: 700;">🛍️ Unwanted Leaks</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="unwantedSum">₹0</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unwantedSum">₹0</div>
               </div>
 
               <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(16, 185, 129, 0.2);">
                 <div style="font-size: 9px; color: var(--primary-emerald); font-weight: 700;">📈 Investments</div>
-                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="investmentsSum">₹0</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="investmentsSum">₹0</div>
               </div>
             </div>
           </div>
@@ -343,44 +284,152 @@
         </section>
 
         <!-- ==========================================
-             TAB 5: WEALTH ROADMAP (Module 5)
+             TAB 4: SETTINGS, PROFILE & INGEST ENGINE
              ========================================== -->
-        <section id="tab-wealth" class="tab-view">
-          <!-- Financial Health Score Card -->
-          <div class="card" style="text-align: center;">
-            <div class="card-title" style="justify-content: center; margin-bottom: 6px;">
-              <i class="fa-solid fa-heart-pulse" style="color: var(--primary-emerald);"></i> Financial Health Score
+        <section id="tab-settings" class="tab-view">
+          
+          <!-- Profile Card -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-circle-user" style="color: var(--primary-emerald);"></i> User Profile & Financial Targets
+              </div>
+              <span class="card-subtitle">Preferences</span>
             </div>
-            <div class="gauge-container">
-              <div class="gauge-score" id="healthScoreVal">100</div>
-              <div class="gauge-label" id="healthScoreLabel">Calculated from live transactions</div>
+
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+              <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-emerald), var(--accent-indigo)); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; box-shadow: 0 0 16px var(--primary-emerald-glow);">
+                <span id="profileAvatarChar">S</span>
+              </div>
+              <div style="flex: 1;">
+                <input type="text" id="userNameInput" class="form-input" value="Shan" onchange="saveProfileSettings()" style="font-weight: 700; font-size: 15px; padding: 6px 10px;">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Financial Advisor Account</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label">Monthly Target Income (₹)</label>
+                <input type="number" id="userSalaryInput" class="form-input" value="100000" onchange="saveProfileSettings()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Currency Symbol</label>
+                <select id="userCurrencySelect" class="form-select" onchange="saveProfileSettings()">
+                  <option value="₹">₹ INR (Indian Rupee)</option>
+                  <option value="$">$ USD (US Dollar)</option>
+                  <option value="€">€ EUR (Euro)</option>
+                  <option value="£">£ GBP (Pound)</option>
+                </select>
+              </div>
             </div>
           </div>
+
+          <!-- AUTOMATED NOTIFICATION INGESTION ENGINE (Moved inside Settings as requested) -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-bolt" style="color: var(--accent-amber);"></i> Automated Ingestion & Webhook Engine
+              </div>
+              <span class="card-subtitle">GPay & Bank RegEx</span>
+            </div>
+
+            <!-- Webhook URL Box with 1-Tap Copy -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px;">
+              <div style="font-size: 10px; font-weight: 700; color: var(--accent-indigo); text-transform: uppercase; margin-bottom: 4px;">
+                <i class="fa-solid fa-link"></i> Live MacroDroid / Tasker Webhook Endpoint
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" readonly id="webhookUrlBox" class="form-input" value="https://finance-me-smoky-rho.vercel.app/api/ingest-notification" style="flex: 1; font-size: 11px; font-family: monospace; color: #a7f3d0;" onclick="this.select()">
+                <button class="btn btn-secondary" onclick="copyWebhookUrl()" style="font-size: 11px; padding: 8px 12px;"><i class="fa-solid fa-copy"></i> Copy</button>
+              </div>
+            </div>
+
+            <p style="font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+              Test parsing raw GPay / SMS text directly before posting via Android notification listener:
+            </p>
+
+            <div class="parser-box">
+              <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste real payment SMS (e.g. Paid ₹480 to Starbucks via GPay)..."></textarea>
+              <button class="btn btn-full" onclick="parseRawNotification()">
+                <i class="fa-solid fa-microchip"></i> Parse & Test Notification RegEx
+              </button>
+            </div>
+
+            <!-- Parsed Result Preview -->
+            <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--primary-emerald); margin-bottom: 6px; display: flex; justify-content: space-between;">
+                <span><i class="fa-solid fa-check-circle"></i> REGEX MATCH CONFIRMED</span>
+                <span id="parsedConfidence">Status: Valid</span>
+              </div>
+              <div class="parsed-row"><span class="parsed-key">Merchant:</span> <span class="parsed-val" id="resMerchant">-</span></div>
+              <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
+              <div class="parsed-row"><span class="parsed-key">Type:</span> <span class="parsed-val" id="resType">-</span></div>
+              <div class="parsed-row"><span class="parsed-key">Category:</span> <span class="parsed-val" id="resCategory">-</span></div>
+              <div class="parsed-row"><span class="parsed-key">Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
+
+              <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Save to Real Log & Supabase
+              </button>
+            </div>
+          </div>
+
+          <!-- Cloud Sync & Security Settings -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-cloud" style="color: var(--accent-cyan);"></i> Supabase Cloud Database Status
+              </div>
+              <span class="card-subtitle">PostgreSQL</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 10px;">
+                <span style="color: var(--text-muted);">Database Connection:</span>
+                <span style="font-weight: 700; color: var(--primary-emerald);"><i class="fa-solid fa-circle-check"></i> Connected Live</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 10px;">
+                <span style="color: var(--text-muted);">Table Name:</span>
+                <span style="font-weight: 700; color: #fff;">transactions</span>
+              </div>
+            </div>
+
+            <!-- Privacy & Data Controls -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="btn btn-secondary" onclick="togglePrivateMode()" style="justify-content: flex-start; font-size: 12px;">
+                <i class="fa-solid fa-eye-slash" id="privacyIcon"></i> <span id="privacyBtnText">Enable Privacy Mode (Blur Amounts)</span>
+              </button>
+
+              <button class="btn btn-secondary" onclick="exportTransactionsCSV()" style="justify-content: flex-start; font-size: 12px;">
+                <i class="fa-solid fa-file-csv" style="color: var(--accent-amber);"></i> Export Transactions to CSV
+              </button>
+
+              <button class="btn btn-secondary" style="justify-content: flex-start; font-size: 12px; color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.3);" onclick="clearAllRealData()">
+                <i class="fa-solid fa-trash-can"></i> Clear All Saved Data
+              </button>
+            </div>
+          </div>
+
         </section>
 
       </main>
 
-      <!-- Bottom Navigation Bar (Mobile First) -->
+      <!-- Bottom Navigation Bar (Streamlined 4-Tab Professional Flow) -->
       <nav class="app-nav">
         <a class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
           <i class="fa-solid fa-wallet"></i>
           <span>Dashboard</span>
         </a>
-        <a class="nav-item" onclick="switchTab('ingestion')" id="nav-ingestion">
-          <i class="fa-solid fa-bolt"></i>
-          <span>Ingest</span>
-        </a>
         <a class="nav-item" onclick="switchTab('taxonomy')" id="nav-taxonomy">
           <i class="fa-solid fa-chart-pie"></i>
-          <span>Taxonomy</span>
+          <span>Budget</span>
         </a>
         <a class="nav-item" onclick="switchTab('strategy')" id="nav-strategy">
           <i class="fa-solid fa-lightbulb"></i>
           <span>Strategy</span>
         </a>
-        <a class="nav-item" onclick="switchTab('wealth')" id="nav-wealth">
-          <i class="fa-solid fa-trophy"></i>
-          <span>Wealth</span>
+        <a class="nav-item" onclick="switchTab('settings')" id="nav-settings">
+          <i class="fa-solid fa-gear"></i>
+          <span>Settings</span>
         </a>
       </nav>
 
