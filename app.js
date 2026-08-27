@@ -31,7 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTransactions();
   updateMetricsAndTaxonomy();
 
+  // Initial Fetch & Fast 4-Second Auto Sync Polling
   fetchTransactionsFromSupabase();
+  setInterval(fetchTransactionsFromSupabase, 4000);
 
   checkAutoUpdate();
   setInterval(checkAutoUpdate, 30000);
@@ -304,7 +306,7 @@ function manualSyncFromSupabase(btnElement) {
   });
 }
 
-// Fetch Real Transactions from Supabase Database
+// Fetch Real Transactions from Supabase Database (Auto-Merging & Instant UI Sync)
 function fetchTransactionsFromSupabase(onComplete) {
   if (!SUPABASE_KEY) {
     if (onComplete) onComplete();
@@ -319,11 +321,23 @@ function fetchTransactionsFromSupabase(onComplete) {
   })
   .then(res => res.json())
   .then(data => {
-    if (Array.isArray(data) && data.length >= transactions.length) {
-      transactions = data;
-      saveToLocalStorage();
-      renderGpayAvatars();
-      renderTransactions();
+    if (Array.isArray(data)) {
+      const txMap = new Map();
+      data.forEach(t => txMap.set(t.id, t));
+      transactions.forEach(t => {
+        if (!txMap.has(t.id)) txMap.set(t.id, t);
+      });
+
+      const merged = Array.from(txMap.values());
+      merged.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (JSON.stringify(merged) !== JSON.stringify(transactions)) {
+        transactions = merged;
+        saveToLocalStorage();
+        renderGpayAvatars();
+        renderTransactions();
+        console.log('[Supabase Auto-Sync]: Updated', transactions.length, 'transactions');
+      }
     }
     if (onComplete) onComplete();
   })
@@ -349,123 +363,66 @@ function checkAutoUpdate() {
     .catch(err => console.log('[Auto-Update Check]: Local offline mode'));
 }
 
-// Switch Main Navigation Tabs
+/* ==========================================================================
+   VIEW RENDERING & FILTERING
+   ========================================================================== */
+
 function switchTab(tabId) {
-  document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  const targetTab = document.getElementById(`tab-${tabId}`);
-  const targetNav = document.getElementById(`nav-${tabId}`);
+  const selectedTab = document.getElementById(`tab-${tabId}`);
+  const selectedNav = document.getElementById(`nav-${tabId}`);
 
-  if (targetTab) targetTab.classList.add('active');
-  if (targetNav) targetNav.classList.add('active');
+  if (selectedTab) selectedTab.classList.add('active');
+  if (selectedNav) selectedNav.classList.add('active');
 
-  if (tabId === 'taxonomy') {
+  if (tabId === 'taxonomy' || tabId === 'strategy') {
     renderCharts();
   }
 }
 
-// Category Meta Mapping with Professional Icons
-function getCategoryMeta(category) {
-  switch (category) {
-    case 'Unavoidable / Rent':
-    case 'Fixed Needs':
-      return { 
-        icon: 'fa-house-chimney', 
-        bg: 'linear-gradient(135deg, rgba(66, 133, 244, 0.25), rgba(66, 133, 244, 0.1))', 
-        color: '#8ab4f8', 
-        label: 'Unavoidable' 
-      };
-    case 'Unwanted / Leak':
-    case 'Variable Wants':
-      return { 
-        icon: 'fa-bag-shopping', 
-        bg: 'linear-gradient(135deg, rgba(234, 67, 53, 0.25), rgba(234, 67, 53, 0.1))', 
-        color: '#f28b82', 
-        label: 'Unwanted Leak' 
-      };
-    case 'Investments':
-      return { 
-        icon: 'fa-arrow-trend-up', 
-        bg: 'linear-gradient(135deg, rgba(52, 168, 83, 0.25), rgba(52, 168, 83, 0.1))', 
-        color: '#81c995', 
-        label: 'Investment' 
-      };
-    case 'Income':
-      return { 
-        icon: 'fa-hand-holding-dollar', 
-        bg: 'linear-gradient(135deg, rgba(251, 188, 5, 0.25), rgba(251, 188, 5, 0.1))', 
-        color: '#fde293', 
-        label: 'Income' 
-      };
-    default:
-      return { 
-        icon: 'fa-receipt', 
-        bg: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05))', 
-        color: '#90909a', 
-        label: category 
-      };
-  }
-}
-
-// Render Transactions List in Dynamic GPay Activity Style
 function renderTransactions() {
   const container = document.getElementById('txnContainer');
-  const searchInput = document.getElementById('searchInput');
-  const catFilterInput = document.getElementById('categoryFilter');
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const categoryFilter = document.getElementById('categoryFilter')?.value || 'ALL';
+  const countText = document.getElementById('txnCountText');
 
-  const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
-  const catFilter = catFilterInput ? catFilterInput.value : 'ALL';
-  const curr = userProfile.currency || '₹';
+  if (!container) return;
 
-  const filtered = transactions.filter(t => {
-    const matchesSearch = (t.merchant || '').toLowerCase().includes(searchQuery) ||
-                          (t.notes || '').toLowerCase().includes(searchQuery) ||
-                          (t.tags || []).some(tag => tag.toLowerCase().includes(searchQuery));
-    const matchesCat = (catFilter === 'ALL') || 
-                       (t.category === catFilter) ||
-                       (catFilter === 'Unavoidable / Rent' && (t.category === 'Fixed Needs')) ||
-                       (catFilter === 'Unwanted / Leak' && (t.category === 'Variable Wants'));
-    return matchesSearch && matchesCat;
+  let filtered = transactions.filter(t => {
+    const matchesSearch = (t.merchant || '').toLowerCase().includes(search) ||
+                          (t.notes || '').toLowerCase().includes(search) ||
+                          (t.tags || []).some(tag => tag.toLowerCase().includes(search));
+    const matchesCategory = categoryFilter === 'ALL' || t.category === categoryFilter;
+    return matchesSearch && matchesCategory;
   });
 
-  const txnCountText = document.getElementById('txnCountText');
-  if (txnCountText) {
-    txnCountText.innerText = transactions.length === 0 
-      ? '0 payments' 
-      : `${filtered.length} payments`;
-  }
-
-  if (transactions.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 36px 16px; background: var(--glass-surface); border: 1px dashed var(--glass-border); border-radius: 24px;">
-        <i class="fa-solid fa-wallet" style="font-size: 40px; color: var(--gpay-blue-light); margin-bottom: 12px;"></i>
-        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">No Google Pay Transactions Logged Yet</h4>
-        <p style="font-size: 12px; color: var(--text-muted); max-width: 280px; margin: 0 auto 16px auto; line-height: 1.4;">
-          Your Supabase database is connected! Add a payment entry manually or paste a GPay notification.
-        </p>
-        <button class="btn" onclick="openAddModal()">
-          <i class="fa-solid fa-plus"></i> Add Payment Record
-        </button>
-      </div>
-    `;
-    updateMetricsAndTaxonomy();
-    return;
-  }
+  if (countText) countText.innerText = `${filtered.length} payment${filtered.length === 1 ? '' : 's'}`;
 
   if (filtered.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-        <i class="fa-solid fa-magnifying-glass" style="font-size: 32px; margin-bottom: 8px;"></i>
-        <p style="font-size: 13px;">No payments match your search query.</p>
+      <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+        <i class="fa-solid fa-receipt" style="font-size: 36px; color: var(--gpay-blue-light); opacity: 0.5; margin-bottom: 10px;"></i>
+        <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">No payment history found</div>
+        <div style="font-size: 11px; margin-top: 4px;">Tap "New Pay" to add or send a GPay notification</div>
       </div>
     `;
     updateMetricsAndTaxonomy();
     return;
   }
 
+  const curr = userProfile.currency || '₹';
+
+  const categoryMeta = {
+    'Unavoidable / Rent': { icon: 'fa-house-chimney', color: '#4285F4', bg: 'rgba(66, 133, 244, 0.18)' },
+    'Unwanted / Leak': { icon: 'fa-bag-shopping', color: '#EA4335', bg: 'rgba(234, 67, 53, 0.18)' },
+    'Investments': { icon: 'fa-arrow-trend-up', color: '#34A853', bg: 'rgba(52, 168, 83, 0.18)' },
+    'Income': { icon: 'fa-wallet', color: '#FBBC05', bg: 'rgba(251, 188, 5, 0.18)' }
+  };
+
   container.innerHTML = filtered.map(t => {
-    const meta = getCategoryMeta(t.category);
+    const meta = categoryMeta[t.category] || { icon: 'fa-credit-card', color: '#8ab4f8', bg: 'rgba(138, 180, 248, 0.18)' };
     const formattedAmount = `${curr}${parseFloat(t.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
     const tagBadges = (t.tags || []).map(tag => `<span class="txn-tag">${tag}</span>`).join(' ');
 
@@ -554,116 +511,104 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('unwantedSum').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')}`;
   document.getElementById('investmentsSum').innerText = `${curr}${investSum.toLocaleString('en-IN')}`;
 
+  // Top Merchant & Top Category
   let topMerchant = 'None logged';
-  let topMerchantMax = 0;
-  for (const m in merchantTotals) {
-    if (merchantTotals[m] > topMerchantMax) {
-      topMerchantMax = merchantTotals[m];
-      topMerchant = `${m} (${curr}${topMerchantMax.toLocaleString()})`;
+  let maxMerchantAmt = 0;
+  Object.keys(merchantTotals).forEach(m => {
+    if (merchantTotals[m] > maxMerchantAmt) {
+      maxMerchantAmt = merchantTotals[m];
+      topMerchant = m;
     }
-  }
+  });
 
-  let topCat = 'None logged';
-  let topCatMax = 0;
-  for (const c in categoryTotals) {
-    if (categoryTotals[c] > topCatMax) {
-      topCatMax = categoryTotals[c];
-      topCat = `${c} (${curr}${topCatMax.toLocaleString()})`;
+  let topCategory = 'None logged';
+  let maxCatAmt = 0;
+  Object.keys(categoryTotals).forEach(c => {
+    if (categoryTotals[c] > maxCatAmt) {
+      maxCatAmt = categoryTotals[c];
+      topCategory = c;
     }
-  }
+  });
 
   document.getElementById('topMerchantVal').innerText = topMerchant;
-  document.getElementById('topCategoryVal').innerText = topCat;
+  document.getElementById('topCategoryVal').innerText = topCategory;
 
-  // Compute Financial Health Score (0 - 100)
+  // Financial Health Score Algorithm (0 to 100)
   let healthScore = 50;
   if (income > 0) {
-    const savRatio = netSaved / income;
-    const invRatio = investSum / income;
-    const leakRatio = unwantedSum / income;
+    if (savingsRate >= 30) healthScore += 30;
+    else if (savingsRate >= 15) healthScore += 20;
+    else if (savingsRate >= 5) healthScore += 10;
 
-    if (savRatio >= 0.20) healthScore += 25;
-    else healthScore += Math.floor(savRatio * 100);
-
-    if (invRatio >= 0.15) healthScore += 15;
-
-    if (leakRatio < 0.20) healthScore += 10;
-    else healthScore -= 10;
-  }
-  healthScore = Math.min(100, Math.max(10, healthScore));
-
-  const healthScoreVal = document.getElementById('healthScoreVal');
-  const healthScoreRating = document.getElementById('healthScoreRating');
-  const healthScoreDesc = document.getElementById('healthScoreDesc');
-
-  if (healthScoreVal) healthScoreVal.innerText = healthScore;
-  if (healthScoreRating) {
-    if (healthScore >= 80) {
-      healthScoreRating.innerText = '🌟 Excellent Financial Standing';
-      healthScoreDesc.innerText = 'Optimal savings rate & disciplined investment allocation';
-    } else if (healthScore >= 60) {
-      healthScoreRating.innerText = '👍 Healthy Balance';
-      healthScoreDesc.innerText = 'Good progress, reduce unwanted leaks to boost reserves';
-    } else {
-      healthScoreRating.innerText = '⚠️ Action Recommended';
-      healthScoreDesc.innerText = 'High expenditure ratio detected. Cut unwanted leaks';
-    }
+    const unwantedRatio = unwantedSum / income;
+    if (unwantedRatio <= 0.15) healthScore += 20;
+    else if (unwantedRatio <= 0.30) healthScore += 10;
+  } else {
+    healthScore = 65;
   }
 
-  // Calculate Wealth Projections (1-Year & 5-Year Compound SIP Forecast @ 12% p.a.)
-  const annualSaved = netSaved * 12;
-  const monthlySIP = investSum > 0 ? investSum : (netSaved * 0.4);
-  const r = 0.12 / 12; // 12% annual interest
-  const n = 60; // 5 years = 60 months
-  const sip5Year = monthlySIP > 0 
-    ? Math.round(monthlySIP * (((Math.pow(1 + r, n) - 1) / r) * (1 + r)))
-    : annualSaved * 5;
+  healthScore = Math.min(100, Math.max(10, Math.round(healthScore)));
+  document.getElementById('healthScoreVal').innerText = healthScore;
 
-  document.getElementById('forecast1Year').innerText = `${curr}${annualSaved.toLocaleString('en-IN')}`;
-  document.getElementById('forecast5Year').innerText = `${curr}${sip5Year.toLocaleString('en-IN')}`;
+  let ratingText = 'Balanced';
+  let ratingDesc = 'Healthy financial split between needs and savings';
+  if (healthScore >= 85) {
+    ratingText = 'Excellent 🚀';
+    ratingDesc = 'High savings rate & low spending leaks!';
+  } else if (healthScore >= 70) {
+    ratingText = 'Good 👍';
+    ratingDesc = 'Solid financial management with room for SIP growth.';
+  } else {
+    ratingText = 'Needs Attention ⚠️';
+    ratingDesc = 'High unwanted leaks detected. Review AI recommendations below.';
+  }
+
+  document.getElementById('healthScoreRating').innerText = ratingText;
+  document.getElementById('healthScoreDesc').innerText = ratingDesc;
+
+  // 1-Year Forecast & 5-Year SIP Wealth Projection
+  const forecast1Yr = netSaved * 12;
+  const monthlySip = netSaved > 0 ? netSaved * 0.5 : 1000;
+  const annualRate = 0.12;
+  const months = 60;
+  const r = annualRate / 12;
+  const sipFutureVal = monthlySip * (((Math.pow(1 + r, months) - 1) / r) * (1 + r));
+
+  document.getElementById('forecast1Year').innerText = `${curr}${forecast1Yr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  document.getElementById('forecast5Year').innerText = `${curr}${sipFutureVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
   // 50/30/20 Gauges
-  const baseTargetIncome = income > 0 ? income : (userProfile.salary || 100000);
-  const targetNeeds = baseTargetIncome * 0.50;
-  const targetWants = baseTargetIncome * 0.30;
-  const targetInvest = baseTargetIncome * 0.15;
-  const targetSavings = baseTargetIncome * 0.05;
+  const targetIncome = userProfile.salary || Math.max(income, 50000);
+  const needsTarget = targetIncome * 0.5;
+  const wantsTarget = targetIncome * 0.3;
+  const investTarget = targetIncome * 0.15;
+  const savingsTarget = targetIncome * 0.05;
 
-  document.getElementById('taxNeedsVal').innerText = `${curr}${unavoidableSum.toLocaleString()} / ${curr}${targetNeeds.toLocaleString()}`;
-  document.getElementById('taxNeedsBar').style.width = `${Math.min(100, (unavoidableSum / targetNeeds) * 100)}%`;
-  document.getElementById('taxNeedsBar').style.background = 'linear-gradient(90deg, #4285F4 0%, #34A853 100%)';
+  document.getElementById('taxNeedsVal').innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')} / ${curr}${needsTarget.toLocaleString('en-IN')}`;
+  document.getElementById('taxNeedsBar').style.width = `${Math.min(100, (unavoidableSum / needsTarget) * 100)}%`;
+  document.getElementById('taxNeedsBar').style.background = unavoidableSum > needsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-blue-light)';
 
-  document.getElementById('taxWantsVal').innerText = `${curr}${unwantedSum.toLocaleString()} / ${curr}${targetWants.toLocaleString()}`;
-  document.getElementById('taxWantsBar').style.width = `${Math.min(100, (unwantedSum / targetWants) * 100)}%`;
-  document.getElementById('taxWantsBar').style.background = 'linear-gradient(90deg, #EA4335 0%, #FBBC05 100%)';
+  document.getElementById('taxWantsVal').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')} / ${curr}${wantsTarget.toLocaleString('en-IN')}`;
+  document.getElementById('taxWantsBar').style.width = `${Math.min(100, (unwantedSum / wantsTarget) * 100)}%`;
+  document.getElementById('taxWantsBar').style.background = unwantedSum > wantsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-yellow-light)';
 
-  document.getElementById('taxInvestVal').innerText = `${curr}${investSum.toLocaleString()} / ${curr}${targetInvest.toLocaleString()}`;
-  document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / targetInvest) * 100)}%`;
-  document.getElementById('taxInvestBar').style.background = 'linear-gradient(90deg, #34A853 0%, #06b6d4 100%)';
+  document.getElementById('taxInvestVal').innerText = `${curr}${investSum.toLocaleString('en-IN')} / ${curr}${investTarget.toLocaleString('en-IN')}`;
+  document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / investTarget) * 100)}%`;
+  document.getElementById('taxInvestBar').style.background = 'var(--gpay-green-light)';
 
-  document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString()} / ${curr}${targetSavings.toLocaleString()}`;
-  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / targetSavings) * 100)}%`;
-  document.getElementById('taxSavingsBar').style.background = 'linear-gradient(90deg, #FBBC05 0%, #f97316 100%)';
+  document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString('en-IN')} / ${curr}${savingsTarget.toLocaleString('en-IN')}`;
+  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / savingsTarget) * 100)}%`;
+  document.getElementById('taxSavingsBar').style.background = 'var(--gpay-blue-light)';
 
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
-  renderCharts();
 }
 
-/* ==========================================================================
-   INTERACTIVE VISUAL CHARTS (CHART.JS INTEGRATION)
-   ========================================================================== */
-
+// Render Interactive Chart.js Graphs
 function renderCharts() {
-  if (typeof Chart === 'undefined') return;
-
-  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-  const labelColor = currentTheme === 'light' ? '#3c4043' : '#e3e2e6';
-  const gridColor = currentTheme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
-
+  let incomeSum = 0;
   let unavoidableSum = 0;
   let unwantedSum = 0;
   let investSum = 0;
-  let incomeSum = 0;
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount || 0);
@@ -676,6 +621,10 @@ function renderCharts() {
       else unavoidableSum += amt;
     }
   });
+
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const labelColor = currentTheme === 'light' ? '#0f172a' : '#cbd5e1';
+  const gridColor = currentTheme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
 
   // Chart 1: Category Donut Chart
   const donutCtx = document.getElementById('categoryDonutChart');
@@ -751,50 +700,32 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
   const adviceList = [];
 
   if (unwanted > 0) {
-    const potentialSaving = (unwanted * 0.30).toFixed(0);
+    const monthlyLeak = unwanted;
+    const yearlyLeak = monthlyLeak * 12;
     adviceList.push({
-      icon: 'fa-triangle-exclamation',
-      color: '#f28b82',
-      title: 'Unwanted Spending Leak Alert',
-      desc: `You spent <strong>${curr}${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Trimming this by 30% frees up <strong>${curr}${parseFloat(potentialSaving).toLocaleString()}/month</strong> for your savings vault!`
-    });
-  } else {
-    adviceList.push({
-      icon: 'fa-circle-check',
-      color: '#81c995',
-      title: 'Zero Unwanted Leaks Logged',
-      desc: `No discretionary leaks logged yet! Keep tagging food delivery, impulsive buys, and unused subscriptions as 'Unwanted'.`
+      icon: 'fa-fire-flame-curved',
+      color: '#EA4335',
+      title: `Plug ${curr}${monthlyLeak.toLocaleString('en-IN')} Monthly Unwanted Spending`,
+      desc: `You spent ${curr}${monthlyLeak.toLocaleString('en-IN')} on impulse & unwanted leaks this month. Cutting this by 50% saves ${curr}${(yearlyLeak / 2).toLocaleString('en-IN')} annually!`
     });
   }
 
-  if (income > 0 && unavoidable > 0) {
-    const ratio = ((unavoidable / income) * 100).toFixed(1);
-    if (ratio > 50) {
-      adviceList.push({
-        icon: 'fa-house-lock',
-        color: '#fde293',
-        title: 'High Fixed Cost Ratio (Rent & Bills)',
-        desc: `Rent & fixed bills account for <strong>${ratio}%</strong> of total income (Target < 50%). Consider renegotiating fixed utility plans or room sharing.`
-      });
-    } else {
-      adviceList.push({
-        icon: 'fa-thumbs-up',
-        color: '#8ab4f8',
-        title: 'Optimal Rent & Fixed Expense Ratio',
-        desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income. You are within safe financial margins!`
-      });
-    }
-  }
-
-  if (saved > 5000 && invest < saved * 0.5) {
-    const sip = (saved * 0.4).toFixed(0);
+  if (saved > 0) {
+    const recommendedSip = Math.round(saved * 0.6);
     adviceList.push({
-      icon: 'fa-chart-line',
-      color: '#81c995',
-      title: 'Auto-Sweep Excess Cash to SIPs',
-      desc: `You saved <strong>${curr}${saved.toLocaleString()}</strong> this month! We recommend auto-sweeping <strong>${curr}${parseFloat(sip).toLocaleString()}</strong> into equity index funds for 12% compound returns.`
+      icon: 'fa-arrow-trend-up',
+      color: '#34A853',
+      title: `Automate a ${curr}${recommendedSip.toLocaleString('en-IN')}/mo Mutual Fund SIP`,
+      desc: `Investing 60% of your current monthly savings (${curr}${saved.toLocaleString('en-IN')}) into an Index Mutual Fund compounding at 12% grows into significant wealth over 5 years!`
     });
   }
+
+  adviceList.push({
+    icon: 'fa-shield-halved',
+    color: '#4285F4',
+    title: `Maintain Emergency Buffer Fund`,
+    desc: `Ensure you have 3 to 6 months of fixed unavoidable expenses (${curr}${(unavoidable * 3).toLocaleString('en-IN')}) liquid in a high-yield savings account or liquid fund.`
+  });
 
   container.innerHTML = adviceList.map(adv => `
     <div class="advice-card">
@@ -969,7 +900,7 @@ function parseRawNotification() {
   const raw = document.getElementById('rawNotificationInput').value.trim();
   if (!raw) return;
 
-  const amountRegex = /(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
+  const amountRegex = /(?:rs\.?|inr|₹|debited by|credited by|paid|spent|amount of|sum of|sent|sent rs|sent inr)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
   const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
   const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
 
@@ -977,7 +908,12 @@ function parseRawNotification() {
   const merchantMatch = raw.match(merchantRegex);
   const typeMatch = raw.match(typeRegex);
 
-  const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0.00;
+  let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0.00;
+  if (!amount || amount === 0) {
+    const anyNumMatch = raw.match(/(\d+(?:\.\d{1,2})?)/);
+    if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
+  }
+
   let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
   merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32);
 
