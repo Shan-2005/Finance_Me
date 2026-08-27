@@ -346,13 +346,13 @@ function switchTab(tabId) {
 function formatDisplayDate(dateStr) {
   if (!dateStr) return '';
   try {
-    // BUG-12: date-only strings (YYYY-MM-DD) parsed as UTC → wrong day in IST.
-    // Append time so JS treats it as local time instead.
-    const normalized = dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr;
+    const isDateOnly = dateStr.length === 10;
+    const normalized = isDateOnly ? dateStr + 'T00:00:00' : dateStr;
     const d = new Date(normalized);
     if (isNaN(d.getTime())) return dateStr;
     const dateFormatted = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-    const timeFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    if (isDateOnly) return dateFormatted;
+    const timeFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     return `${dateFormatted} • ${timeFormatted}`;
   } catch (e) {
     return dateStr;
