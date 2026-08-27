@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FINANCE ME - Real Data Management & Supabase Cloud Integration
+   FINANCE ME - Real Data Management & Dynamic Savings Intelligence Engine
    ========================================================================== */
 
 const SUPABASE_URL = 'https://qtejgfhuzquifcobdvfo.supabase.co';
@@ -12,18 +12,14 @@ let currentAppVersion = null;
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
-  // Set default date input to today
   const dateInput = document.getElementById('inputDate');
   if (dateInput) dateInput.valueAsDate = new Date();
   
-  // Render local state immediately for instant feedback
   renderTransactions();
   updateMetricsAndTaxonomy();
 
-  // Sync with Supabase cloud database
   fetchTransactionsFromSupabase();
 
-  // Start background auto-update check (polls every 30s)
   checkAutoUpdate();
   setInterval(checkAutoUpdate, 30000);
 });
@@ -50,7 +46,7 @@ function fetchTransactionsFromSupabase() {
   .catch(err => console.log('[Supabase Sync]: Using local offline data', err));
 }
 
-// Automatic Version Check to force fresh code on Git push without manual hard refresh
+// Automatic Version Check to force fresh code on Git push
 function checkAutoUpdate() {
   fetch('/api/version?t=' + Date.now(), { cache: 'no-store' })
     .then(res => res.json())
@@ -59,7 +55,7 @@ function checkAutoUpdate() {
         if (!currentAppVersion) {
           currentAppVersion = data.version;
         } else if (currentAppVersion !== data.version) {
-          console.log('[Auto-Update]: New Git build detected! Refreshing assets...');
+          console.log('[Auto-Update]: New Git build detected! Refreshing...');
           window.location.reload(true);
         }
       }
@@ -67,7 +63,7 @@ function checkAutoUpdate() {
     .catch(err => console.log('[Auto-Update Check]: Local offline mode'));
 }
 
-// Save to LocalStorage for persistent real user data
+// Save to LocalStorage
 function saveToLocalStorage() {
   localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
 }
@@ -84,7 +80,7 @@ function switchTab(tabId) {
   if (targetNav) targetNav.classList.add('active');
 }
 
-// Aspect Ratio Switcher for Mobile Simulation
+// Aspect Ratio Switcher
 function setDeviceRatio(mode, btnElement) {
   const frame = document.getElementById('deviceFrame');
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.remove('active'));
@@ -96,20 +92,22 @@ function setDeviceRatio(mode, btnElement) {
 // Category Icon & Color Mapping
 function getCategoryMeta(category) {
   switch (category) {
+    case 'Unavoidable / Rent':
     case 'Fixed Needs':
-      return { icon: 'fa-house', bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' };
+      return { icon: 'fa-house', bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', label: 'Unavoidable' };
+    case 'Unwanted / Leak':
     case 'Variable Wants':
-      return { icon: 'fa-bag-shopping', bg: 'rgba(244, 63, 94, 0.15)', color: '#f43f5e' };
+      return { icon: 'fa-bag-shopping', bg: 'rgba(244, 63, 94, 0.15)', color: '#f43f5e', label: 'Unwanted Leak' };
     case 'Investments':
-      return { icon: 'fa-chart-line', bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981' };
+      return { icon: 'fa-chart-line', bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: 'Investment' };
     case 'Income':
-      return { icon: 'fa-wallet', bg: 'rgba(99, 102, 241, 0.15)', color: '#6366f1' };
+      return { icon: 'fa-wallet', bg: 'rgba(99, 102, 241, 0.15)', color: '#6366f1', label: 'Income' };
     default:
-      return { icon: 'fa-tag', bg: 'rgba(255, 255, 255, 0.1)', color: '#94a3b8' };
+      return { icon: 'fa-tag', bg: 'rgba(255, 255, 255, 0.1)', color: '#94a3b8', label: category };
   }
 }
 
-// Render Transactions List (Module 2 Dashboard)
+// Render Transactions List
 function renderTransactions() {
   const container = document.getElementById('txnContainer');
   const searchInput = document.getElementById('searchInput');
@@ -122,7 +120,10 @@ function renderTransactions() {
     const matchesSearch = (t.merchant || '').toLowerCase().includes(searchQuery) ||
                           (t.notes || '').toLowerCase().includes(searchQuery) ||
                           (t.tags || []).some(tag => tag.toLowerCase().includes(searchQuery));
-    const matchesCat = (catFilter === 'ALL') || (t.category === catFilter);
+    const matchesCat = (catFilter === 'ALL') || 
+                       (t.category === catFilter) ||
+                       (catFilter === 'Unavoidable / Rent' && (t.category === 'Fixed Needs')) ||
+                       (catFilter === 'Unwanted / Leak' && (t.category === 'Variable Wants'));
     return matchesSearch && matchesCat;
   });
 
@@ -139,7 +140,7 @@ function renderTransactions() {
         <i class="fa-solid fa-wallet" style="font-size: 40px; color: var(--primary-emerald); margin-bottom: 12px;"></i>
         <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">No Real Transactions Logged Yet</h4>
         <p style="font-size: 12px; color: var(--text-muted); max-width: 280px; margin: 0 auto 16px auto; line-height: 1.4;">
-          Your Supabase database is connected! Add an entry manually or trigger a GPay notification to begin tracking.
+          Your Supabase database is connected! Add an entry manually or trigger a GPay notification to start tracking.
         </p>
         <button class="btn" onclick="openAddModal()">
           <i class="fa-solid fa-plus"></i> Add First Real Transaction
@@ -198,14 +199,17 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Real Summary Metrics & Taxonomy (Module 3 & 5)
+// Calculate Real Summary Metrics, Savings Intelligence & Dynamic Advice
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
 
-  let needsSum = 0;
-  let wantsSum = 0;
-  let investSum = 0;
+  let unavoidableSum = 0; // Rent, Bills, EMI, Needs
+  let unwantedSum = 0;     // Food delivery, Impulse, Discretionary
+  let investSum = 0;       // Stocks, SIPs, Gold
+
+  const merchantTotals = {};
+  const categoryTotals = {};
 
   transactions.forEach(t => {
     const amt = parseFloat(t.amount || 0);
@@ -213,36 +217,152 @@ function updateMetricsAndTaxonomy() {
       income += amt;
     } else {
       expenses += amt;
-      if (t.category === 'Fixed Needs') needsSum += amt;
-      if (t.category === 'Variable Wants') wantsSum += amt;
-      if (t.category === 'Investments') investSum += amt;
+
+      // Merchant spending tracking
+      merchantTotals[t.merchant] = (merchantTotals[t.merchant] || 0) + amt;
+      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + amt;
+
+      if (t.category === 'Unavoidable / Rent' || t.category === 'Fixed Needs') {
+        unavoidableSum += amt;
+      } else if (t.category === 'Unwanted / Leak' || t.category === 'Variable Wants') {
+        unwantedSum += amt;
+      } else if (t.category === 'Investments') {
+        investSum += amt;
+      } else {
+        unavoidableSum += amt; // Default fallback
+      }
     }
   });
 
   const netCashFlow = income - expenses;
+  const netSaved = Math.max(0, netCashFlow);
+  const savingsRate = income > 0 ? ((netSaved / income) * 100).toFixed(1) : 0;
 
+  // 1. Dashboard Metrics
   document.getElementById('dashIncome').innerText = `₹${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('dashExpenses').innerText = `₹${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('dashNetCashFlow').innerText = `₹${netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  // 50 / 30 / 20 Taxonomy Targets based on Net Income
+  // 2. Savings Strategy Tab Intelligence
+  document.getElementById('strategyTotalSaved').innerText = `₹${netSaved.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  document.getElementById('strategySavingsRate').innerText = `${savingsRate}% Savings Rate`;
+
+  document.getElementById('unavoidableSum').innerText = `₹${unavoidableSum.toLocaleString('en-IN')}`;
+  document.getElementById('unwantedSum').innerText = `₹${unwantedSum.toLocaleString('en-IN')}`;
+  document.getElementById('investmentsSum').innerText = `₹${investSum.toLocaleString('en-IN')}`;
+
+  // Find Top Merchant & Top Category
+  let topMerchant = 'None logged';
+  let topMerchantMax = 0;
+  for (const m in merchantTotals) {
+    if (merchantTotals[m] > topMerchantMax) {
+      topMerchantMax = merchantTotals[m];
+      topMerchant = `${m} (₹${topMerchantMax.toLocaleString()})`;
+    }
+  }
+
+  let topCat = 'None logged';
+  let topCatMax = 0;
+  for (const c in categoryTotals) {
+    if (categoryTotals[c] > topCatMax) {
+      topCatMax = categoryTotals[c];
+      topCat = `${c} (₹${topCatMax.toLocaleString()})`;
+    }
+  }
+
+  document.getElementById('topMerchantVal').innerText = topMerchant;
+  document.getElementById('topCategoryVal').innerText = topCat;
+
+  // 3. Taxonomy 50/30/20 Rule Targets based on Income
   const targetNeeds = income > 0 ? income * 0.50 : 0;
   const targetWants = income > 0 ? income * 0.30 : 0;
   const targetInvest = income > 0 ? income * 0.15 : 0;
   const targetSavings = income > 0 ? income * 0.05 : 0;
 
-  document.getElementById('taxNeedsVal').innerText = `₹${needsSum.toLocaleString()} / ₹${targetNeeds.toLocaleString()}`;
-  document.getElementById('taxNeedsBar').style.width = `${income > 0 ? Math.min(100, (needsSum / targetNeeds) * 100) : 0}%`;
+  document.getElementById('taxNeedsVal').innerText = `₹${unavoidableSum.toLocaleString()} / ₹${targetNeeds.toLocaleString()}`;
+  document.getElementById('taxNeedsBar').style.width = `${income > 0 ? Math.min(100, (unavoidableSum / targetNeeds) * 100) : 0}%`;
 
-  document.getElementById('taxWantsVal').innerText = `₹${wantsSum.toLocaleString()} / ₹${targetWants.toLocaleString()}`;
-  document.getElementById('taxWantsBar').style.width = `${income > 0 ? Math.min(100, (wantsSum / targetWants) * 100) : 0}%`;
+  document.getElementById('taxWantsVal').innerText = `₹${unwantedSum.toLocaleString()} / ₹${targetWants.toLocaleString()}`;
+  document.getElementById('taxWantsBar').style.width = `${income > 0 ? Math.min(100, (unwantedSum / targetWants) * 100) : 0}%`;
 
   document.getElementById('taxInvestVal').innerText = `₹${investSum.toLocaleString()} / ₹${targetInvest.toLocaleString()}`;
   document.getElementById('taxInvestBar').style.width = `${income > 0 ? Math.min(100, (investSum / targetInvest) * 100) : 0}%`;
 
-  const calculatedSavings = Math.max(0, netCashFlow - investSum);
-  document.getElementById('taxSavingsVal').innerText = `₹${calculatedSavings.toLocaleString()} / ₹${targetSavings.toLocaleString()}`;
-  document.getElementById('taxSavingsBar').style.width = `${income > 0 ? Math.min(100, (calculatedSavings / targetSavings) * 100) : 0}%`;
+  document.getElementById('taxSavingsVal').innerText = `₹${netSaved.toLocaleString()} / ₹${targetSavings.toLocaleString()}`;
+  document.getElementById('taxSavingsBar').style.width = `${income > 0 ? Math.min(100, (netSaved / targetSavings) * 100) : 0}%`;
+
+  // 4. Generate Calculated "Ways to Save" Advisory
+  renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, topMerchant);
+}
+
+// Generate Concrete Actionable "Ways to Save"
+function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest, saved, topMerchant) {
+  const container = document.getElementById('waysToSaveContainer');
+  if (!container) return;
+
+  const adviceList = [];
+
+  // Advice 1: Unwanted Leaks Reduction
+  if (unwanted > 0) {
+    const potentialSaving = (unwanted * 0.30).toFixed(0);
+    adviceList.push({
+      icon: 'fa-triangle-exclamation',
+      color: '#f43f5e',
+      title: 'Unwanted Spending Leak Detected',
+      desc: `You spent <strong>₹${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Cutting this by 30% will save you <strong>₹${parseFloat(potentialSaving).toLocaleString()}/month</strong>!`
+    });
+  } else {
+    adviceList.push({
+      icon: 'fa-circle-check',
+      color: '#10b981',
+      title: 'Zero Unwanted Leaks Logged',
+      desc: `No discretionary leaks logged yet! Keep flagging food delivery, impulsive buys, and subscriptions as 'Unwanted'.`
+    });
+  }
+
+  // Advice 2: Unavoidable Spending & Rent Ratio
+  if (income > 0 && unavoidable > 0) {
+    const unavoidableRatio = ((unavoidable / income) * 100).toFixed(1);
+    if (unavoidableRatio > 50) {
+      adviceList.push({
+        icon: 'fa-house-lock',
+        color: '#f59e0b',
+        title: 'High Unavoidable Expense Ratio',
+        desc: `Rent and fixed bills consume <strong>${unavoidableRatio}%</strong> of your income (Target: < 50%). Consider negotiating fixed utility bills or optimizing rent expenses.`
+      });
+    } else {
+      adviceList.push({
+        icon: 'fa-thumbs-up',
+        color: '#06b6d4',
+        title: 'Healthy Unavoidable Rent Ratio',
+        desc: `Rent and fixed needs take up <strong>${unavoidableRatio}%</strong> of your monthly income. You are within safe financial margins.`
+      });
+    }
+  }
+
+  // Advice 3: Investment Sweep Recommendation
+  if (saved > 5000 && invest < saved * 0.5) {
+    const recommendedSIP = (saved * 0.4).toFixed(0);
+    adviceList.push({
+      icon: 'fa-chart-line',
+      color: '#10b981',
+      title: 'Surplus Cash Wealth Sweep',
+      desc: `You saved <strong>₹${saved.toLocaleString()}</strong> this month! We recommend sweeping <strong>₹${parseFloat(recommendedSIP).toLocaleString()}</strong> into Nifty 50 Index SIPs to compound wealth.`
+    });
+  }
+
+  // Render Advice Cards
+  container.innerHTML = adviceList.map(adv => `
+    <div class="advice-card">
+      <div class="advice-icon" style="background: rgba(255,255,255,0.08); color: ${adv.color};">
+        <i class="fa-solid ${adv.icon}"></i>
+      </div>
+      <div>
+        <div class="advice-title" style="color: ${adv.color};">${adv.title}</div>
+        <div class="advice-desc">${adv.desc}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 // Modal Handlers (CRUD)
@@ -334,7 +454,6 @@ function saveTransaction(e) {
   closeModal();
   renderTransactions();
 
-  // Push to Supabase
   if (SUPABASE_KEY) {
     fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
       method: 'POST',
@@ -370,13 +489,13 @@ function parseRawNotification() {
   const isCredit = typeMatch && /credited|received/i.test(typeMatch[1]);
   const type = isCredit ? 'Credit' : 'Debit';
 
-  let category = 'Variable Wants';
+  let category = 'Unwanted / Leak';
   if (isCredit) {
     category = 'Income';
   } else if (/sip|mutual|index|zerodha|groww|invest|stocks/i.test(raw + merchant)) {
     category = 'Investments';
-  } else if (/loan|emi|rent|hdfc|bill|electricity|gas|maintenance|broadband/i.test(raw + merchant)) {
-    category = 'Fixed Needs';
+  } else if (/rent|loan|emi|hdfc|bill|electricity|gas|maintenance|broadband/i.test(raw + merchant)) {
+    category = 'Unavoidable / Rent';
   }
 
   const timestamp = new Date().toISOString().split('T')[0];

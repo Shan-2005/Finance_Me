@@ -39,7 +39,7 @@
         </div>
         <div class="user-badge">
           <div class="live-dot"></div>
-          <span>Real Mode Active</span>
+          <span>Cloud Active</span>
         </div>
       </header>
 
@@ -52,7 +52,7 @@
         <section id="tab-dashboard" class="tab-view active">
           <!-- Hero Financial Summary Card -->
           <div class="card hero-card">
-            <div class="hero-balance-label">Net Real Cash Flow</div>
+            <div class="hero-balance-label">Net Monthly Cash Flow</div>
             <div class="hero-balance-amount" id="dashNetCashFlow">₹0.00</div>
             
             <div class="hero-stats-grid">
@@ -90,11 +90,11 @@
               <span class="action-label">50/30/20 Rule</span>
             </button>
 
-            <button class="action-btn" onclick="switchTab('wealth')">
+            <button class="action-btn" onclick="switchTab('strategy')">
               <div class="action-icon" style="background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan);">
-                <i class="fa-solid fa-chart-line"></i>
+                <i class="fa-solid fa-lightbulb"></i>
               </div>
-              <span class="action-label">Runway</span>
+              <span class="action-label">Savings Advisor</span>
             </button>
           </div>
 
@@ -103,8 +103,8 @@
             <input type="text" id="searchInput" class="form-input" placeholder="Search merchant, tag, or note..." onkeyup="renderTransactions()" style="flex: 1;">
             <select id="categoryFilter" class="form-select" onchange="renderTransactions()" style="width: 120px;">
               <option value="ALL">All Cats</option>
-              <option value="Fixed Needs">Needs</option>
-              <option value="Variable Wants">Wants</option>
+              <option value="Unavoidable / Rent">Unavoidable</option>
+              <option value="Unwanted / Leak">Unwanted</option>
               <option value="Investments">Investments</option>
               <option value="Income">Income</option>
             </select>
@@ -177,7 +177,7 @@
               <i class="fa-solid fa-shield-halved"></i> Automated Webhook Configuration
             </div>
             <p style="font-size: 11px; color: var(--text-muted); line-height: 1.5; margin-top: 8px;">
-              Point MacroDroid or Tasker to <code>https://&lt;your-app&gt;.vercel.app/api/ingest-notification</code>.<br>
+              Point MacroDroid or Tasker to <code>https://finance-me-smoky-rho.vercel.app/api/ingest-notification</code>.<br>
               HTTP POST Method with JSON body: <code>{"rawText": "[notification_text]"}</code>.
             </p>
           </div>
@@ -195,13 +195,13 @@
               <span class="card-subtitle">Calculated from Real Income</span>
             </div>
             <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-              Taxonomy automatically splits your logged real income into Needs (50%), Wants (30%), Investments (15%), and Reserve (5%).
+              Taxonomy automatically splits your logged real income into Unavoidable Needs (50%), Unwanted Leaks (30%), Investments (15%), and Reserve (5%).
             </p>
 
-            <!-- Fixed Needs Bar -->
+            <!-- Unavoidable Spending Bar -->
             <div class="tax-bucket">
               <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--accent-cyan);"></i> Fixed Needs (50% Target)</span>
+                <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--accent-cyan);"></i> Unavoidable (Rent/Needs 50%)</span>
                 <span class="tax-amount" id="taxNeedsVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
@@ -209,10 +209,10 @@
               </div>
             </div>
 
-            <!-- Variable Wants Bar -->
+            <!-- Unwanted Spending Bar -->
             <div class="tax-bucket">
               <div class="tax-header">
-                <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--accent-rose);"></i> Variable Wants (30% Target)</span>
+                <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--accent-rose);"></i> Unwanted Leaks (Target < 30%)</span>
                 <span class="tax-amount" id="taxWantsVal">₹0 / ₹0</span>
               </div>
               <div class="progress-bar-bg">
@@ -245,36 +245,70 @@
         </section>
 
         <!-- ==========================================
-             TAB 4: SPENDING OPTIMIZATION (Module 4)
+             TAB 4: SPENDING & SAVINGS STRATEGY (Module 4)
              ========================================== -->
         <section id="tab-strategy" class="tab-view">
-          <div class="card-header" style="margin-top: 4px;">
+          
+          <!-- How Much I Saved & Top Spending Hero Card -->
+          <div class="card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(99, 102, 241, 0.1)); border-color: rgba(16, 185, 129, 0.3);">
+            <div style="font-size: 11px; font-weight: 700; color: var(--primary-emerald); text-transform: uppercase; letter-spacing: 0.5px;">
+              <i class="fa-solid fa-piggy-bank"></i> How Much You Saved This Month
+            </div>
+            
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
+              <div style="font-size: 26px; font-weight: 800; color: #fff;" id="strategyTotalSaved">₹0.00</div>
+              <div style="font-size: 12px; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: var(--primary-emerald); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
+                0% Savings Rate
+              </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;">
+
+            <!-- Where Did I Spend More Breakdown -->
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+              <i class="fa-solid fa-fire text-rose"></i> Where Did You Spend The Most?
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+              <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <div style="font-size: 10px; color: var(--text-dim);">Top Merchant</div>
+                <div style="font-weight: 700; color: #fff; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
+              </div>
+              <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <div style="font-size: 10px; color: var(--text-dim);">Top Expense Category</div>
+                <div style="font-weight: 700; color: var(--accent-rose); margin-top: 2px;" id="topCategoryVal">None logged</div>
+              </div>
+            </div>
+
+            <!-- Specified Categorization Breakdown -->
+            <div style="display: flex; gap: 6px; margin-top: 10px;">
+              <div style="flex: 1; background: rgba(6, 182, 212, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(6, 182, 212, 0.2);">
+                <div style="font-size: 9px; color: var(--accent-cyan); font-weight: 700;">🏠 Unavoidable/Rent</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="unavoidableSum">₹0</div>
+              </div>
+
+              <div style="flex: 1; background: rgba(244, 63, 94, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(244, 63, 94, 0.2);">
+                <div style="font-size: 9px; color: var(--accent-rose); font-weight: 700;">🛍️ Unwanted Leaks</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="unwantedSum">₹0</div>
+              </div>
+
+              <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(16, 185, 129, 0.2);">
+                <div style="font-size: 9px; color: var(--primary-emerald); font-weight: 700;">📈 Investments</div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" id="investmentsSum">₹0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Ways to Save Advisory Container -->
+          <div class="card-header" style="margin-top: 12px;">
             <div class="card-title">
-              <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-indigo);"></i> Real Spending Advisor
+              <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-indigo);"></i> Actionable Ways To Save
             </div>
-            <span class="card-subtitle">Analyzes Logged Data</span>
+            <span class="card-subtitle">AI Financial Advice</span>
           </div>
 
-          <div class="advice-card">
-            <div class="advice-icon"><i class="fa-solid fa-chart-pie"></i></div>
-            <div>
-              <div class="advice-title">Real-Time Spending Analysis</div>
-              <div class="advice-desc">
-                Log your daily transactions or connect MacroDroid to generate automated spending leak alerts and savings recommendations.
-              </div>
-            </div>
-          </div>
-
-          <div class="advice-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(245, 158, 11, 0.05)); border-color: rgba(16, 185, 129, 0.25);">
-            <div class="advice-icon" style="background: rgba(16, 185, 129, 0.2); color: var(--primary-emerald);">
-              <i class="fa-solid fa-arrow-trend-up"></i>
-            </div>
-            <div>
-              <div class="advice-title">Surplus Wealth Sweeping</div>
-              <div class="advice-desc">
-                Once real monthly income exceeds expenses, recommended sweep amounts for liquid funds will appear here automatically.
-              </div>
-            </div>
+          <div id="waysToSaveContainer" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Computed dynamically by JS based on transactions -->
           </div>
         </section>
 
@@ -288,8 +322,8 @@
               <i class="fa-solid fa-heart-pulse" style="color: var(--primary-emerald);"></i> Financial Health Score
             </div>
             <div class="gauge-container">
-              <div class="gauge-score">Real-Time</div>
-              <div class="gauge-label">Calculates from live transaction log</div>
+              <div class="gauge-score" id="healthScoreVal">100</div>
+              <div class="gauge-label" id="healthScoreLabel">Calculated from live transactions</div>
             </div>
           </div>
         </section>
@@ -336,7 +370,7 @@
         
         <div class="form-group">
           <label class="form-label">Merchant / Entity Name *</label>
-          <input type="text" id="inputMerchant" class="form-input" placeholder="e.g. Swiggy, Amazon, Salary" required>
+          <input type="text" id="inputMerchant" class="form-input" placeholder="e.g. Swiggy, House Rent, Salary" required>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -356,12 +390,12 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div class="form-group">
-            <label class="form-label">Taxonomy Category *</label>
+            <label class="form-label">Spending Category *</label>
             <select id="inputCategory" class="form-select">
-              <option value="Fixed Needs">Fixed Needs</option>
-              <option value="Variable Wants">Variable Wants</option>
-              <option value="Investments">Investments</option>
-              <option value="Income">Income</option>
+              <option value="Unavoidable / Rent">🏠 Unavoidable (Rent/Bills/EMI)</option>
+              <option value="Unwanted / Leak">🛍️ Unwanted (Food/Impulse/Wants)</option>
+              <option value="Investments">📈 Investments (SIP/Stocks/Gold)</option>
+              <option value="Income">💰 Income Stream</option>
             </select>
           </div>
 
@@ -384,7 +418,7 @@
 
           <div class="form-group">
             <label class="form-label">Tags (Comma separated)</label>
-            <input type="text" id="inputTags" class="form-input" placeholder="#dining, #work">
+            <input type="text" id="inputTags" class="form-input" placeholder="#rent, #unwanted, #dining">
           </div>
         </div>
 
