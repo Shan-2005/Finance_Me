@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FINANCE ME - Real Data Management & Google Pay (GPay) Engine with Chart.js
+   FINANCE ME - Real Data Management & Google Pay (GPay) Engine
    ========================================================================== */
 
 const SUPABASE_URL = 'https://qtejgfhuzquifcobdvfo.supabase.co';
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('inputDate');
   if (dateInput) dateInput.valueAsDate = new Date();
   
+  initTheme();
   loadProfileSettings();
   restoreFromVaultBackupIfEmpty();
 
@@ -43,6 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initPwaInstallPrompt();
 });
+
+/* ==========================================================================
+   LIGHT / DARK MODE THEME SWITCHER
+   ========================================================================== */
+
+function initTheme() {
+  const savedTheme = localStorage.getItem('finance_me_theme') || 'dark';
+  applyTheme(savedTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(newTheme);
+  localStorage.setItem('finance_me_theme', newTheme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btnIcon = document.querySelector('#themeToggleBtn i');
+  if (btnIcon) {
+    btnIcon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  }
+  if (typeof renderCharts === 'function') renderCharts();
+}
 
 /* ==========================================================================
    QUADRUPLE-LAYER DATA LOSS PREVENTION & VAULT BACKUP SYSTEM
@@ -412,9 +438,9 @@ function renderTransactions() {
 
   if (transactions.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 36px 16px; background: var(--gpay-surface); border: 1px dashed var(--gpay-border); border-radius: 24px;">
+      <div style="text-align: center; padding: 36px 16px; background: var(--glass-surface); border: 1px dashed var(--glass-border); border-radius: 24px;">
         <i class="fa-solid fa-wallet" style="font-size: 40px; color: var(--gpay-blue-light); margin-bottom: 12px;"></i>
-        <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">No Google Pay Transactions Logged Yet</h4>
+        <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">No Google Pay Transactions Logged Yet</h4>
         <p style="font-size: 12px; color: var(--text-muted); max-width: 280px; margin: 0 auto 16px auto; line-height: 1.4;">
           Your Supabase database is connected! Add a payment entry manually or paste a GPay notification.
         </p>
@@ -456,7 +482,7 @@ function renderTransactions() {
               <span><i class="fa-solid fa-mobile-screen-button" style="font-size: 10px;"></i> ${t.mode}</span>
               ${tagBadges ? `• ${tagBadges}` : ''}
             </div>
-            ${t.notes ? `<div style="font-size: 11px; color: #c4c6cf; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💬 ${t.notes}</div>` : ''}
+            ${t.notes ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💬 ${t.notes}</div>` : ''}
           </div>
         </div>
         <div class="txn-right">
@@ -582,6 +608,10 @@ function updateMetricsAndTaxonomy() {
 function renderCharts() {
   if (typeof Chart === 'undefined') return;
 
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const labelColor = currentTheme === 'light' ? '#3c4043' : '#e3e2e6';
+  const gridColor = currentTheme === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+
   let unavoidableSum = 0;
   let unwantedSum = 0;
   let investSum = 0;
@@ -615,7 +645,7 @@ function renderCharts() {
           data: hasData ? dataValues : [50, 30, 15, 5],
           backgroundColor: ['#4285F4', '#EA4335', '#34A853', '#FBBC05'],
           borderWidth: 2,
-          borderColor: '#181920'
+          borderColor: currentTheme === 'light' ? '#f4f6fb' : '#181920'
         }]
       },
       options: {
@@ -624,7 +654,7 @@ function renderCharts() {
         plugins: {
           legend: {
             position: 'right',
-            labels: { color: '#e3e2e6', font: { size: 11, family: 'Plus Jakarta Sans' }, boxWidth: 12 }
+            labels: { color: labelColor, font: { size: 11, family: 'Plus Jakarta Sans' }, boxWidth: 12 }
           }
         },
         cutout: '70%'
@@ -657,8 +687,8 @@ function renderCharts() {
           legend: { display: false }
         },
         scales: {
-          x: { ticks: { color: '#90909a', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#90909a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          x: { ticks: { color: labelColor, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: labelColor, font: { size: 10 } }, grid: { color: gridColor } }
         }
       }
     });

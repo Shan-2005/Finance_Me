@@ -1,28 +1,30 @@
 /* ==========================================================================
-   FINANCE ME - Google Pay (GPay) Dynamic Responsive UI Stylesheet
-   Aesthetic: Premium Metallic Dark, Multi-Stop Google Gradients, Pro Icons
+   FINANCE ME - Google Pay (GPay) Glassmorphism, Animated Gradient & Light/Dark Mode UI
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
-  /* GPay Material Dark Color Palette */
-  --gpay-bg: #0b0c10;
-  --gpay-surface: #181920;
-  --gpay-surface-elevated: #22242e;
-  --gpay-surface-hover: #2c2e3b;
-  --gpay-border: rgba(255, 255, 255, 0.08);
+  /* GPay Dark Palette (Default) */
+  --gpay-bg: #090a0e;
+  
+  /* Glassmorphism Surface Tokens */
+  --glass-surface: rgba(24, 25, 32, 0.68);
+  --glass-surface-elevated: rgba(34, 36, 46, 0.75);
+  --glass-surface-hover: rgba(44, 46, 59, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 
-  /* Google Brand Accent Colors & Vibrant Gradients */
+  /* Google Brand Accent Colors */
   --gpay-blue: #4285F4;
   --gpay-blue-light: #8ab4f8;
   --gpay-blue-grad: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%);
-  --gpay-blue-bg: rgba(66, 133, 244, 0.15);
+  --gpay-blue-bg: rgba(66, 133, 244, 0.18);
 
   --gpay-green: #34A853;
   --gpay-green-light: #81c995;
   --gpay-green-grad: linear-gradient(135deg, #34A853 0%, #0f9d58 100%);
-  --gpay-green-bg: rgba(52, 168, 83, 0.15);
+  --gpay-green-bg: rgba(52, 168, 83, 0.18);
 
   --gpay-yellow: #FBBC05;
   --gpay-yellow-light: #fde293;
@@ -31,10 +33,10 @@
   --gpay-red: #EA4335;
   --gpay-red-light: #f28b82;
   --gpay-red-grad: linear-gradient(135deg, #EA4335 0%, #d93025 100%);
-  --gpay-red-bg: rgba(234, 67, 53, 0.15);
+  --gpay-red-bg: rgba(234, 67, 53, 0.18);
 
-  /* Metallic Hero Gradient */
-  --hero-grad: linear-gradient(135deg, #1a2536 0%, #0d1527 50%, #141f33 100%);
+  /* Metallic Hero Glass Gradient */
+  --hero-grad: linear-gradient(135deg, rgba(26, 37, 54, 0.85) 0%, rgba(13, 21, 39, 0.85) 50%, rgba(20, 31, 51, 0.85) 100%);
 
   --text-main: #e3e2e6;
   --text-muted: #90909a;
@@ -42,6 +44,57 @@
 
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Outfit', sans-serif;
+}
+
+/* ==========================================================================
+   LIGHT MODE OVERRIDES ([data-theme="light"])
+   ========================================================================== */
+[data-theme="light"] {
+  --gpay-bg: #f4f6fb;
+  
+  --glass-surface: rgba(255, 255, 255, 0.82);
+  --glass-surface-elevated: rgba(240, 243, 250, 0.9);
+  --glass-surface-hover: rgba(230, 235, 245, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+
+  --gpay-blue-light: #1a73e8;
+  --gpay-green-light: #1e8e3e;
+  --gpay-yellow-light: #d97706;
+  --gpay-red-light: #d93025;
+
+  --text-main: #1f1f1f;
+  --text-muted: #5f6368;
+  --text-sub: #3c4043;
+
+  --hero-grad: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+[data-theme="light"] body::before {
+  background: radial-gradient(circle at 20% 20%, rgba(66, 133, 244, 0.12) 0%, transparent 40%),
+              radial-gradient(circle at 80% 30%, rgba(52, 168, 83, 0.1) 0%, transparent 40%),
+              radial-gradient(circle at 40% 80%, rgba(251, 188, 5, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 80% 80%, rgba(234, 67, 53, 0.1) 0%, transparent 40%);
+}
+
+[data-theme="light"] .txn-merchant, 
+[data-theme="light"] .advice-title, 
+[data-theme="light"] .modal-title,
+[data-theme="light"] .txn-amount.debit {
+  color: #1f1f1f !important;
+}
+
+[data-theme="light"] .app-container {
+  background: rgba(244, 246, 251, 0.85);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .gpay-header {
+  background: rgba(244, 246, 251, 0.9);
+}
+
+[data-theme="light"] .app-nav {
+  background: rgba(244, 246, 251, 0.92);
 }
 
 * {
@@ -60,6 +113,28 @@ html, body {
   overflow-x: hidden;
   display: flex;
   justify-content: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ANIMATED MOVING BACKGROUND MESH GRADIENT */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle at 20% 20%, rgba(66, 133, 244, 0.15) 0%, transparent 40%),
+              radial-gradient(circle at 80% 30%, rgba(52, 168, 83, 0.12) 0%, transparent 40%),
+              radial-gradient(circle at 40% 80%, rgba(251, 188, 5, 0.1) 0%, transparent 40%),
+              radial-gradient(circle at 80% 80%, rgba(234, 67, 53, 0.12) 0%, transparent 40%);
+  animation: fluidGradient 18s ease-in-out infinite alternate;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes fluidGradient {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate(-5%, 5%) rotate(180deg) scale(1.1); }
+  100% { transform: translate(5%, -5%) rotate(360deg) scale(1); }
 }
 
 /* Privacy Mode Blur Filter */
@@ -74,38 +149,44 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
 
-/* DYNAMIC FLUID CONTAINER */
+/* DYNAMIC FLUID CONTAINER WITH GLASSMORPHISM */
 .app-container {
   width: 100%;
   max-width: 640px;
   min-height: 100vh;
-  background: var(--gpay-bg);
+  background: rgba(9, 10, 14, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
   position: relative;
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.7);
+  transition: background 0.3s ease;
 }
 
-/* GPAY TOP SEARCH BAR & HEADER */
+/* GPAY TOP SEARCH BAR & HEADER (GLASSMORPHISM) */
 .gpay-header {
   padding: 14px 16px 10px 16px;
-  background: rgba(11, 12, 16, 0.95);
-  backdrop-filter: blur(12px);
+  background: rgba(9, 10, 14, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid var(--gpay-border);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .gpay-search-bar {
-  background: linear-gradient(135deg, rgba(34, 36, 46, 0.9), rgba(24, 25, 32, 0.9));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--glass-surface-elevated);
+  border: 1px solid var(--glass-border);
   border-radius: 28px;
   padding: 6px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(12px);
 }
 
 .gpay-logo-badge {
@@ -155,15 +236,15 @@ html, body {
   cursor: pointer;
   box-shadow: 0 0 14px rgba(66, 133, 244, 0.5);
   flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.25);
 }
 
 .refresh-btn {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--gpay-surface-elevated);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface-elevated);
+  border: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -172,7 +253,7 @@ html, body {
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
-.refresh-btn:hover { background: var(--gpay-surface-hover); color: #fff; }
+.refresh-btn:hover { background: var(--glass-surface-hover); }
 .spin-anim { animation: spin 0.8s linear infinite; }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -187,9 +268,10 @@ html, body {
   gap: 16px;
 }
 
-/* PWA Install Banner Popup */
+/* PWA Install Banner Popup (Glassmorphism) */
 .pwa-install-banner {
-  background: linear-gradient(135deg, rgba(66, 133, 244, 0.25), rgba(52, 168, 83, 0.25)), var(--gpay-surface);
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.25), rgba(52, 168, 83, 0.25)), var(--glass-surface);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--gpay-blue-light);
   border-radius: 20px;
   padding: 12px 14px;
@@ -197,6 +279,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  box-shadow: var(--glass-shadow);
 }
 
 .pwa-content { display: flex; align-items: center; gap: 10px; }
@@ -209,7 +292,7 @@ html, body {
   box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
 }
 .pwa-text { display: flex; flex-direction: column; }
-.pwa-text strong { font-size: 12px; color: #fff; }
+.pwa-text strong { font-size: 12px; color: var(--text-main); }
 .pwa-text span { font-size: 10px; color: var(--text-muted); }
 .pwa-actions { display: flex; align-items: center; gap: 6px; }
 
@@ -218,25 +301,30 @@ html, body {
 .tab-view.active { display: flex; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Standard GPay Cards */
+/* GLASSMORPHISM CARDS */
 .card {
-  background: var(--gpay-surface);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
   border-radius: 24px;
   padding: 18px;
   position: relative;
   overflow: hidden;
+  box-shadow: var(--glass-shadow);
 }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .card-title { font-size: 14px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
 .card-subtitle { font-size: 11px; color: var(--text-muted); }
 
-/* GPay Hero Metallic Balance Card */
+/* GPay Hero Metallic Glass Card */
 .hero-card {
   background: var(--hero-grad);
-  border: 1px solid rgba(66, 133, 244, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(66, 133, 244, 0.4);
   border-radius: 28px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   position: relative;
 }
 .hero-card::before {
@@ -244,12 +332,12 @@ html, body {
   position: absolute;
   top: -40px; right: -40px;
   width: 140px; height: 140px;
-  background: radial-gradient(circle, rgba(66, 133, 244, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(66, 133, 244, 0.3) 0%, transparent 70%);
   pointer-events: none;
 }
 .hero-balance-label { font-size: 11px; color: var(--gpay-blue-light); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
 .hero-balance-amount { font-size: 34px; font-weight: 800; color: #fff; margin: 4px 0 14px 0; font-family: var(--font-display); letter-spacing: -0.5px; }
-.hero-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--gpay-border); }
+.hero-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 12px; border-top: 1px solid var(--glass-border); }
 .stat-item { display: flex; flex-direction: column; }
 .stat-label { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
 .stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
@@ -288,7 +376,7 @@ html, body {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--gpay-surface-elevated);
+  background: var(--glass-surface-elevated);
   border: 2px solid var(--gpay-blue);
   display: flex;
   align-items: center;
@@ -302,7 +390,7 @@ html, body {
 .gpay-avatar-item:hover .gpay-avatar-bubble {
   transform: scale(1.1);
   border-color: var(--gpay-green-light);
-  box-shadow: 0 0 20px rgba(52, 168, 83, 0.4);
+  box-shadow: 0 0 20px rgba(52, 168, 83, 0.5);
 }
 
 .gpay-avatar-name {
@@ -316,7 +404,7 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* GPAY QUICK ACTION BUTTONS (VIBRANT GRADIENT CIRCLES) */
+/* GPAY QUICK ACTION BUTTONS (GLASS & GRADIENT) */
 .gpay-actions-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -325,8 +413,10 @@ html, body {
 }
 
 .gpay-action-btn {
-  background: var(--gpay-surface);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 14px 6px 12px 6px;
   display: flex;
@@ -335,12 +425,13 @@ html, body {
   gap: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: var(--glass-shadow);
 }
 .gpay-action-btn:hover {
-  background: var(--gpay-surface-elevated);
+  background: var(--glass-surface-elevated);
   transform: translateY(-3px);
   border-color: var(--gpay-blue-light);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 
 .gpay-action-circle {
@@ -363,7 +454,7 @@ html, body {
   line-height: 1.2;
 }
 
-/* PERFECT DYNAMIC FIT PAYMENT HISTORY LIST STREAM */
+/* PAYMENT HISTORY STREAM (GLASSMORPHISM) */
 .txn-list {
   display: flex;
   flex-direction: column;
@@ -372,8 +463,10 @@ html, body {
 }
 
 .txn-item {
-  background: var(--gpay-surface);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 12px 14px;
   display: flex;
@@ -382,10 +475,11 @@ html, body {
   gap: 12px;
   width: 100%;
   transition: all 0.2s ease;
+  box-shadow: var(--glass-shadow);
 }
 .txn-item:hover {
-  background: var(--gpay-surface-elevated);
-  border-color: rgba(255,255,255,0.14);
+  background: var(--glass-surface-elevated);
+  border-color: rgba(255,255,255,0.2);
   transform: translateX(2px);
 }
 
@@ -407,7 +501,7 @@ html, body {
   font-size: 18px;
   font-weight: 800;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .txn-details {
@@ -477,10 +571,10 @@ html, body {
 
 .txn-actions { display: flex; gap: 8px; margin-top: 2px; }
 .icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 2px; }
-.icon-btn:hover { color: #fff; }
+.icon-btn:hover { color: var(--text-main); }
 .icon-btn.delete:hover { color: var(--gpay-red-light); }
 
-/* TAXONOMY & BUDGET GAUGES WITH MULTI-STOP GRADIENTS */
+/* TAXONOMY & BUDGET GAUGES */
 .tax-bucket { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .tax-header { display: flex; justify-content: space-between; font-size: 12px; }
 .tax-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
@@ -490,13 +584,15 @@ html, body {
 
 /* Strategy Advisory Cards */
 .advice-card {
-  background: var(--gpay-surface);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 14px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  box-shadow: var(--glass-shadow);
 }
 .advice-icon {
   width: 38px; height: 38px;
@@ -527,19 +623,19 @@ html, body {
   box-shadow: 0 4px 16px rgba(66, 133, 244, 0.4);
 }
 .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.btn-secondary { background: var(--gpay-surface-elevated); color: #fff; border: 1px solid var(--gpay-border); box-shadow: none; }
-.btn-secondary:hover { background: var(--gpay-surface-hover); }
+.btn-secondary { background: var(--glass-surface-elevated); color: var(--text-main); border: 1px solid var(--glass-border); box-shadow: none; }
+.btn-secondary:hover { background: var(--glass-surface-hover); }
 .btn-full { width: 100%; }
 
 /* Form Controls */
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .form-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
 .form-input, .form-select, .parser-textarea {
-  background: var(--gpay-surface-elevated);
-  border: 1px solid var(--gpay-border);
+  background: var(--glass-surface-elevated);
+  border: 1px solid var(--glass-border);
   border-radius: 14px;
   padding: 10px 14px;
-  color: #fff;
+  color: var(--text-main);
   font-family: inherit;
   font-size: 13px;
   outline: none;
@@ -548,33 +644,34 @@ html, body {
 .form-input:focus, .form-select:focus { border-color: var(--gpay-blue-light); }
 
 /* Parser Tool */
-.parser-box { background: var(--gpay-surface-elevated); border: 1px dashed var(--gpay-border); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.parser-box { background: var(--glass-surface-elevated); border: 1px dashed var(--glass-border); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .parser-textarea { width: 100%; height: 70px; border: none; background: transparent; color: var(--gpay-blue-light); font-family: monospace; font-size: 12px; resize: none; }
 
 .parsed-preview { background: var(--gpay-blue-bg); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 16px; padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
 .parsed-row { display: flex; justify-content: space-between; }
 .parsed-key { color: var(--text-muted); }
-.parsed-val { font-weight: 700; color: #fff; }
+.parsed-val { font-weight: 700; color: var(--text-main); }
 
 /* Modal Window */
-.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 999; align-items: flex-end; justify-content: center; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999; align-items: flex-end; justify-content: center; }
 .modal-overlay.active { display: flex; }
-.modal-card { width: 100%; max-width: 640px; background: var(--gpay-surface); border-top: 1px solid var(--gpay-border); border-top-left-radius: 28px; border-top-right-radius: 28px; padding: 24px 20px 30px 20px; max-height: 85%; overflow-y: auto; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-card { width: 100%; max-width: 640px; background: var(--glass-surface); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); border-top-left-radius: 28px; border-top-right-radius: 28px; padding: 24px 20px 30px 20px; max-height: 85%; overflow-y: auto; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .modal-title { font-size: 16px; font-weight: 800; color: #fff; }
 .modal-close { background: rgba(255, 255, 255, 0.1); border: none; color: var(--text-muted); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
 
-/* BOTTOM GPAY NAV BAR */
+/* BOTTOM GPAY NAV BAR (GLASSMORPHISM) */
 .app-nav {
   position: fixed;
   bottom: 0; left: 50%;
   transform: translateX(-50%);
   width: 100%; max-width: 640px;
   height: 70px;
-  background: rgba(11, 12, 16, 0.96);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid var(--gpay-border);
+  background: rgba(9, 10, 14, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: space-around;
