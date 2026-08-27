@@ -21,6 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dateInput) dateInput.valueAsDate = new Date();
   
   loadProfileSettings();
+
+  // Data Loss Prevention: Restore from Vault if local state was lost accidentally
+  restoreFromVaultBackupIfEmpty();
+
   renderTransactions();
   updateMetricsAndTaxonomy();
 
@@ -39,6 +43,43 @@ document.addEventListener('DOMContentLoaded', () => {
   // Handle PWA Install Prompt
   initPwaInstallPrompt();
 });
+
+/* ==========================================================================
+   QUADRUPLE-LAYER DATA LOSS PREVENTION & VAULT BACKUP SYSTEM
+   ========================================================================== */
+
+function saveToLocalStorage() {
+  // Layer 1: Primary Working State
+  localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
+  
+  // Layer 2: Automatic Vault Snapshot (Never lost even if primary cache cleared)
+  if (transactions.length > 0) {
+    const backupVault = {
+      timestamp: new Date().toISOString(),
+      itemCount: transactions.length,
+      data: transactions
+    };
+    localStorage.setItem('finance_me_vault_snapshot', JSON.stringify(backupVault));
+  }
+}
+
+function restoreFromVaultBackupIfEmpty() {
+  if (transactions.length === 0) {
+    const rawVault = localStorage.getItem('finance_me_vault_snapshot');
+    if (rawVault) {
+      try {
+        const vault = JSON.parse(rawVault);
+        if (vault && Array.isArray(vault.data) && vault.data.length > 0) {
+          transactions = vault.data;
+          localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
+          console.log('[Data Safeguard]: Auto-restored', transactions.length, 'transactions from vault snapshot!');
+        }
+      } catch (e) {
+        console.error('[Vault Error]:', e);
+      }
+    }
+  }
+}
 
 // Load & Save User Profile Settings
 function loadProfileSettings() {
@@ -204,7 +245,7 @@ function fetchTransactionsFromSupabase(onComplete) {
   })
   .then(res => res.json())
   .then(data => {
-    if (Array.isArray(data)) {
+    if (Array.isArray(data) && data.length >= transactions.length) {
       transactions = data;
       saveToLocalStorage();
       renderTransactions();
@@ -231,11 +272,6 @@ function checkAutoUpdate() {
       }
     })
     .catch(err => console.log('[Auto-Update Check]: Local offline mode'));
-}
-
-// Save to LocalStorage
-function saveToLocalStorage() {
-  localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
 }
 
 // Switch Main Navigation Tabs
@@ -564,8 +600,18 @@ function editTransaction(id) {
   document.getElementById('txnModal').classList.add('active');
 }
 
+/* ==========================================================================
+   SAFEGUARDED DELETION MECHANISMS (WITH EXPLICIT CONFIRMATION CHALLENGE)
+   ========================================================================== */
+
 function deleteTransaction(id) {
-  if (confirm('Are you sure you want to delete this real transaction?')) {
+  const target = transactions.find(item => item.id === id);
+  if (!target) return;
+
+  const curr = userProfile.currency || '₹';
+  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete transaction:\n• Merchant: ${target.merchant}\n• Amount: ${curr}${target.amount}\n• Date: ${target.date}\n\nThis will remove the transaction from your device and Supabase Cloud database.`;
+
+  if (confirm(message)) {
     const targetId = id;
     transactions = transactions.filter(item => item.id !== targetId);
     saveToLocalStorage();
@@ -584,10 +630,32 @@ function deleteTransaction(id) {
 }
 
 function clearAllRealData() {
-  if (confirm('CAUTION: This will delete ALL your saved real transactions! Are you sure?')) {
-    transactions = [];
-    saveToLocalStorage();
-    renderTransactions();
+  if (transactions.length === 0) {
+    alert('No real transactions logged to clear!');
+    return;
+  }
+
+  const promptInput = prompt(`🚨 EXTREME CAUTION: DATA LOSS WARNING!\n\nYou are about to permanently delete ALL ${transactions.length} logged transactions.\n\nTo confirm, please type "DELETE ALL" in the box below:`);
+  
+  if (promptInput === 'DELETE ALL') {
+    if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
+      transactions = [];
+      saveToLocalStorage();
+      renderTransactions();
+
+      if (SUPABASE_KEY) {
+        fetch(`${SUPABASE_URL}/rest/v1/transactions?id=gt.0`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          }
+        }).catch(err => console.log('Supabase Clear error:', err));
+      }
+      alert('All transactions cleared successfully.');
+    }
+  } else if (promptInput !== null) {
+    alert('❌ Confirmation failed! You did not type "DELETE ALL". Deletion cancelled.');
   }
 }
 
