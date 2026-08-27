@@ -11,8 +11,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- Google Fonts & Font Awesome Icons -->
+  <!-- Google Fonts, Font Awesome Icons & Chart.js -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -86,28 +87,28 @@
         <!-- GPAY QUICK ACTION BUTTONS -->
         <div class="gpay-actions-grid">
           <button class="gpay-action-btn" onclick="openAddModal()">
-            <div class="gpay-action-circle" style="background: rgba(66, 133, 244, 0.2); color: var(--gpay-blue-light);">
+            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%); color: #fff;">
               <i class="fa-solid fa-plus"></i>
             </div>
             <span class="gpay-action-label">New Pay</span>
           </button>
 
           <button class="gpay-action-btn" onclick="switchTab('settings')">
-            <div class="gpay-action-circle" style="background: rgba(251, 188, 5, 0.2); color: var(--gpay-yellow-light);">
+            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #FBBC05 0%, #f29900 100%); color: #fff;">
               <i class="fa-solid fa-qrcode"></i>
             </div>
             <span class="gpay-action-label">Scan / Parser</span>
           </button>
 
           <button class="gpay-action-btn" onclick="switchTab('taxonomy')">
-            <div class="gpay-action-circle" style="background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light);">
+            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #34A853 0%, #0f9d58 100%); color: #fff;">
               <i class="fa-solid fa-chart-pie"></i>
             </div>
-            <span class="gpay-action-label">50/30/20 Rule</span>
+            <span class="gpay-action-label">Analytics</span>
           </button>
 
           <button class="gpay-action-btn" onclick="switchTab('strategy')">
-            <div class="gpay-action-circle" style="background: rgba(234, 67, 53, 0.2); color: var(--gpay-red-light);">
+            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #EA4335 0%, #d93025 100%); color: #fff;">
               <i class="fa-solid fa-lightbulb"></i>
             </div>
             <span class="gpay-action-label">Advisor</span>
@@ -150,28 +151,55 @@
       </section>
 
       <!-- ==========================================
-           TAB 2: BUDGET & TAXONOMY (50/30/20)
+           TAB 2: GRAPHICAL BUDGET & CHARTS ANALYTICS
            ========================================== -->
       <section id="tab-taxonomy" class="tab-view">
+        
+        <!-- GRAPH 1: SPENDING DONUT CHART -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-sitemap" style="color: var(--gpay-green-light);"></i> 50 / 30 / 20 Budget Rule Engine
+              <i class="fa-solid fa-chart-pie" style="color: var(--gpay-blue-light);"></i> Spending Category Breakdown
             </div>
-            <span class="card-subtitle">Google Analytics Split</span>
+            <span class="card-subtitle">Visual Graph</span>
           </div>
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-            Automatically splits logged income into Needs (50%), Unwanted Leaks (30%), Investments (15%), and Savings (5%).
-          </p>
+
+          <div style="position: relative; width: 100%; height: 210px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="categoryDonutChart"></canvas>
+          </div>
+        </div>
+
+        <!-- GRAPH 2: CASH FLOW BAR CHART -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-column" style="color: var(--gpay-green-light);"></i> Income vs Expense Comparison
+            </div>
+            <span class="card-subtitle">Visual Graph</span>
+          </div>
+
+          <div style="position: relative; width: 100%; height: 180px;">
+            <canvas id="cashflowBarChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 50/30/20 BUDGET RULE GAUGE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-sitemap" style="color: var(--gpay-yellow-light);"></i> 50 / 30 / 20 Budget Target Gauges
+            </div>
+            <span class="card-subtitle">Target Split</span>
+          </div>
 
           <!-- Unavoidable Spending Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-house" style="color: var(--gpay-blue-light);"></i> Needs (Rent/Bills 50%)</span>
+              <span class="tax-name"><i class="fa-solid fa-house-chimney" style="color: var(--gpay-blue-light);"></i> Needs (Rent/Bills 50%)</span>
               <span class="tax-amount maskable-amount" id="taxNeedsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="taxNeedsBar" style="width: 0%; background: var(--gpay-blue);"></div>
+              <div class="progress-bar-fill" id="taxNeedsBar" style="width: 0%;"></div>
             </div>
           </div>
 
@@ -182,18 +210,18 @@
               <span class="tax-amount maskable-amount" id="taxWantsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="taxWantsBar" style="width: 0%; background: var(--gpay-red);"></div>
+              <div class="progress-bar-fill" id="taxWantsBar" style="width: 0%;"></div>
             </div>
           </div>
 
           <!-- Investments Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-chart-line" style="color: var(--gpay-green-light);"></i> Investments (15% Target)</span>
+              <span class="tax-name"><i class="fa-solid fa-arrow-trend-up" style="color: var(--gpay-green-light);"></i> Investments (15% Target)</span>
               <span class="tax-amount maskable-amount" id="taxInvestVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="taxInvestBar" style="width: 0%; background: var(--gpay-green);"></div>
+              <div class="progress-bar-fill" id="taxInvestBar" style="width: 0%;"></div>
             </div>
           </div>
 
@@ -204,10 +232,11 @@
               <span class="tax-amount maskable-amount" id="taxSavingsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="taxSavingsBar" style="width: 0%; background: var(--gpay-yellow);"></div>
+              <div class="progress-bar-fill" id="taxSavingsBar" style="width: 0%;"></div>
             </div>
           </div>
         </div>
+
       </section>
 
       <!-- ==========================================
@@ -215,7 +244,7 @@
            ========================================== -->
       <section id="tab-strategy" class="tab-view">
         
-        <div class="card" style="background: linear-gradient(135deg, rgba(52, 168, 83, 0.15), rgba(66, 133, 244, 0.1)); border-color: rgba(52, 168, 83, 0.3);">
+        <div class="card" style="background: var(--hero-grad); border-color: rgba(52, 168, 83, 0.35);">
           <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); text-transform: uppercase; letter-spacing: 0.5px;">
             <i class="fa-solid fa-piggy-bank"></i> How Much You Saved This Month
           </div>
@@ -393,7 +422,7 @@
       </a>
       <a class="nav-item" onclick="switchTab('taxonomy')" id="nav-taxonomy">
         <i class="fa-solid fa-chart-pie"></i>
-        <span>Budget</span>
+        <span>Analytics</span>
       </a>
       <a class="nav-item" onclick="switchTab('strategy')" id="nav-strategy">
         <i class="fa-solid fa-lightbulb"></i>

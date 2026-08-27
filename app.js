@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FINANCE ME - Real Data Management & Google Pay (GPay) Engine
+   FINANCE ME - Real Data Management & Google Pay (GPay) Engine with Chart.js
    ========================================================================== */
 
 const SUPABASE_URL = 'https://qtejgfhuzquifcobdvfo.supabase.co';
@@ -10,6 +10,10 @@ let lastParsedTransaction = null;
 let currentAppVersion = null;
 let deferredPwaPrompt = null;
 let isPrivateModeActive = false;
+
+// Chart.js Instances
+let categoryChartInstance = null;
+let cashflowChartInstance = null;
 
 // Profile Settings
 let userProfile = JSON.parse(localStorage.getItem('finance_me_profile') || '{"name":"Shan","salary":100000,"currency":"₹"}');
@@ -110,7 +114,7 @@ function saveProfileSettings() {
   updateMetricsAndTaxonomy();
 }
 
-// Render GPAY Signature People & Merchant Avatars Row with Rich Gradients
+// Render GPAY Signature People & Merchant Avatars Row
 function renderGpayAvatars() {
   const container = document.getElementById('gpayAvatarsContainer');
   if (!container) return;
@@ -329,9 +333,13 @@ function switchTab(tabId) {
 
   if (targetTab) targetTab.classList.add('active');
   if (targetNav) targetNav.classList.add('active');
+
+  if (tabId === 'taxonomy') {
+    renderCharts();
+  }
 }
 
-// Category Meta Mapping with Professional Google-Style Icons & Gradients
+// Category Meta Mapping with Professional Icons
 function getCategoryMeta(category) {
   switch (category) {
     case 'Unavoidable / Rent':
@@ -470,7 +478,7 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Summary Metrics & GPay Analytics with Gradient Fill Controls
+// Calculate Summary Metrics, Budget Gauges & Render Visual Charts
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
@@ -564,6 +572,97 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('taxSavingsBar').style.background = 'linear-gradient(90deg, #FBBC05 0%, #f97316 100%)';
 
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
+  renderCharts();
+}
+
+/* ==========================================================================
+   INTERACTIVE VISUAL CHARTS (CHART.JS INTEGRATION)
+   ========================================================================== */
+
+function renderCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  let unavoidableSum = 0;
+  let unwantedSum = 0;
+  let investSum = 0;
+  let incomeSum = 0;
+
+  transactions.forEach(t => {
+    const amt = parseFloat(t.amount || 0);
+    if (t.type === 'Credit') {
+      incomeSum += amt;
+    } else {
+      if (t.category === 'Unavoidable / Rent' || t.category === 'Fixed Needs') unavoidableSum += amt;
+      else if (t.category === 'Unwanted / Leak' || t.category === 'Variable Wants') unwantedSum += amt;
+      else if (t.category === 'Investments') investSum += amt;
+      else unavoidableSum += amt;
+    }
+  });
+
+  // Chart 1: Category Donut Chart
+  const donutCtx = document.getElementById('categoryDonutChart');
+  if (donutCtx) {
+    if (categoryChartInstance) categoryChartInstance.destroy();
+
+    const dataValues = [unavoidableSum, unwantedSum, investSum, incomeSum];
+    const hasData = dataValues.some(v => v > 0);
+
+    categoryChartInstance = new Chart(donutCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Fixed Needs / Rent', 'Unwanted Leaks', 'Investments', 'Total Income'],
+        datasets: [{
+          data: hasData ? dataValues : [50, 30, 15, 5],
+          backgroundColor: ['#4285F4', '#EA4335', '#34A853', '#FBBC05'],
+          borderWidth: 2,
+          borderColor: '#181920'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#e3e2e6', font: { size: 11, family: 'Plus Jakarta Sans' }, boxWidth: 12 }
+          }
+        },
+        cutout: '70%'
+      }
+    });
+  }
+
+  // Chart 2: Cash Flow Bar Chart
+  const barCtx = document.getElementById('cashflowBarChart');
+  if (barCtx) {
+    if (cashflowChartInstance) cashflowChartInstance.destroy();
+
+    const totalExpenseSum = unavoidableSum + unwantedSum + investSum;
+
+    cashflowChartInstance = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Received (Income)', 'Paid (Expenses)', 'Net Saved'],
+        datasets: [{
+          label: 'Amount (' + (userProfile.currency || '₹') + ')',
+          data: [incomeSum, totalExpenseSum, Math.max(0, incomeSum - totalExpenseSum)],
+          backgroundColor: ['#34A853', '#EA4335', '#4285F4'],
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { ticks: { color: '#90909a', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#90909a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  }
 }
 
 // Generate Ways to Save Advice
