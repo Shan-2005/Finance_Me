@@ -1,11 +1,10 @@
 /* ==========================================================================
-   FINANCE ME - Real Data Management & Dynamic Savings Intelligence Engine
+   FINANCE ME - Real Data Management & Google Pay (GPay) Engine
    ========================================================================== */
 
 const SUPABASE_URL = 'https://qtejgfhuzquifcobdvfo.supabase.co';
 let SUPABASE_KEY = 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG'; 
 
-// Load Real User Transactions from LocalStorage as fallback
 let transactions = JSON.parse(localStorage.getItem('finance_me_transactions') || '[]');
 let lastParsedTransaction = null;
 let currentAppVersion = null;
@@ -21,10 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (dateInput) dateInput.valueAsDate = new Date();
   
   loadProfileSettings();
-
-  // Data Loss Prevention: Restore from Vault if local state was lost accidentally
   restoreFromVaultBackupIfEmpty();
 
+  renderGpayAvatars();
   renderTransactions();
   updateMetricsAndTaxonomy();
 
@@ -33,14 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAutoUpdate();
   setInterval(checkAutoUpdate, 30000);
 
-  // Register PWA Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .then(() => console.log('[PWA]: Service Worker Registered'))
       .catch(err => console.log('[PWA SW Error]:', err));
   }
 
-  // Handle PWA Install Prompt
   initPwaInstallPrompt();
 });
 
@@ -49,10 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================================== */
 
 function saveToLocalStorage() {
-  // Layer 1: Primary Working State
   localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
-  
-  // Layer 2: Automatic Vault Snapshot (Never lost even if primary cache cleared)
   if (transactions.length > 0) {
     const backupVault = {
       timestamp: new Date().toISOString(),
@@ -81,17 +74,21 @@ function restoreFromVaultBackupIfEmpty() {
   }
 }
 
-// Load & Save User Profile Settings
+// Load & Save Profile Settings
 function loadProfileSettings() {
   const nameInput = document.getElementById('userNameInput');
   const salaryInput = document.getElementById('userSalaryInput');
   const currSelect = document.getElementById('userCurrencySelect');
   const avatarChar = document.getElementById('profileAvatarChar');
+  const headerAvatar = document.getElementById('gpayHeaderAvatar');
+
+  const char = (userProfile.name || 'Shan').charAt(0).toUpperCase();
 
   if (nameInput) nameInput.value = userProfile.name || 'Shan';
   if (salaryInput) salaryInput.value = userProfile.salary || 100000;
   if (currSelect) currSelect.value = userProfile.currency || '₹';
-  if (avatarChar) avatarChar.innerText = (userProfile.name || 'S').charAt(0).toUpperCase();
+  if (avatarChar) avatarChar.innerText = char;
+  if (headerAvatar) headerAvatar.innerText = char;
 }
 
 function saveProfileSettings() {
@@ -99,18 +96,66 @@ function saveProfileSettings() {
   const salaryInput = document.getElementById('userSalaryInput');
   const currSelect = document.getElementById('userCurrencySelect');
   const avatarChar = document.getElementById('profileAvatarChar');
+  const headerAvatar = document.getElementById('gpayHeaderAvatar');
 
   userProfile.name = nameInput ? nameInput.value.trim() : 'Shan';
   userProfile.salary = salaryInput ? parseFloat(salaryInput.value) || 100000 : 100000;
   userProfile.currency = currSelect ? currSelect.value : '₹';
 
-  if (avatarChar) avatarChar.innerText = userProfile.name.charAt(0).toUpperCase();
+  const char = userProfile.name.charAt(0).toUpperCase();
+  if (avatarChar) avatarChar.innerText = char;
+  if (headerAvatar) headerAvatar.innerText = char;
 
   localStorage.setItem('finance_me_profile', JSON.stringify(userProfile));
   updateMetricsAndTaxonomy();
 }
 
-// Copy Webhook URL to Clipboard
+// Render GPAY Signature People & Merchant Avatars Row
+function renderGpayAvatars() {
+  const container = document.getElementById('gpayAvatarsContainer');
+  if (!container) return;
+
+  // Extract unique merchants from real transaction history
+  const merchantsSet = new Set();
+  transactions.forEach(t => {
+    if (t.merchant) merchantsSet.add(t.merchant);
+  });
+
+  const merchantsList = Array.from(merchantsSet).slice(0, 8);
+  if (merchantsList.length === 0) {
+    merchantsList.push('Swiggy', 'House Rent', 'Zomato', 'SIP Fund', 'Amazon');
+  }
+
+  const colorPalettes = [
+    'linear-gradient(135deg, #4285F4, #34A853)',
+    'linear-gradient(135deg, #EA4335, #FBBC05)',
+    'linear-gradient(135deg, #34A853, #4285F4)',
+    'linear-gradient(135deg, #6366f1, #06b6d4)',
+    'linear-gradient(135deg, #f43f5e, #f59e0b)'
+  ];
+
+  container.innerHTML = merchantsList.map((m, idx) => {
+    const char = m.charAt(0).toUpperCase();
+    const bgGradient = colorPalettes[idx % colorPalettes.length];
+
+    return `
+      <div class="gpay-avatar-item" onclick="quickPayMerchant('${m}')">
+        <div class="gpay-avatar-bubble" style="background: ${bgGradient};">
+          ${char}
+        </div>
+        <span class="gpay-avatar-name">${m}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// Quick Pay Merchant Trigger
+function quickPayMerchant(merchantName) {
+  openAddModal();
+  document.getElementById('inputMerchant').value = merchantName;
+}
+
+// Copy Webhook URL
 function copyWebhookUrl() {
   const box = document.getElementById('webhookUrlBox');
   if (!box) return;
@@ -248,6 +293,7 @@ function fetchTransactionsFromSupabase(onComplete) {
     if (Array.isArray(data) && data.length >= transactions.length) {
       transactions = data;
       saveToLocalStorage();
+      renderGpayAvatars();
       renderTransactions();
     }
     if (onComplete) onComplete();
@@ -295,25 +341,25 @@ function setDeviceRatio(mode, btnElement) {
   frame.className = `device-frame mode-${mode}`;
 }
 
-// Category Meta Mapping
+// Category Meta Mapping with GPay Color Scheme
 function getCategoryMeta(category) {
   switch (category) {
     case 'Unavoidable / Rent':
     case 'Fixed Needs':
-      return { icon: 'fa-house', bg: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', label: 'Unavoidable' };
+      return { icon: 'fa-house', bg: 'rgba(66, 133, 244, 0.15)', color: '#8ab4f8', label: 'Unavoidable' };
     case 'Unwanted / Leak':
     case 'Variable Wants':
-      return { icon: 'fa-bag-shopping', bg: 'rgba(244, 63, 94, 0.15)', color: '#f43f5e', label: 'Unwanted Leak' };
+      return { icon: 'fa-bag-shopping', bg: 'rgba(234, 67, 53, 0.15)', color: '#f28b82', label: 'Unwanted Leak' };
     case 'Investments':
-      return { icon: 'fa-chart-line', bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: 'Investment' };
+      return { icon: 'fa-chart-line', bg: 'rgba(52, 168, 83, 0.15)', color: '#81c995', label: 'Investment' };
     case 'Income':
-      return { icon: 'fa-wallet', bg: 'rgba(99, 102, 241, 0.15)', color: '#6366f1', label: 'Income' };
+      return { icon: 'fa-wallet', bg: 'rgba(251, 188, 5, 0.15)', color: '#fde293', label: 'Income' };
     default:
-      return { icon: 'fa-tag', bg: 'rgba(255, 255, 255, 0.1)', color: '#94a3b8', label: category };
+      return { icon: 'fa-tag', bg: 'rgba(255, 255, 255, 0.1)', color: '#90909a', label: category };
   }
 }
 
-// Render Transactions List
+// Render Transactions List in GPay Activity Style
 function renderTransactions() {
   const container = document.getElementById('txnContainer');
   const searchInput = document.getElementById('searchInput');
@@ -337,20 +383,20 @@ function renderTransactions() {
   const txnCountText = document.getElementById('txnCountText');
   if (txnCountText) {
     txnCountText.innerText = transactions.length === 0 
-      ? '0 transactions logged' 
-      : `Showing ${filtered.length} of ${transactions.length} real items`;
+      ? '0 payments' 
+      : `${filtered.length} payments`;
   }
 
   if (transactions.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 36px 16px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 20px;">
-        <i class="fa-solid fa-wallet" style="font-size: 40px; color: var(--primary-emerald); margin-bottom: 12px;"></i>
-        <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">No Real Transactions Logged Yet</h4>
+      <div style="text-align: center; padding: 36px 16px; background: var(--gpay-surface); border: 1px dashed var(--gpay-border); border-radius: 24px;">
+        <i class="fa-solid fa-wallet" style="font-size: 40px; color: var(--gpay-blue-light); margin-bottom: 12px;"></i>
+        <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px;">No Google Pay Transactions Logged Yet</h4>
         <p style="font-size: 12px; color: var(--text-muted); max-width: 280px; margin: 0 auto 16px auto; line-height: 1.4;">
-          Your Supabase database is connected! Add an entry manually or trigger a GPay notification to start tracking.
+          Your Supabase database is connected! Add a payment entry manually or paste a GPay notification.
         </p>
         <button class="btn" onclick="openAddModal()">
-          <i class="fa-solid fa-plus"></i> Add First Real Transaction
+          <i class="fa-solid fa-plus"></i> Add Payment Record
         </button>
       </div>
     `;
@@ -362,7 +408,7 @@ function renderTransactions() {
     container.innerHTML = `
       <div style="text-align: center; padding: 30px; color: var(--text-muted);">
         <i class="fa-solid fa-magnifying-glass" style="font-size: 32px; margin-bottom: 8px;"></i>
-        <p style="font-size: 13px;">No transactions match your search filter.</p>
+        <p style="font-size: 13px;">No payments match your search query.</p>
       </div>
     `;
     updateMetricsAndTaxonomy();
@@ -378,7 +424,7 @@ function renderTransactions() {
       <div class="txn-item">
         <div class="txn-left">
           <div class="txn-category-icon" style="background: ${meta.bg}; color: ${meta.color};">
-            <i class="fa-solid ${meta.icon}"></i>
+            ${t.merchant ? t.merchant.charAt(0).toUpperCase() : '<i class="fa-solid fa-arrow-right"></i>'}
           </div>
           <div class="txn-details">
             <span class="txn-merchant">${t.merchant}</span>
@@ -387,13 +433,16 @@ function renderTransactions() {
               <span>${t.mode}</span>
               ${tagBadges ? `• ${tagBadges}` : ''}
             </div>
-            ${t.notes ? `<div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">💬 ${t.notes}</div>` : ''}
+            ${t.notes ? `<div style="font-size: 11px; color: #c4c6cf; margin-top: 2px;">💬 ${t.notes}</div>` : ''}
           </div>
         </div>
         <div class="txn-right">
           <span class="txn-amount ${t.type === 'Credit' ? 'credit' : 'debit'} maskable-amount ${isPrivateModeActive ? 'privacy-blur' : ''}">
             ${t.type === 'Credit' ? '+' : '-'}${formattedAmount}
           </span>
+          <div class="txn-status-tick">
+            <i class="fa-solid fa-circle-check"></i> ${t.type === 'Credit' ? 'Received' : 'Paid'}
+          </div>
           <div class="txn-actions">
             <button class="icon-btn" onclick="editTransaction('${t.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
             <button class="icon-btn delete" onclick="deleteTransaction('${t.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
@@ -406,7 +455,7 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Summary Metrics, Savings Intelligence & Strategy
+// Calculate Summary Metrics & GPay Analytics
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
@@ -445,12 +494,10 @@ function updateMetricsAndTaxonomy() {
   const netSaved = Math.max(0, netCashFlow);
   const savingsRate = income > 0 ? ((netSaved / income) * 100).toFixed(1) : 0;
 
-  // Dashboard Metrics
   document.getElementById('dashIncome').innerText = `${curr}${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('dashExpenses').innerText = `${curr}${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('dashNetCashFlow').innerText = `${curr}${netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  // Strategy Tab Metrics
   document.getElementById('strategyTotalSaved').innerText = `${curr}${netSaved.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('strategySavingsRate').innerText = `${savingsRate}% Savings Rate`;
 
@@ -458,7 +505,6 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('unwantedSum').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')}`;
   document.getElementById('investmentsSum').innerText = `${curr}${investSum.toLocaleString('en-IN')}`;
 
-  // Top Merchant & Category
   let topMerchant = 'None logged';
   let topMerchantMax = 0;
   for (const m in merchantTotals) {
@@ -480,7 +526,6 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('topMerchantVal').innerText = topMerchant;
   document.getElementById('topCategoryVal').innerText = topCat;
 
-  // 50/30/20 Budget Targets based on Salary or Income
   const baseTargetIncome = income > 0 ? income : (userProfile.salary || 100000);
   const targetNeeds = baseTargetIncome * 0.50;
   const targetWants = baseTargetIncome * 0.30;
@@ -499,7 +544,6 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString()} / ${curr}${targetSavings.toLocaleString()}`;
   document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / targetSavings) * 100)}%`;
 
-  // Dynamic Ways to Save
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
 }
 
@@ -514,14 +558,14 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
     const potentialSaving = (unwanted * 0.30).toFixed(0);
     adviceList.push({
       icon: 'fa-triangle-exclamation',
-      color: '#f43f5e',
+      color: '#f28b82',
       title: 'Unwanted Spending Leak Detected',
       desc: `You spent <strong>${curr}${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Cutting this by 30% saves <strong>${curr}${parseFloat(potentialSaving).toLocaleString()}/month</strong>!`
     });
   } else {
     adviceList.push({
       icon: 'fa-circle-check',
-      color: '#10b981',
+      color: '#81c995',
       title: 'Zero Unwanted Leaks Logged',
       desc: `No discretionary leaks logged yet! Keep tagging food delivery, impulsive buys, and unused subscriptions as 'Unwanted'.`
     });
@@ -532,14 +576,14 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
     if (ratio > 50) {
       adviceList.push({
         icon: 'fa-house-lock',
-        color: '#f59e0b',
-        title: 'High Unavoidable Expense Ratio',
+        color: '#fde293',
+        title: 'High Rent / Needs Expense Ratio',
         desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income (Target < 50%). Consider negotiating fixed utility contracts or optimizing rent.`
       });
     } else {
       adviceList.push({
         icon: 'fa-thumbs-up',
-        color: '#06b6d4',
+        color: '#8ab4f8',
         title: 'Healthy Rent & Fixed Needs Ratio',
         desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income. You are within safe financial margins!`
       });
@@ -550,7 +594,7 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
     const sip = (saved * 0.4).toFixed(0);
     adviceList.push({
       icon: 'fa-chart-line',
-      color: '#10b981',
+      color: '#81c995',
       title: 'Surplus Cash Wealth Sweep',
       desc: `You saved <strong>${curr}${saved.toLocaleString()}</strong> this month! We recommend sweeping <strong>${curr}${parseFloat(sip).toLocaleString()}</strong> into SIPs to compound wealth.`
     });
@@ -571,7 +615,7 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
 
 // Modal Handlers (CRUD)
 function openAddModal() {
-  document.getElementById('modalHeaderTitle').innerText = 'Add New Real Transaction';
+  document.getElementById('modalHeaderTitle').innerText = 'New Payment Entry';
   document.getElementById('txnForm').reset();
   document.getElementById('txnId').value = '';
   document.getElementById('inputDate').valueAsDate = new Date();
@@ -586,7 +630,7 @@ function editTransaction(id) {
   const t = transactions.find(item => item.id === id);
   if (!t) return;
 
-  document.getElementById('modalHeaderTitle').innerText = 'Edit Real Transaction';
+  document.getElementById('modalHeaderTitle').innerText = 'Edit Payment Entry';
   document.getElementById('txnId').value = t.id;
   document.getElementById('inputMerchant').value = t.merchant;
   document.getElementById('inputAmount').value = t.amount;
@@ -601,7 +645,7 @@ function editTransaction(id) {
 }
 
 /* ==========================================================================
-   SAFEGUARDED DELETION MECHANISMS (WITH EXPLICIT CONFIRMATION CHALLENGE)
+   SAFEGUARDED DELETION MECHANISMS
    ========================================================================== */
 
 function deleteTransaction(id) {
@@ -609,12 +653,13 @@ function deleteTransaction(id) {
   if (!target) return;
 
   const curr = userProfile.currency || '₹';
-  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete transaction:\n• Merchant: ${target.merchant}\n• Amount: ${curr}${target.amount}\n• Date: ${target.date}\n\nThis will remove the transaction from your device and Supabase Cloud database.`;
+  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n• Date: ${target.date}\n\nThis will remove the transaction from your device and Supabase Cloud database.`;
 
   if (confirm(message)) {
     const targetId = id;
     transactions = transactions.filter(item => item.id !== targetId);
     saveToLocalStorage();
+    renderGpayAvatars();
     renderTransactions();
 
     if (SUPABASE_KEY) {
@@ -641,6 +686,7 @@ function clearAllRealData() {
     if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
       transactions = [];
       saveToLocalStorage();
+      renderGpayAvatars();
       renderTransactions();
 
       if (SUPABASE_KEY) {
@@ -688,6 +734,7 @@ function saveTransaction(e) {
 
   saveToLocalStorage();
   closeModal();
+  renderGpayAvatars();
   renderTransactions();
 
   if (SUPABASE_KEY) {
@@ -705,7 +752,7 @@ function saveTransaction(e) {
 }
 
 /* ==========================================================================
-   MODULE 1: AUTOMATED REGEX INGESTION ENGINE
+   AUTOMATED REGEX INGESTION ENGINE
    ========================================================================== */
 
 function parseRawNotification() {
@@ -769,6 +816,7 @@ function ingestParsedTransaction() {
 
   transactions.unshift(newTxn);
   saveToLocalStorage();
+  renderGpayAvatars();
   renderTransactions();
   switchTab('dashboard');
 
