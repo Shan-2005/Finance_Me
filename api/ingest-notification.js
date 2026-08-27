@@ -30,14 +30,12 @@ module.exports = async (req, res) => {
       rawText = 'UPI Payment Notification';
     }
 
-    // High-Precision Multi-Format RegEx Patterns (Supports Credit/Received Sender Names)
+    // High-Precision Multi-Format RegEx Patterns
     const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|received|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
-    const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|received from|received by|from|by|sent to|sent by|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
-    const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
+    const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|received from|received by|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
 
     const amountMatch = rawText.match(amountRegex);
     const merchantMatch = rawText.match(merchantRegex);
-    const typeMatch = rawText.match(typeRegex);
 
     let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
     
@@ -51,13 +49,15 @@ module.exports = async (req, res) => {
 
     let merchant = merchantMatch ? merchantMatch[1].trim() : (req.body?.sender || 'UPI Transfer');
 
-    const isCredit = (typeMatch && /credited|received|deposited/i.test(typeMatch[1])) || /credited|received|from/i.test(rawText);
+    // Bulletproof Credit (Received) vs Debit (Paid) Detection
+    const isCredit = /credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(rawText) && 
+                     !/debited|spent|paid|sent to|transferred to|sent rs/i.test(rawText);
     const type = isCredit ? 'Credit' : 'Debit';
 
     // Specific Sender Extraction for Credit (Received) SMS
     if (isCredit) {
-      const senderMatch = rawText.match(/(?:received from|credited from|credited by|from|sent by|by)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i);
-      if (senderMatch && senderMatch[1].trim().length > 1) {
+      const senderMatch = rawText.match(/(?:received from|credited from|credited by|recvd from|sent by|from)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+a\/c|\.|$)/i);
+      if (senderMatch && senderMatch[1].trim().length > 1 && !/a\/c|account/i.test(senderMatch[1])) {
         merchant = senderMatch[1].trim();
       }
     }
@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
 
     const parsedTransaction = {
       id: `txn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      merchant: merchant || 'UPI Transfer',
+      merchant: merchant || (isCredit ? 'Received Payment' : 'UPI Transfer'),
       amount: amount,
       type,
       category,
