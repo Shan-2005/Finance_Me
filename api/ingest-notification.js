@@ -11,104 +11,120 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Universal Payload Parser - Extract text from body, query string, or raw string
+    // Universal Payload Parser - Extract text from EVERY possible format MacroDroid can send
     let rawText = '';
 
+    const ct = (req.headers['content-type'] || '').toLowerCase();
+
     if (typeof req.body === 'string' && req.body.trim().length > 0) {
+      // Plain text/plain or raw string body
       rawText = req.body;
-    } else if (req.body && typeof req.body === 'object') {
-      rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message || 
-                req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms || 
-                Object.values(req.body).filter(v => typeof v === 'string').join(' ');
+    } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+      // JSON or form-encoded body — try every known key
+      const vals = Object.values(req.body).filter(v => typeof v === 'string' && v.trim().length > 2);
+      rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message ||
+                req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms ||
+                req.body.content || req.body.data ||
+                (vals.length > 0 ? vals.join(' ') : '');
     }
 
-    if (!rawText && req.query) {
-      rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || '';
+    // Check query string as final fallback
+    if ((!rawText || rawText.trim().length < 3) && req.query) {
+      rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || req.query.body || '';
     }
 
-    if (!rawText || rawText.trim().length < 2) {
-      rawText = 'UPI Payment Notification';
+    // If STILL empty - log a debug hint & use a fallback
+    if (!rawText || rawText.trim().length < 3) {
+      console.warn('[INGEST DEBUG] Empty body received. req.body was:', JSON.stringify(req.body), 'Content-Type:', ct);
+      rawText = 'NO_SMS_BODY_RECEIVED';
     }
 
     // Clean multiline newlines into single spaces for robust regex matching
     const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // High-Precision Amount Extractor (Matches "Sent Rs.1.00", "Rs.10.00 credited", "Rs. 10.00")
-    const amountRegex = /(?:sent\s*rs\.?|sent\s*re\.?|rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|received|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
-    const amountMatch = cleanText.match(amountRegex);
-
+    // --- AMOUNT EXTRACTION ---
+    // Try "Sent Rs.10.00", "Rs.10.00", "credited Rs 10" etc
+    const amountRegex = /(?:sent\s+)?(?:rs\.?|re\.?|rupee|rupees|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
+    let amountMatch = cleanText.match(amountRegex);
     let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
-    
-    // Fallback amount finder - Extracts the first standalone number with decimal or digit
+
+    // Fallback: any decimal-like number NOT part of phone/account/ref/date
     if (!amount || amount === 0) {
-      const numMatches = cleanText.match(/\b(\d+(?:\.\d{1,2})?)\b/g);
-      if (numMatches && numMatches.length > 0) {
-        const validAmounts = numMatches.map(n => parseFloat(n)).filter(n => n > 0 && n < 1000000 && !n.toString().includes('1009') && !n.toString().includes('1800'));
-        if (validAmounts.length > 0) amount = validAmounts[0];
-      }
+      // Strip known non-amount numbers (ref numbers, phone, acct) then extract first decimal
+      const stripped = cleanText.replace(/\b(18\d{8,}|62\d{8,}|\d{10,}|1009|\d{2}\/\d{2}\/\d{2,4})\b/g, '');
+      const numMatch = stripped.match(/\b(\d{1,7}(?:\.\d{1,2})?)\b/);
+      if (numMatch) amount = parseFloat(numMatch[1]);
     }
 
-    if (!amount || amount === 0) amount = 1.00;
+    if (!amount || amount === 0 || isNaN(amount)) amount = 0;
 
-    // Bulletproof Debit vs Credit Classification
-    const isDebit = /sent|debited|spent|paid|sent to|transferred to/i.test(cleanText);
-    const isCredit = /credit alert|credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(cleanText) && !isDebit;
+    // --- CREDIT vs DEBIT DETECTION ---
+    // Priority: debit keywords FIRST (some credit SMS also have "from" which confuses debit match)
+    const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b/i.test(cleanText);
+    const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b/i.test(cleanText);
     
-    const type = isCredit ? 'Credit' : 'Debit';
+    let type = 'Debit'; // Default to Debit (safer)
+    if (isDebitText) type = 'Debit';
+    else if (isCreditText) type = 'Credit';
+    const isCredit = type === 'Credit';
 
-    let merchant = req.body?.sender || 'UPI Transfer';
+    // --- MERCHANT / SENDER EXTRACTION ---
+    let merchant = 'UPI Transfer';
 
-    // 1. Sent Debit Format (e.g. "To SOPHY ROSE JOSEPHINA")
-    const toMatch = cleanText.match(/To\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+On|\s+Ref|\s+Not|\.|$)/i);
-    if (toMatch && toMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(toMatch[1])) {
-      merchant = toMatch[1].trim();
-    }
-
-    // 2. Credit Format (e.g. "from VPA sophyrosemanivarnan47744@okicici" or "from John Doe")
-    if (isCredit) {
-      const fromMatch = cleanText.match(/from\s+(?:VPA\s+)?([A-Za-z0-9\s&.\-@]+?)(?=\s+\(UPI|\s+Ref|\s+on|\.|$)/i);
-      if (fromMatch && fromMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(fromMatch[1])) {
-        let rawSender = fromMatch[1].trim();
-        if (rawSender.includes('@')) {
-          rawSender = rawSender.split('@')[0].replace(/\d+$/, '');
-        }
-        merchant = rawSender;
+    if (!isCredit) {
+      // Debit: "To SOPHY ROSE JOSEPHINA" on its own line (multiline collapsed to space)
+      const toMatch = cleanText.match(/\bTo\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)(?=\s+On\b|\s+Ref\b|\s+Not\b|\s+Call\b|\.|$)/i);
+      if (toMatch && !/hdfc|bank|a\/c|account|\d{4}/i.test(toMatch[1])) {
+        merchant = toMatch[1].trim();
+      }
+    } else {
+      // Credit: "from VPA name@bank" or "from Person Name"
+      const fromMatch = cleanText.match(/\bfrom\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+\(UPI|\s+Ref\b|\s+on\b|\.|$)/i);
+      if (fromMatch && !/hdfc|bank|a\/c|account|\d{6}/i.test(fromMatch[1])) {
+        let sender = fromMatch[1].trim();
+        if (sender.includes('@')) sender = sender.split('@')[0].replace(/\d+$/, '');
+        merchant = sender;
       }
     }
 
-    // Clean up merchant name (Title Case & length limit)
     merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 36).trim();
 
+    // --- CATEGORY ---
     let category = 'Unwanted / Leak';
     if (isCredit) {
       category = 'Income';
-    } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(cleanText + merchant)) {
+    } else if (/sip|mutual|zerodha|groww|invest|stocks|gold|nps/i.test(cleanText + merchant)) {
       category = 'Investments';
-    } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(cleanText + merchant)) {
+    } else if (/rent|loan|emi|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(cleanText + merchant)) {
       category = 'Unavoidable / Rent';
     }
 
-    // Mode Detection
+    // --- MODE ---
     let mode = 'GPay / UPI Auto-Sync';
-    if (/credit card|card ending|cc/i.test(cleanText)) {
-      mode = 'Credit Card';
-    } else if (/netbank|neft|rtgs|imps/i.test(cleanText)) {
-      mode = 'Net Banking';
-    }
+    if (/credit card|card ending/i.test(cleanText)) mode = 'Credit Card';
+    else if (/netbank|neft|rtgs|imps/i.test(cleanText)) mode = 'Net Banking';
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    // --- TIMESTAMP (IST = UTC+5:30) ---
+    const nowUTC = new Date();
+    const nowIST = new Date(nowUTC.getTime() + (5.5 * 60 * 60 * 1000));
+    const dateIST = nowIST.toISOString().split('T')[0];
+    const hh = String(nowIST.getUTCHours()).padStart(2, '0');
+    const mm = String(nowIST.getUTCMinutes()).padStart(2, '0');
+    const ss = String(nowIST.getUTCSeconds()).padStart(2, '0');
+    const ampm = nowIST.getUTCHours() < 12 ? 'AM' : 'PM';
+    const h12 = nowIST.getUTCHours() % 12 || 12;
+    const timeIST = `${String(h12).padStart(2,'0')}:${mm}:${ss} ${ampm}`;
 
     const parsedTransaction = {
-      id: `txn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `txn-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
       merchant: merchant || (isCredit ? 'Received Payment' : 'UPI Transfer'),
       amount: amount,
       type,
       category,
       mode,
-      date: now.toISOString(),
+      date: nowIST.toISOString(),
       tags: ['#auto-ingested', `#${(merchant || 'upi').toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-      notes: `[${timeStr}] "${cleanText.substring(0, 60)}"`,
+      notes: `[${timeIST} IST] ${cleanText.substring(0, 80)}`,
       raw_text: rawText
     };
 
@@ -116,7 +132,7 @@ module.exports = async (req, res) => {
     const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qtejgfhuzquifcobdvfo.supabase.co';
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG';
 
-    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,8 +143,17 @@ module.exports = async (req, res) => {
       body: JSON.stringify(parsedTransaction)
     });
 
-    const dbData = await dbRes.json();
-    return res.status(200).json({ success: true, database: 'Supabase Cloud', transaction: parsedTransaction });
+    return res.status(200).json({
+      success: true,
+      parsed: {
+        merchant: parsedTransaction.merchant,
+        amount: parsedTransaction.amount,
+        type: parsedTransaction.type,
+        category: parsedTransaction.category,
+        time_ist: timeIST,
+        raw_received: cleanText.substring(0, 100)
+      }
+    });
 
   } catch (error) {
     console.error('[Ingest Error]:', error);

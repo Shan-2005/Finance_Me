@@ -313,7 +313,7 @@ function fetchTransactionsFromSupabase(onComplete) {
     return;
   }
 
-  fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*&order=date.desc`, {
+  fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*&order=id.desc`, {
     headers: {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${SUPABASE_KEY}`
@@ -329,7 +329,13 @@ function fetchTransactionsFromSupabase(onComplete) {
       });
 
       const merged = Array.from(txMap.values());
-      merged.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Sort by full ISO timestamp so newest SMS auto-sync always shows at top
+      merged.sort((a, b) => {
+        const da = new Date(b.date);
+        const db = new Date(a.date);
+        if (!isNaN(da) && !isNaN(db)) return da - db;
+        return String(b.id).localeCompare(String(a.id));
+      });
 
       if (JSON.stringify(merged) !== JSON.stringify(transactions)) {
         transactions = merged;
