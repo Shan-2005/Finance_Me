@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "headers": [
     {
       "source": "/(.*)",
@@ -19,18 +18,8 @@
       ]
     }
   ],
-  "routes": [
-    {
-      "src": "/api/version",
-      "dest": "/api/version.js"
-    },
-    {
-      "src": "/api/ingest-notification",
-      "dest": "/api/ingest-notification.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
+  "rewrites": [
+    { "source": "/api/version", "destination": "/api/version.js" },
+    { "source": "/api/ingest-notification", "destination": "/api/ingest-notification.js" }
   ]
 }
