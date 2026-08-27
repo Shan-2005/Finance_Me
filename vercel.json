@@ -23,13 +23,17 @@
     { "src": "api/*.js", "use": "@vercel/node" },
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },
-    { "src": "app.js", "use": "@vercel/static" }
+    { "src": "app.js", "use": "@vercel/static" },
+    { "src": "manifest.json", "use": "@vercel/static" },
+    { "src": "sw.js", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/version", "dest": "/api/version.js" },
     { "src": "/api/ingest-notification", "dest": "/api/ingest-notification.js" },
     { "src": "/styles.css", "dest": "/styles.css" },
     { "src": "/app.js", "dest": "/app.js" },
+    { "src": "/manifest.json", "dest": "/manifest.json" },
+    { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

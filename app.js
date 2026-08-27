@@ -9,6 +9,7 @@ let SUPABASE_KEY = 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG';
 let transactions = JSON.parse(localStorage.getItem('finance_me_transactions') || '[]');
 let lastParsedTransaction = null;
 let currentAppVersion = null;
+let deferredPwaPrompt = null;
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,11 +23,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
   checkAutoUpdate();
   setInterval(checkAutoUpdate, 30000);
+
+  // Register PWA Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('[PWA]: Service Worker Registered'))
+      .catch(err => console.log('[PWA SW Error]:', err));
+  }
+
+  // Handle PWA Install Prompt (Show ONLY if NOT already installed)
+  initPwaInstallPrompt();
 });
 
+// PWA Installation Detector & Handler
+function initPwaInstallPrompt() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                       window.navigator.standalone || 
+                       document.referrer.includes('android-app://');
+
+  if (isStandalone) {
+    console.log('[PWA]: App is already installed and running in standalone mode. Hiding install banner.');
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner) banner.style.display = 'none';
+    return;
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPwaPrompt = e;
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner && !sessionStorage.getItem('pwa_banner_dismissed')) {
+      banner.style.display = 'flex';
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    console.log('[PWA]: Finance Me successfully installed!');
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner) banner.style.display = 'none';
+    deferredPwaPrompt = null;
+  });
+}
+
+// User clicks Install on PWA Banner
+function triggerPwaInstall() {
+  if (deferredPwaPrompt) {
+    deferredPwaPrompt.prompt();
+    deferredPwaPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('[PWA]: User accepted installation prompt');
+      }
+      deferredPwaPrompt = null;
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.style.display = 'none';
+    });
+  } else {
+    alert('To install Finance Me app on your home screen:\n\nChrome/Android: Tap menu (⋮) -> "Add to Home screen"\nSafari/iOS: Tap Share button (⎋) -> "Add to Home Screen"');
+  }
+}
+
+// User dismisses PWA Banner
+function dismissPwaBanner() {
+  const banner = document.getElementById('pwaInstallBanner');
+  if (banner) banner.style.display = 'none';
+  sessionStorage.setItem('pwa_banner_dismissed', 'true');
+}
+
+// Manual Refresh & Cloud Sync Button Handler
+function manualSyncFromSupabase(btnElement) {
+  const icon = btnElement ? btnElement.querySelector('i') : document.querySelector('#refreshBtn i');
+  if (icon) icon.classList.add('spin-anim');
+
+  fetchTransactionsFromSupabase(() => {
+    setTimeout(() => {
+      if (icon) icon.classList.remove('spin-anim');
+    }, 600);
+  });
+}
+
 // Fetch Real Transactions from Supabase Database
-function fetchTransactionsFromSupabase() {
-  if (!SUPABASE_KEY) return;
+function fetchTransactionsFromSupabase(onComplete) {
+  if (!SUPABASE_KEY) {
+    if (onComplete) onComplete();
+    return;
+  }
 
   fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*&order=date.desc`, {
     headers: {
@@ -42,8 +122,12 @@ function fetchTransactionsFromSupabase() {
       renderTransactions();
       console.log('[Supabase Cloud Sync]: Loaded', data.length, 'transactions');
     }
+    if (onComplete) onComplete();
   })
-  .catch(err => console.log('[Supabase Sync]: Using local offline data', err));
+  .catch(err => {
+    console.log('[Supabase Sync]: Using local offline data', err);
+    if (onComplete) onComplete();
+  });
 }
 
 // Automatic Version Check to force fresh code on Git push
@@ -220,7 +304,7 @@ function updateMetricsAndTaxonomy() {
 
       // Merchant spending tracking
       merchantTotals[t.merchant] = (merchantTotals[t.merchant] || 0) + amt;
-      categoryTotals[t.category] = (categoryTotals[t.category] || 0) + amt;
+      categoryTotals[t.category] = (categoryTotals[c = t.category] || 0) + amt;
 
       if (t.category === 'Unavoidable / Rent' || t.category === 'Fixed Needs') {
         unavoidableSum += amt;

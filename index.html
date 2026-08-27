@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Finance Me | Smart Personal Finance & Wealth Engine</title>
+  
+  <!-- PWA Manifest & Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#06101e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
   <!-- Google Fonts & Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
@@ -37,14 +44,37 @@
           <div class="brand-logo">₹</div>
           <span class="brand-name">Finance Me</span>
         </div>
-        <div class="user-badge">
-          <div class="live-dot"></div>
-          <span>Cloud Active</span>
+        
+        <div class="header-right">
+          <!-- Refresh Button -->
+          <button class="refresh-btn" id="refreshBtn" onclick="manualSyncFromSupabase(this)" title="Refresh & Sync Cloud Data">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+
+          <div class="user-badge">
+            <div class="live-dot"></div>
+            <span>Cloud Active</span>
+          </div>
         </div>
       </header>
 
       <!-- Scrollable Main Content Views -->
       <main class="app-content">
+
+        <!-- PWA Install Popup Banner (Shows ONLY if not already installed) -->
+        <div class="pwa-install-banner" id="pwaInstallBanner" style="display: none;">
+          <div class="pwa-content">
+            <div class="pwa-icon">₹</div>
+            <div class="pwa-text">
+              <strong>Install Finance Me App</strong>
+              <span>1-tap app access for real-time tracking</span>
+            </div>
+          </div>
+          <div class="pwa-actions">
+            <button class="btn btn-secondary" onclick="dismissPwaBanner()" style="font-size: 10px; padding: 4px 8px;">Dismiss</button>
+            <button class="btn" onclick="triggerPwaInstall()" style="font-size: 11px; padding: 6px 12px;"><i class="fa-solid fa-download"></i> Install</button>
+          </div>
+        </div>
 
         <!-- ==========================================
              TAB 1: MANUAL OVERRIDE & DASHBOARD (Module 2)
