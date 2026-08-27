@@ -26,13 +26,12 @@ module.exports = async (req, res) => {
       rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || '';
     }
 
-    // Default Fallback if body was empty or unparsed from MacroDroid
     if (!rawText || rawText.trim().length < 2) {
-      rawText = 'Sent Rs 2.00 to UPI Merchant via GPay';
+      rawText = 'UPI Payment Notification';
     }
 
-    // High-Precision Multi-Format RegEx Patterns (Supports "sent", "debited", "paid", ₹2, Rs 2)
-    const amountRegex = /(?:rs\.?|inr|₹|debited by|credited by|paid|spent|sent|transferred|amount of|sum of)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
+    // High-Precision Multi-Format RegEx Patterns (Supports Re 1, Rs 1, Rs 2, Rs 10, INR 1.00, ₹10)
+    const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
     const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
     const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
 
@@ -42,11 +41,14 @@ module.exports = async (req, res) => {
 
     let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
     
-    // Fallback amount finder if amountRegex failed
+    // Fallback amount finder if amountRegex failed - Extracts the first standalone number/decimal
     if (!amount || amount === 0) {
       const anyNumMatch = rawText.match(/(\d+(?:\.\d{1,2})?)/);
       if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
     }
+
+    // If still no amount found, default to 1.00 instead of 2.00
+    if (!amount || amount === 0) amount = 1.00;
 
     let merchant = merchantMatch ? merchantMatch[1].trim() : (req.body?.sender || 'UPI Transfer');
     if (merchant === 'UPI Merchant' || !merchant || merchant.length < 2) {
@@ -78,9 +80,9 @@ module.exports = async (req, res) => {
     const timestamp = req.body?.timestamp || new Date().toISOString();
 
     const parsedTransaction = {
-      id: `txn-${Date.now()}`,
+      id: `txn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       merchant: merchant || 'UPI Transfer',
-      amount: amount || 2.00,
+      amount: amount,
       type,
       category,
       mode,

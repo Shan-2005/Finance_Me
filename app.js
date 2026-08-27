@@ -900,7 +900,7 @@ function parseRawNotification() {
   const raw = document.getElementById('rawNotificationInput').value.trim();
   if (!raw) return;
 
-  const amountRegex = /(?:rs\.?|inr|₹|debited by|credited by|paid|spent|amount of|sum of|sent|sent rs|sent inr)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
+  const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
   const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
   const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
 
