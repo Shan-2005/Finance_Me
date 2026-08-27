@@ -33,10 +33,14 @@ module.exports = async (req, res) => {
       rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || req.query.body || '';
     }
 
-    // If STILL empty - log a debug hint & use a fallback
+    // If STILL empty - reject silently (don't create junk ₹0 entries)
     if (!rawText || rawText.trim().length < 3) {
-      console.warn('[INGEST DEBUG] Empty body received. req.body was:', JSON.stringify(req.body), 'Content-Type:', ct);
-      rawText = 'NO_SMS_BODY_RECEIVED';
+      console.warn('[INGEST DEBUG] Empty body. req.body:', JSON.stringify(req.body), 'Content-Type:', ct, 'query:', JSON.stringify(req.query));
+      return res.status(200).json({ 
+        success: false, 
+        error: 'NO_SMS_BODY — MacroDroid fix: Change URL to include ?sms=[sms_body] at the end',
+        tip: 'Use URL: https://finance-me-smoky-rho.vercel.app/api/ingest-notification?sms=[sms_body]'
+      });
     }
 
     // Clean multiline newlines into single spaces for robust regex matching
