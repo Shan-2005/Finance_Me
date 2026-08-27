@@ -203,7 +203,7 @@ module.exports = async (req, res) => {
     }
 
     // Supabase REST API Persistence
-    await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+    const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,8 +214,21 @@ module.exports = async (req, res) => {
       body: JSON.stringify(parsedTransaction)
     });
 
+    if (!insertRes.ok) {
+      const errText = await insertRes.text();
+      console.error('[INGEST SUPABASE ERROR]:', insertRes.status, errText);
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_INSERT_FAILED',
+        details: errText
+      });
+    }
+
+    const insertedData = await insertRes.json().catch(() => []);
+
     return res.status(200).json({
       success: true,
+      inserted: insertedData,
       parsed: {
         merchant: parsedTransaction.merchant,
         amount: parsedTransaction.amount,
