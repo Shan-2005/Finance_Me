@@ -177,10 +177,10 @@ module.exports = async (req, res) => {
 
     // --- BUG-09: DUPLICATE GUARD ---
     // MacroDroid can retry the same SMS. Check if we already have a row with the
-    // same amount inserted within the last 90 seconds.
-    const ninetySecondsAgo = new Date(nowIST.getTime() - 90 * 1000).toISOString();
+    // same raw_text and amount inserted within the last 90 seconds (UTC time).
+    const ninetySecondsAgoUTC = new Date(Date.now() - 90 * 1000).toISOString();
     const dupCheckRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?amount=eq.${amount}&created_at=gte.${ninetySecondsAgo}&select=id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/transactions?amount=eq.${amount}&created_at=gte.${ninetySecondsAgoUTC}&select=id,merchant&limit=1`,
       {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
