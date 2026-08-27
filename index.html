@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Finance Me | Google Pay Personal Finance Engine</title>
+  <title>Finance Me | Personal Finance Engine</title>
   
   <!-- PWA Manifest & Meta Tags -->
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="logo.png">
   <meta name="theme-color" content="#0f1015">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,8 +25,10 @@
     <!-- GPAY HEADER BAR WITH SEARCH & PROFILE -->
     <header class="gpay-header">
       <div class="gpay-search-bar">
-        <div class="gpay-logo-badge">
-          <span class="g-blue">G</span><span class="g-red">P</span><span class="g-yellow">a</span><span class="g-green">y</span>
+        <!-- UNIQUE WEB APP BRAND LOGO BADGE -->
+        <div class="app-brand-badge">
+          <img src="logo.png" alt="Finance Me Logo" class="app-logo-img">
+          <span class="logo-text-finance">Finance</span><span class="logo-text-me">Me</span>
         </div>
 
         <input type="text" id="searchInput" class="gpay-search-input" placeholder="Pay friends, merchants, or search..." onkeyup="renderTransactions()">
@@ -55,7 +58,9 @@
       <!-- PWA Install Popup Banner -->
       <div class="pwa-install-banner" id="pwaInstallBanner" style="display: none;">
         <div class="pwa-content">
-          <div class="pwa-icon"><i class="fa-brands fa-google-pay"></i></div>
+          <div class="pwa-icon">
+            <img src="logo.png" alt="Finance Me App Icon">
+          </div>
           <div class="pwa-text">
             <strong>Install Finance Me App</strong>
             <span>1-tap native GPay experience on home screen</span>
