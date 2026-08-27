@@ -799,21 +799,22 @@ function deleteTransaction(id) {
   if (!target) return;
 
   const curr = userProfile.currency || '₹';
-  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n• Date: ${target.date}\n\nThis will remove the transaction from your device and Supabase Cloud database.`;
+  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n\nThis will remove the transaction permanently.`;
 
   if (confirm(message)) {
-    const targetId = id;
-    transactions = transactions.filter(item => item.id !== targetId);
+    transactions = transactions.filter(item => item.id !== id);
     saveToLocalStorage();
     renderGpayAvatars();
     renderTransactions();
 
     if (SUPABASE_KEY) {
-      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${targetId}`, {
+      // Use eq filter with proper text encoding for string IDs like txn-123-456
+      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
         }
       }).catch(err => console.log('Supabase Delete error:', err));
     }
@@ -830,21 +831,32 @@ function clearAllRealData() {
   
   if (promptInput === 'DELETE ALL') {
     if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
+      const allIds = transactions.map(t => t.id);
       transactions = [];
       saveToLocalStorage();
       renderGpayAvatars();
       renderTransactions();
 
-      if (SUPABASE_KEY) {
-        fetch(`${SUPABASE_URL}/rest/v1/transactions?id=gt.0`, {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`
-          }
-        }).catch(err => console.log('Supabase Clear error:', err));
+      if (SUPABASE_KEY && allIds.length > 0) {
+        // Delete each transaction by ID (text IDs like txn-123-456)
+        Promise.all(allIds.map(id =>
+          fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Prefer': 'return=minimal'
+            }
+          })
+        )).then(() => {
+          alert('✅ All transactions deleted from cloud and device!');
+        }).catch(err => {
+          console.log('Supabase Clear error:', err);
+          alert('✅ Cleared locally. Cloud sync may take a moment.');
+        });
+      } else {
+        alert('✅ All transactions cleared successfully.');
       }
-      alert('All transactions cleared successfully.');
     }
   } else if (promptInput !== null) {
     alert('❌ Confirmation failed! You did not type "DELETE ALL". Deletion cancelled.');
