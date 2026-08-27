@@ -32,3 +32,26 @@ CREATE POLICY "Allow public update access" ON transactions FOR UPDATE USING (tru
 
 DROP POLICY IF EXISTS "Allow public delete access" ON transactions;
 CREATE POLICY "Allow public delete access" ON transactions FOR DELETE USING (true);
+
+-- ==========================================================================
+-- 3. Balance Snapshots Table (Approach 2: Missed Call + Approach 4: Manual)
+-- ==========================================================================
+CREATE TABLE IF NOT EXISTS balance_snapshots (
+  id TEXT PRIMARY KEY,
+  amount NUMERIC(14, 2) NOT NULL,
+  bank_name TEXT DEFAULT 'My Bank',
+  source TEXT DEFAULT 'manual',   -- 'manual' | 'sms' | 'import'
+  notes TEXT,
+  recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE balance_snapshots ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read balance" ON balance_snapshots;
+CREATE POLICY "Allow public read balance" ON balance_snapshots FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert balance" ON balance_snapshots;
+CREATE POLICY "Allow public insert balance" ON balance_snapshots FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete balance" ON balance_snapshots;
+CREATE POLICY "Allow public delete balance" ON balance_snapshots FOR DELETE USING (true);

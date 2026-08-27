@@ -30,6 +30,7 @@
   "routes": [
     { "src": "/api/version", "dest": "/api/version.js" },
     { "src": "/api/ingest-notification", "dest": "/api/ingest-notification.js" },
+    { "src": "/api/ingest-balance", "dest": "/api/ingest-balance.js" },
     { "src": "/styles.css", "dest": "/styles.css" },
     { "src": "/app.js", "dest": "/app.js" },
     { "src": "/manifest.json", "dest": "/manifest.json" },

@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadProfileSettings();
   restoreFromVaultBackupIfEmpty();
 
-  renderGpayAvatars();
   renderTransactions();
   updateMetricsAndTaxonomy();
 
@@ -143,49 +142,6 @@ function saveProfileSettings() {
   updateMetricsAndTaxonomy();
 }
 
-// Render GPAY Signature People & Merchant Avatars Row
-function renderGpayAvatars() {
-  const container = document.getElementById('gpayAvatarsContainer');
-  if (!container) return;
-
-  const merchantsSet = new Set();
-  transactions.forEach(t => {
-    if (t.merchant) merchantsSet.add(t.merchant);
-  });
-
-  const merchantsList = Array.from(merchantsSet).slice(0, 8);
-  if (merchantsList.length === 0) {
-    merchantsList.push('Swiggy', 'House Rent', 'Zomato', 'SIP Fund', 'Amazon');
-  }
-
-  const colorPalettes = [
-    'linear-gradient(135deg, #4285F4 0%, #34A853 100%)',
-    'linear-gradient(135deg, #EA4335 0%, #FBBC05 100%)',
-    'linear-gradient(135deg, #34A853 0%, #4285F4 100%)',
-    'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-    'linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%)'
-  ];
-
-  container.innerHTML = merchantsList.map((m, idx) => {
-    const char = m.charAt(0).toUpperCase();
-    const bgGradient = colorPalettes[idx % colorPalettes.length];
-
-    return `
-      <div class="gpay-avatar-item" onclick="quickPayMerchant('${m}')">
-        <div class="gpay-avatar-bubble" style="background: ${bgGradient}; border-color: rgba(255,255,255,0.3);">
-          ${char}
-        </div>
-        <span class="gpay-avatar-name">${m}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-// Quick Pay Merchant Trigger
-function quickPayMerchant(merchantName) {
-  openAddModal();
-  document.getElementById('inputMerchant').value = merchantName;
-}
 
 // Copy Webhook URL
 function copyWebhookUrl() {
@@ -341,8 +297,7 @@ function fetchTransactionsFromSupabase(onComplete) {
       if (JSON.stringify(merged) !== JSON.stringify(transactions)) {
         transactions = merged;
         saveToLocalStorage();
-        renderGpayAvatars();
-        renderTransactions();
+      renderTransactions();
         console.log('[Supabase Auto-Sync]: Updated', transactions.length, 'transactions');
       }
     }
@@ -844,7 +799,6 @@ function deleteTransaction(id) {
   if (confirm(message)) {
     transactions = transactions.filter(item => item.id !== id);
     saveToLocalStorage();
-    renderGpayAvatars();
     renderTransactions();
 
     if (SUPABASE_KEY) {
@@ -877,8 +831,7 @@ function clearAllRealData() {
       const allIds = transactions.map(t => t.id);
       transactions = [];
       saveToLocalStorage();
-      renderGpayAvatars();
-      renderTransactions();
+        renderTransactions();
 
       if (SUPABASE_KEY && allIds.length > 0) {
         // BUG-15: PostgREST in() for text columns needs unquoted CSV values
@@ -934,7 +887,6 @@ function saveTransaction(e) {
 
   saveToLocalStorage();
   closeModal();
-  renderGpayAvatars();
   renderTransactions();
 
   if (SUPABASE_KEY) {
@@ -1070,7 +1022,6 @@ function ingestParsedTransaction() {
 
   transactions.unshift(newTxn);
   saveToLocalStorage();
-  renderGpayAvatars();
   renderTransactions();
   switchTab('dashboard');
 

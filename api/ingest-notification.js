@@ -81,22 +81,40 @@ module.exports = async (req, res) => {
     else if (isCreditText) type = 'Credit';
     const isCredit = type === 'Credit';
 
-    // --- MERCHANT / SENDER EXTRACTION ---
+    // --- MERCHANT / SENDER EXTRACTION (multi-pass) ---
     let merchant = 'UPI Transfer';
 
     if (!isCredit) {
-      // Debit: "To SOPHY ROSE JOSEPHINA" on its own line (multiline collapsed to space)
-      const toMatch = cleanText.match(/\bTo\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)(?=\s+On\b|\s+Ref\b|\s+Not\b|\s+Call\b|\.|$)/i);
-      if (toMatch && !/hdfc|bank|a\/c|account|\d{4}/i.test(toMatch[1])) {
-        merchant = toMatch[1].trim();
+      // P1: "to <merchant> via" — stops before "via" (fixes "Swiggy via UPI")
+      const p1 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)\s+via\b/i);
+      // P2: "towards <merchant>" — captures rent, bills, EMI
+      const p2 = cleanText.match(/\btowards\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+via|\s+on|\s+ref|\.|$)/i);
+      // P3: "to <merchant>" followed by known terminators
+      const p3 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)(?=\s+on\b|\s+ref\b|\s+not\b|\s+a\/c\b|\.|$)/i);
+      // P4: "at <merchant>"
+      const p4 = cleanText.match(/\bat\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+on|\s+via|\s+ref|\.|$)/i);
+
+      // Only reject if the candidate itself IS a bank/system identifier, not just contains one
+      const BANK_ONLY = /^(hdfc|sbi|icici|axis|kotak|paytm|phonepe|npci|bank|a\/c|account)$/i;
+
+      for (const m of [p1, p2, p3, p4]) {
+        if (m) {
+          const candidate = m[1].trim();
+          if (!BANK_ONLY.test(candidate) && !/^\d+$/.test(candidate)) {
+            merchant = candidate;
+            break;
+          }
+        }
       }
     } else {
-      // Credit: "from VPA name@bank" or "from Person Name"
+      // Credit: "from VPA name@bank" or "from Person/Company Name"
       const fromMatch = cleanText.match(/\bfrom\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+\(UPI|\s+Ref\b|\s+on\b|\.|$)/i);
-      if (fromMatch && !/hdfc|bank|a\/c|account|\d{6}/i.test(fromMatch[1])) {
+      if (fromMatch) {
         let sender = fromMatch[1].trim();
         if (sender.includes('@')) sender = sender.split('@')[0].replace(/\d+$/, '');
-        merchant = sender;
+        if (!/^(hdfc|sbi|icici|axis|kotak|bank|npci|system)$/i.test(sender)) {
+          merchant = sender;
+        }
       }
     }
 
