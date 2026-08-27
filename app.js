@@ -951,6 +951,20 @@ function saveTransaction(e) {
    AUTOMATED REGEX INGESTION ENGINE
    ========================================================================== */
 
+function loadSampleText(key) {
+  const input = document.getElementById('rawNotificationInput');
+  if (!input) return;
+
+  if (key === 'swiggy') {
+    input.value = "Paid ₹480.00 to Swiggy via Google Pay UPI Ref 4239105. HDFC Bank A/C XX8912 debited.";
+  } else if (key === 'hdfc') {
+    input.value = "Rs. 12,500.00 debited from A/C XX8912 towards House Rent via HDFC NetBanking on 27-AUG-26.";
+  } else if (key === 'salary') {
+    input.value = "Credited with Rs. 1,00,000.00 from ACME Corp Salary Transfer to A/C XX8912 on 27-AUG-26.";
+  }
+  parseRawNotification();
+}
+
 function parseRawNotification() {
   const raw = document.getElementById('rawNotificationInput').value.trim();
   if (!raw) return;
