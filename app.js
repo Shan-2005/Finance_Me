@@ -382,6 +382,19 @@ function switchTab(tabId) {
   }
 }
 
+function formatDisplayDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const dateFormatted = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const timeFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    return `${dateFormatted} • ${timeFormatted}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 function renderTransactions() {
   const container = document.getElementById('txnContainer');
   const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
@@ -435,7 +448,7 @@ function renderTransactions() {
           <div class="txn-details">
             <span class="txn-merchant">${t.merchant}</span>
             <div class="txn-meta">
-              <span>${t.date}</span> • 
+              <span>${formatDisplayDate(t.date)}</span> • 
               <span><i class="fa-solid fa-mobile-screen-button" style="font-size: 10px;"></i> ${t.mode}</span>
               ${tagBadges ? `• ${tagBadges}` : ''}
             </div>

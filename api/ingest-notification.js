@@ -43,7 +43,6 @@ module.exports = async (req, res) => {
     if (!amount || amount === 0) {
       const numMatches = cleanText.match(/\b(\d+(?:\.\d{1,2})?)\b/g);
       if (numMatches && numMatches.length > 0) {
-        // Pick the number that represents transaction value (ignore bank A/C numbers or phone/ref numbers)
         const validAmounts = numMatches.map(n => parseFloat(n)).filter(n => n > 0 && n < 1000000 && !n.toString().includes('1009') && !n.toString().includes('1800'));
         if (validAmounts.length > 0) amount = validAmounts[0];
       }
@@ -97,7 +96,8 @@ module.exports = async (req, res) => {
       mode = 'Net Banking';
     }
 
-    const timestamp = req.body?.timestamp || new Date().toISOString();
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 
     const parsedTransaction = {
       id: `txn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -106,9 +106,9 @@ module.exports = async (req, res) => {
       type,
       category,
       mode,
-      date: new Date(timestamp).toISOString().split('T')[0],
+      date: now.toISOString(),
       tags: ['#auto-ingested', `#${(merchant || 'upi').toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-      notes: `Auto-ingested: "${cleanText.substring(0, 60)}"`,
+      notes: `[${timeStr}] "${cleanText.substring(0, 60)}"`,
       raw_text: rawText
     };
 
