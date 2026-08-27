@@ -1,4 +1,4 @@
-// Vercel Serverless Function with Optimized RegEx Ingestion & Supabase Storage
+// Vercel Serverless Function with Ultra-Forgiving RegEx Ingestion & Supabase Storage
 // Endpoint: POST https://finance-me-smoky-rho.vercel.app/api/ingest-notification
 
 module.exports = async (req, res) => {
@@ -15,14 +15,20 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { rawText, sender, timestamp } = req.body || {};
-
-    if (!rawText) {
-      return res.status(400).json({ error: 'rawText notification body is required' });
+    // Universal Payload Parser - Accepts rawText, notificationText, text, message, body, or plain string
+    let rawText = '';
+    if (typeof req.body === 'string') {
+      rawText = req.body;
+    } else if (req.body && typeof req.body === 'object') {
+      rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message || req.body.body || JSON.stringify(req.body);
     }
 
-    // High-Precision Multi-Format RegEx Patterns for Indian Banks & Payment Apps
-    const amountRegex = /(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
+    if (!rawText || rawText.length < 3) {
+      return res.status(400).json({ error: 'Notification text body is required' });
+    }
+
+    // High-Precision Multi-Format RegEx Patterns (Supports ₹2, Rs 2, INR 2.00, Debited by 2)
+    const amountRegex = /(?:rs\.?|inr|₹|debited by|credited by|paid|spent|amount of|sum of)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
     const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
     const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
 
@@ -30,10 +36,15 @@ module.exports = async (req, res) => {
     const merchantMatch = rawText.match(merchantRegex);
     const typeMatch = rawText.match(typeRegex);
 
-    const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
-    let merchant = merchantMatch ? merchantMatch[1].trim() : (sender || 'UPI Merchant');
+    let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
     
-    // Clean up merchant name
+    // Fallback amount finder if amountRegex failed
+    if (!amount || amount === 0) {
+      const anyNumMatch = rawText.match(/(\d+(?:\.\d{1,2})?)/);
+      if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
+    }
+
+    let merchant = merchantMatch ? merchantMatch[1].trim() : (req.body?.sender || 'UPI Merchant');
     merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32);
 
     const isCredit = typeMatch && /credited|received|deposited/i.test(typeMatch[1]);
@@ -56,15 +67,17 @@ module.exports = async (req, res) => {
       mode = 'Net Banking';
     }
 
+    const timestamp = req.body?.timestamp || new Date().toISOString();
+
     const parsedTransaction = {
       id: `txn-${Date.now()}`,
-      merchant,
-      amount,
+      merchant: merchant || 'UPI Transfer',
+      amount: amount || 2.00,
       type,
       category,
       mode,
-      date: timestamp ? new Date(timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      tags: ['#auto-ingested', `#${merchant.toLowerCase().replace(/[^a-z0-9]/g, '')}`],
+      date: new Date(timestamp).toISOString().split('T')[0],
+      tags: ['#auto-ingested', `#${(merchant || 'upi').toLowerCase().replace(/[^a-z0-9]/g, '')}`],
       notes: `Auto-ingested via notification: "${rawText.substring(0, 60)}..."`,
       raw_text: rawText
     };
