@@ -216,7 +216,7 @@ body::before {
   backdrop-filter: blur(12px);
 }
 
-/* UNIQUE WEB APP LOGO EMBEDDED IN SEARCH BAR */
+/* UNIQUE WEB APP BRAND LOGO BADGE IN SEARCH BAR */
 .app-brand-badge {
   display: flex;
   align-items: center;
@@ -225,19 +225,18 @@ body::before {
   font-weight: 800;
   font-size: 14px;
   flex-shrink: 0;
-  background: rgba(66, 133, 244, 0.12);
-  border: 1px solid rgba(66, 133, 244, 0.25);
-  padding: 2px 8px 2px 4px;
+  background: rgba(66, 133, 244, 0.14);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+  padding: 3px 10px 3px 5px;
   border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(66, 133, 244, 0.2);
 }
 
-.app-logo-img {
+.app-logo-svg {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(66, 133, 244, 0.5));
 }
 
 .logo-text-finance {
@@ -339,7 +338,6 @@ body::before {
   box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
   overflow: hidden;
 }
-.pwa-icon img { width: 100%; height: 100%; object-fit: cover; }
 .pwa-text { display: flex; flex-direction: column; }
 .pwa-text strong { font-size: 12px; color: var(--text-main); }
 .pwa-text span { font-size: 10px; color: var(--text-muted); }

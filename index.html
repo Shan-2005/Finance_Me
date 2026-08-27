@@ -25,9 +25,19 @@
     <!-- GPAY HEADER BAR WITH SEARCH & PROFILE -->
     <header class="gpay-header">
       <div class="gpay-search-bar">
-        <!-- UNIQUE WEB APP BRAND LOGO BADGE -->
+        <!-- UNIQUE INLINE SVG WEB APP BRAND LOGO BADGE -->
         <div class="app-brand-badge">
-          <img src="logo.png" alt="Finance Me Logo" class="app-logo-img">
+          <svg class="app-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="16" fill="url(#logo-grad)"/>
+            <path d="M8 22L14 15L18 19L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="24" cy="10" r="2.5" fill="#34A853"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#4285F4"/>
+                <stop offset="1" stop-color="#1a73e8"/>
+              </linearGradient>
+            </defs>
+          </svg>
           <span class="logo-text-finance">Finance</span><span class="logo-text-me">Me</span>
         </div>
 
@@ -59,7 +69,10 @@
       <div class="pwa-install-banner" id="pwaInstallBanner" style="display: none;">
         <div class="pwa-content">
           <div class="pwa-icon">
-            <img src="logo.png" alt="Finance Me App Icon">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+              <path d="M8 22L14 15L18 19L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="24" cy="10" r="2.5" fill="#34A853"/>
+            </svg>
           </div>
           <div class="pwa-text">
             <strong>Install Finance Me App</strong>
