@@ -33,13 +33,18 @@ module.exports = async (req, res) => {
       rawText = req.query.rawText || req.query.text || req.query.sms || req.query.message || req.query.body || '';
     }
 
-    // If STILL empty - reject silently (don't create junk ₹0 entries)
-    if (!rawText || rawText.trim().length < 3) {
-      console.warn('[INGEST DEBUG] Empty body. req.body:', JSON.stringify(req.body), 'Content-Type:', ct, 'query:', JSON.stringify(req.query));
+    // Check for un-expanded MacroDroid placeholder variables (e.g. "[sms_body]", "{sms_body}", "[not_text]")
+    const isPlaceholder = /^[\{\[\(]\s*(sms_body|sms_message|not_text|notification_text|sms_number|not_title)\s*[\}\]\)]$/i.test(rawText.trim()) ||
+                          /^(?:\[|\{)?sms_body(?:\]|\})?$/i.test(rawText.trim()) ||
+                          /^(?:\[|\{)?not_text(?:\]|\})?$/i.test(rawText.trim());
+
+    // If STILL empty or contains unexpanded placeholder - reject silently (don't create junk ₹0 entries)
+    if (isPlaceholder || !rawText || rawText.trim().length < 3) {
+      console.warn('[INGEST DEBUG] MacroDroid placeholder variable or empty body received:', rawText);
       return res.status(200).json({ 
         success: false, 
-        error: 'NO_SMS_BODY — MacroDroid fix: Change URL to include ?sms=[sms_body] at the end',
-        tip: 'Use URL: https://finance-me-smoky-rho.vercel.app/api/ingest-notification?sms=[sms_body]'
+        error: 'MACRODROID_UNEXPANDED_VARIABLE - MacroDroid sent the variable name literally instead of actual SMS/notification text.',
+        tip: 'In MacroDroid HTTP GET configuration, click the Magic Text button (...) to select "SMS Body" or "Notification Text".'
       });
     }
 
@@ -69,7 +74,15 @@ module.exports = async (req, res) => {
       if (numMatch) amount = parseFloat(numMatch[1].replace(/,/g, ''));
     }
 
-    if (!amount || isNaN(amount)) amount = 0;
+    if (!amount || isNaN(amount) || amount <= 0) {
+      console.warn('[INGEST DEBUG] No valid transaction amount found in text:', cleanText);
+      return res.status(200).json({
+        success: false,
+        error: 'NO_TRANSACTION_AMOUNT_FOUND',
+        message: 'Could not extract a valid non-zero transaction amount from the provided text.',
+        receivedText: cleanText
+      });
+    }
 
     // --- CREDIT vs DEBIT DETECTION ---
     // Priority: debit keywords FIRST (some credit SMS also have "from" which confuses debit match)
