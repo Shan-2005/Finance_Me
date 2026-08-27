@@ -30,16 +30,13 @@ module.exports = async (req, res) => {
       rawText = 'UPI Payment Notification';
     }
 
-    // High-Precision Multi-Format RegEx Patterns
+    // High-Precision Amount Extractor (Matches "Sent Rs.1.00", "Rs.10.00 credited", "Re. 1")
     const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|received|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
-    const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|received from|received by|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
-
     const amountMatch = rawText.match(amountRegex);
-    const merchantMatch = rawText.match(merchantRegex);
 
     let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
     
-    // Fallback amount finder if amountRegex failed - Extracts the first standalone number/decimal
+    // Fallback amount finder - Extracts the first standalone number/decimal
     if (!amount || amount === 0) {
       const anyNumMatch = rawText.match(/(\d+(?:\.\d{1,2})?)/);
       if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
@@ -47,27 +44,33 @@ module.exports = async (req, res) => {
 
     if (!amount || amount === 0) amount = 1.00;
 
-    let merchant = merchantMatch ? merchantMatch[1].trim() : (req.body?.sender || 'UPI Transfer');
-
     // Bulletproof Credit (Received) vs Debit (Paid) Detection
-    const isCredit = /credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(rawText) && 
-                     !/debited|spent|paid|sent to|transferred to|sent rs/i.test(rawText);
+    const isCredit = /credit alert|credited|received|deposited|recvd|cr in a\/c|received rs|received inr|received ₹/i.test(rawText) && 
+                     !/sent rs|debited|spent|paid|sent to|transferred to/i.test(rawText);
     const type = isCredit ? 'Credit' : 'Debit';
 
-    // Specific Sender Extraction for Credit (Received) SMS
+    let merchant = req.body?.sender || 'UPI Transfer';
+
+    // 1. Sent Debit Format (e.g. "To SOPHY ROSE JOSEPHINA")
+    const toMatch = rawText.match(/To\s+([A-Za-z0-9\s&.\-@]+?)(?=\r?\n|On\s+|Ref\s+|\.|$)/i);
+    if (toMatch && toMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(toMatch[1])) {
+      merchant = toMatch[1].trim();
+    }
+
+    // 2. Credit Format (e.g. "from VPA sophyrosemanivarnan47744@okicici" or "from John Doe")
     if (isCredit) {
-      const senderMatch = rawText.match(/(?:received from|credited from|credited by|recvd from|sent by|from)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+a\/c|\.|$)/i);
-      if (senderMatch && senderMatch[1].trim().length > 1 && !/a\/c|account/i.test(senderMatch[1])) {
-        merchant = senderMatch[1].trim();
+      const fromMatch = rawText.match(/from\s+(?:VPA\s+)?([A-Za-z0-9\s&.\-@]+?)(?=\s+\(UPI|\s+Ref|\s+on|\r?\n|\.|$)/i);
+      if (fromMatch && fromMatch[1].trim().length > 1 && !/hdfc|bank|a\/c|account/i.test(fromMatch[1])) {
+        let rawSender = fromMatch[1].trim();
+        if (rawSender.includes('@')) {
+          rawSender = rawSender.split('@')[0].replace(/\d+$/, '');
+        }
+        merchant = rawSender;
       }
     }
 
-    if (merchant === 'UPI Merchant' || !merchant || merchant.length < 2) {
-      const fallbackTo = rawText.match(/(?:sent to|paid to|to|from)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i);
-      if (fallbackTo) merchant = fallbackTo[1].trim();
-    }
-
-    merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32);
+    // Clean up merchant name (Title Case & length limit)
+    merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 36).trim();
 
     let category = 'Unwanted / Leak';
     if (isCredit) {
