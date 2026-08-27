@@ -1,0 +1,13 @@
+{
+  "name": "finance-me",
+  "version": "1.0.0",
+  "description": "Automated Personal Finance & Wealth Optimization Mobile Web App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
