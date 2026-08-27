@@ -249,6 +249,22 @@
            ========================================== -->
       <section id="tab-strategy" class="tab-view">
         
+        <!-- FINANCIAL HEALTH SCORE CARD -->
+        <div class="health-score-card">
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--gpay-blue-light); text-transform: uppercase;">
+              <i class="fa-solid fa-heart-pulse"></i> Financial Health Score
+            </div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--text-main); margin-top: 2px;" id="healthScoreRating">Analyzing...</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="healthScoreDesc">Based on savings rate & spending balance</div>
+          </div>
+          <div class="health-score-circle">
+            <span class="health-score-num" id="healthScoreVal">85</span>
+            <span class="health-score-denom">/ 100</span>
+          </div>
+        </div>
+
+        <!-- MONTHLY SAVINGS & SPENDING SUMMARY HERO -->
         <div class="card" style="background: var(--hero-grad); border-color: rgba(52, 168, 83, 0.35);">
           <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); text-transform: uppercase; letter-spacing: 0.5px;">
             <i class="fa-solid fa-piggy-bank"></i> How Much You Saved This Month
@@ -256,51 +272,76 @@
           
           <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
             <div style="font-size: 28px; font-weight: 800; color: #fff; font-family: var(--font-display);" class="maskable-amount" id="strategyTotalSaved">₹0.00</div>
-            <div style="font-size: 12px; font-weight: 700; background: rgba(52, 168, 83, 0.2); color: var(--gpay-green-light); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
+            <div style="font-size: 12px; font-weight: 700; background: rgba(52, 168, 83, 0.25); color: var(--gpay-green-light); padding: 4px 10px; border-radius: 12px;" id="strategySavingsRate">
               0% Savings Rate
             </div>
           </div>
 
-          <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 12px 0;">
+          <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.15); margin: 12px 0;">
 
-          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
-            <i class="fa-solid fa-fire" style="color: var(--gpay-red-light);"></i> Where Did You Spend The Most?
+          <div style="font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">
+            <i class="fa-solid fa-fire" style="color: var(--gpay-red-light);"></i> Spending Breakdown Deep-Dive
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
-            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--glass-border);">
-              <div style="font-size: 10px; color: var(--text-muted);">Top Merchant</div>
-              <div style="font-weight: 700; color: var(--text-main); margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
+            <div style="background: rgba(255,255,255,0.06); padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+              <div style="font-size: 10px; color: #94a3b8;">Top Merchant Spent On</div>
+              <div style="font-weight: 700; color: #fff; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
             </div>
-            <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--glass-border);">
-              <div style="font-size: 10px; color: var(--text-muted);">Top Category</div>
+            <div style="background: rgba(255,255,255,0.06); padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+              <div style="font-size: 10px; color: #94a3b8;">Highest Expense Category</div>
               <div style="font-weight: 700; color: var(--gpay-red-light); margin-top: 2px;" id="topCategoryVal">None logged</div>
             </div>
           </div>
 
           <div style="display: flex; gap: 6px; margin-top: 10px;">
-            <div style="flex: 1; background: rgba(66, 133, 244, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(66, 133, 244, 0.2);">
+            <div style="flex: 1; background: rgba(66, 133, 244, 0.15); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(66, 133, 244, 0.3);">
               <div style="font-size: 9px; color: var(--gpay-blue-light); font-weight: 700;">🏠 Rent/Needs</div>
-              <div style="font-size: 13px; font-weight: 800; color: var(--text-main); margin-top: 2px;" class="maskable-amount" id="unavoidableSum">₹0</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unavoidableSum">₹0</div>
             </div>
 
-            <div style="flex: 1; background: rgba(234, 67, 53, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(234, 67, 53, 0.2);">
+            <div style="flex: 1; background: rgba(234, 67, 53, 0.15); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(234, 67, 53, 0.3);">
               <div style="font-size: 9px; color: var(--gpay-red-light); font-weight: 700;">🛍️ Unwanted Leaks</div>
-              <div style="font-size: 13px; font-weight: 800; color: var(--text-main); margin-top: 2px;" class="maskable-amount" id="unwantedSum">₹0</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="unwantedSum">₹0</div>
             </div>
 
-            <div style="flex: 1; background: rgba(52, 168, 83, 0.1); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(52, 168, 83, 0.2);">
+            <div style="flex: 1; background: rgba(52, 168, 83, 0.15); padding: 6px 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(52, 168, 83, 0.3);">
               <div style="font-size: 9px; color: var(--gpay-green-light); font-weight: 700;">📈 Investments</div>
-              <div style="font-size: 13px; font-weight: 800; color: var(--text-main); margin-top: 2px;" class="maskable-amount" id="investmentsSum">₹0</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px;" class="maskable-amount" id="investmentsSum">₹0</div>
             </div>
           </div>
         </div>
 
-        <div class="card-header" style="margin-top: 12px;">
-          <div class="card-title">
-            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Actionable Ways To Save
+        <!-- COMPOUND WEALTH PROJECTION CARD -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-line" style="color: var(--gpay-green-light);"></i> Wealth Forecast & Projections
+            </div>
+            <span class="card-subtitle">Compound Growth</span>
           </div>
-          <span class="card-subtitle">GPay Smart Advisor</span>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;">
+            <div style="background: var(--glass-surface-elevated); padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border);">
+              <div style="font-size: 10px; color: var(--text-muted);">1-Year Savings Forecast</div>
+              <div style="font-size: 16px; font-weight: 800; color: var(--gpay-green-light); margin-top: 2px;" class="maskable-amount" id="forecast1Year">₹0</div>
+              <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Assumes current monthly rate</div>
+            </div>
+
+            <div style="background: var(--glass-surface-elevated); padding: 10px 12px; border-radius: 14px; border: 1px solid var(--glass-border);">
+              <div style="font-size: 10px; color: var(--text-muted);">5-Year SIP Wealth (12% Return)</div>
+              <div style="font-size: 16px; font-weight: 800; color: var(--gpay-blue-light); margin-top: 2px;" class="maskable-amount" id="forecast5Year">₹0</div>
+              <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Compounded monthly SIP</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTIONABLE WAYS TO SAVE ADVISORY CONTAINER -->
+        <div class="card-header" style="margin-top: 6px;">
+          <div class="card-title">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Personalized Smart Recommendations
+          </div>
+          <span class="card-subtitle">AI Advisor</span>
         </div>
 
         <div id="waysToSaveContainer" style="display: flex; flex-direction: column; gap: 10px;">

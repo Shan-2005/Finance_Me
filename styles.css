@@ -1,17 +1,17 @@
 /* ==========================================================================
-   FINANCE ME - Google Pay (GPay) Glassmorphism, Animated Gradient & Light/Dark Mode UI
+   FINANCE ME - Google Pay (GPay) Glassmorphism, Animated Gradient & Theme Engine
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
   /* GPay Dark Palette (Default) */
   --gpay-bg: #090a0e;
   
   /* Glassmorphism Surface Tokens */
-  --glass-surface: rgba(24, 25, 32, 0.68);
-  --glass-surface-elevated: rgba(34, 36, 46, 0.75);
-  --glass-surface-hover: rgba(44, 46, 59, 0.85);
+  --glass-surface: rgba(24, 25, 32, 0.72);
+  --glass-surface-elevated: rgba(34, 36, 46, 0.85);
+  --glass-surface-hover: rgba(44, 46, 59, 0.9);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
 
@@ -36,65 +36,92 @@
   --gpay-red-bg: rgba(234, 67, 53, 0.18);
 
   /* Metallic Hero Glass Gradient */
-  --hero-grad: linear-gradient(135deg, rgba(26, 37, 54, 0.85) 0%, rgba(13, 21, 39, 0.85) 50%, rgba(20, 31, 51, 0.85) 100%);
+  --hero-grad: linear-gradient(135deg, rgba(26, 37, 54, 0.9) 0%, rgba(13, 21, 39, 0.9) 50%, rgba(20, 31, 51, 0.9) 100%);
 
-  --text-main: #e3e2e6;
-  --text-muted: #90909a;
-  --text-sub: #c4c6cf;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-sub: #cbd5e1;
 
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Outfit', sans-serif;
 }
 
 /* ==========================================================================
-   LIGHT MODE OVERRIDES ([data-theme="light"])
+   PREMIUM LIGHT MODE OVERRIDES ([data-theme="light"])
    ========================================================================== */
 [data-theme="light"] {
-  --gpay-bg: #f4f6fb;
+  --gpay-bg: #f8fafc;
   
-  --glass-surface: rgba(255, 255, 255, 0.82);
-  --glass-surface-elevated: rgba(240, 243, 250, 0.9);
-  --glass-surface-hover: rgba(230, 235, 245, 0.95);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  --glass-surface: rgba(255, 255, 255, 0.92);
+  --glass-surface-elevated: #ffffff;
+  --glass-surface-hover: #f1f5f9;
+  --glass-border: rgba(226, 232, 240, 0.8);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 1);
 
-  --gpay-blue-light: #1a73e8;
-  --gpay-green-light: #1e8e3e;
-  --gpay-yellow-light: #d97706;
-  --gpay-red-light: #d93025;
+  --gpay-blue-light: #1d4ed8;
+  --gpay-green-light: #15803d;
+  --gpay-yellow-light: #b45309;
+  --gpay-red-light: #b91c1c;
 
-  --text-main: #1f1f1f;
-  --text-muted: #5f6368;
-  --text-sub: #3c4043;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-sub: #334155;
 
-  --hero-grad: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  --hero-grad: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%);
 }
 
 [data-theme="light"] body::before {
-  background: radial-gradient(circle at 20% 20%, rgba(66, 133, 244, 0.12) 0%, transparent 40%),
-              radial-gradient(circle at 80% 30%, rgba(52, 168, 83, 0.1) 0%, transparent 40%),
-              radial-gradient(circle at 40% 80%, rgba(251, 188, 5, 0.08) 0%, transparent 40%),
-              radial-gradient(circle at 80% 80%, rgba(234, 67, 53, 0.1) 0%, transparent 40%);
+  background: radial-gradient(circle at 10% 10%, rgba(66, 133, 244, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 90% 20%, rgba(52, 168, 83, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 30% 90%, rgba(251, 188, 5, 0.06) 0%, transparent 40%),
+              radial-gradient(circle at 80% 80%, rgba(234, 67, 53, 0.06) 0%, transparent 40%);
 }
 
 [data-theme="light"] .txn-merchant, 
 [data-theme="light"] .advice-title, 
 [data-theme="light"] .modal-title,
-[data-theme="light"] .txn-amount.debit {
-  color: #1f1f1f !important;
+[data-theme="light"] .txn-amount.debit,
+[data-theme="light"] .gpay-section-header,
+[data-theme="light"] .card-title {
+  color: #0f172a !important;
 }
 
 [data-theme="light"] .app-container {
-  background: rgba(244, 246, 251, 0.85);
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+  background: rgba(248, 250, 252, 0.9);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .gpay-header {
-  background: rgba(244, 246, 251, 0.9);
+  background: rgba(248, 250, 252, 0.95);
+  border-bottom-color: rgba(226, 232, 240, 0.8);
 }
 
 [data-theme="light"] .app-nav {
-  background: rgba(244, 246, 251, 0.92);
+  background: rgba(248, 250, 252, 0.95);
+  border-top-color: rgba(226, 232, 240, 0.8);
+}
+
+[data-theme="light"] .gpay-search-bar {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-select,
+[data-theme="light"] .parser-textarea {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .txn-item,
+[data-theme="light"] .gpay-action-btn,
+[data-theme="light"] .advice-card,
+[data-theme="light"] .card {
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03);
 }
 
 * {
@@ -344,6 +371,30 @@ body::before {
 .stat-value.credit { color: var(--gpay-green-light); }
 .stat-value.debit { color: var(--gpay-red-light); }
 
+/* HEALTH SCORE BADGE IN STRATEGY TAB */
+.health-score-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+  border-radius: 20px;
+  padding: 14px 18px;
+}
+.health-score-circle {
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: var(--gpay-blue-grad);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(66, 133, 244, 0.4);
+}
+.health-score-num { font-size: 20px; line-height: 1; }
+.health-score-denom { font-size: 9px; opacity: 0.8; }
+
 /* GPAY SIGNATURE: PEOPLE & RECENT MERCHANTS AVATAR ROW */
 .gpay-section-header {
   font-size: 13px;
@@ -556,7 +607,7 @@ body::before {
   font-family: var(--font-display);
   white-space: nowrap;
 }
-.txn-amount.debit { color: #fff; }
+.txn-amount.debit { color: var(--text-main); }
 .txn-amount.credit { color: var(--gpay-green-light); }
 
 .txn-status-tick {

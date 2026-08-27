@@ -504,7 +504,7 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Summary Metrics, Budget Gauges & Render Visual Charts
+// Calculate Summary Metrics, Health Score, Wealth Forecasts & Render Visual Charts
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
@@ -575,6 +575,54 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('topMerchantVal').innerText = topMerchant;
   document.getElementById('topCategoryVal').innerText = topCat;
 
+  // Compute Financial Health Score (0 - 100)
+  let healthScore = 50;
+  if (income > 0) {
+    const savRatio = netSaved / income;
+    const invRatio = investSum / income;
+    const leakRatio = unwantedSum / income;
+
+    if (savRatio >= 0.20) healthScore += 25;
+    else healthScore += Math.floor(savRatio * 100);
+
+    if (invRatio >= 0.15) healthScore += 15;
+
+    if (leakRatio < 0.20) healthScore += 10;
+    else healthScore -= 10;
+  }
+  healthScore = Math.min(100, Math.max(10, healthScore));
+
+  const healthScoreVal = document.getElementById('healthScoreVal');
+  const healthScoreRating = document.getElementById('healthScoreRating');
+  const healthScoreDesc = document.getElementById('healthScoreDesc');
+
+  if (healthScoreVal) healthScoreVal.innerText = healthScore;
+  if (healthScoreRating) {
+    if (healthScore >= 80) {
+      healthScoreRating.innerText = '🌟 Excellent Financial Standing';
+      healthScoreDesc.innerText = 'Optimal savings rate & disciplined investment allocation';
+    } else if (healthScore >= 60) {
+      healthScoreRating.innerText = '👍 Healthy Balance';
+      healthScoreDesc.innerText = 'Good progress, reduce unwanted leaks to boost reserves';
+    } else {
+      healthScoreRating.innerText = '⚠️ Action Recommended';
+      healthScoreDesc.innerText = 'High expenditure ratio detected. Cut unwanted leaks';
+    }
+  }
+
+  // Calculate Wealth Projections (1-Year & 5-Year Compound SIP Forecast @ 12% p.a.)
+  const annualSaved = netSaved * 12;
+  const monthlySIP = investSum > 0 ? investSum : (netSaved * 0.4);
+  const r = 0.12 / 12; // 12% annual interest
+  const n = 60; // 5 years = 60 months
+  const sip5Year = monthlySIP > 0 
+    ? Math.round(monthlySIP * (((Math.pow(1 + r, n) - 1) / r) * (1 + r)))
+    : annualSaved * 5;
+
+  document.getElementById('forecast1Year').innerText = `${curr}${annualSaved.toLocaleString('en-IN')}`;
+  document.getElementById('forecast5Year').innerText = `${curr}${sip5Year.toLocaleString('en-IN')}`;
+
+  // 50/30/20 Gauges
   const baseTargetIncome = income > 0 ? income : (userProfile.salary || 100000);
   const targetNeeds = baseTargetIncome * 0.50;
   const targetWants = baseTargetIncome * 0.30;
@@ -645,7 +693,7 @@ function renderCharts() {
           data: hasData ? dataValues : [50, 30, 15, 5],
           backgroundColor: ['#4285F4', '#EA4335', '#34A853', '#FBBC05'],
           borderWidth: 2,
-          borderColor: currentTheme === 'light' ? '#f4f6fb' : '#181920'
+          borderColor: currentTheme === 'light' ? '#ffffff' : '#181920'
         }]
       },
       options: {
@@ -695,7 +743,7 @@ function renderCharts() {
   }
 }
 
-// Generate Ways to Save Advice
+// Generate Ways to Save Advice & Strategy Insights
 function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest, saved, curr) {
   const container = document.getElementById('waysToSaveContainer');
   if (!container) return;
@@ -707,8 +755,8 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
     adviceList.push({
       icon: 'fa-triangle-exclamation',
       color: '#f28b82',
-      title: 'Unwanted Spending Leak Detected',
-      desc: `You spent <strong>${curr}${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Cutting this by 30% saves <strong>${curr}${parseFloat(potentialSaving).toLocaleString()}/month</strong>!`
+      title: 'Unwanted Spending Leak Alert',
+      desc: `You spent <strong>${curr}${unwanted.toLocaleString()}</strong> on unwanted/discretionary items. Trimming this by 30% frees up <strong>${curr}${parseFloat(potentialSaving).toLocaleString()}/month</strong> for your savings vault!`
     });
   } else {
     adviceList.push({
@@ -725,14 +773,14 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
       adviceList.push({
         icon: 'fa-house-lock',
         color: '#fde293',
-        title: 'High Rent / Needs Expense Ratio',
-        desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income (Target < 50%). Consider negotiating fixed utility contracts or optimizing rent.`
+        title: 'High Fixed Cost Ratio (Rent & Bills)',
+        desc: `Rent & fixed bills account for <strong>${ratio}%</strong> of total income (Target < 50%). Consider renegotiating fixed utility plans or room sharing.`
       });
     } else {
       adviceList.push({
         icon: 'fa-thumbs-up',
         color: '#8ab4f8',
-        title: 'Healthy Rent & Fixed Needs Ratio',
+        title: 'Optimal Rent & Fixed Expense Ratio',
         desc: `Rent & fixed bills take up <strong>${ratio}%</strong> of income. You are within safe financial margins!`
       });
     }
@@ -743,14 +791,14 @@ function renderWaysToSaveAdvice(income, expenses, unavoidable, unwanted, invest,
     adviceList.push({
       icon: 'fa-chart-line',
       color: '#81c995',
-      title: 'Surplus Cash Wealth Sweep',
-      desc: `You saved <strong>${curr}${saved.toLocaleString()}</strong> this month! We recommend sweeping <strong>${curr}${parseFloat(sip).toLocaleString()}</strong> into SIPs to compound wealth.`
+      title: 'Auto-Sweep Excess Cash to SIPs',
+      desc: `You saved <strong>${curr}${saved.toLocaleString()}</strong> this month! We recommend auto-sweeping <strong>${curr}${parseFloat(sip).toLocaleString()}</strong> into equity index funds for 12% compound returns.`
     });
   }
 
   container.innerHTML = adviceList.map(adv => `
     <div class="advice-card">
-      <div class="advice-icon" style="background: rgba(255,255,255,0.08); color: ${adv.color};">
+      <div class="advice-icon" style="background: rgba(66, 133, 244, 0.12); color: ${adv.color};">
         <i class="fa-solid ${adv.icon}"></i>
       </div>
       <div>
