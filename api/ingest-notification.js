@@ -32,6 +32,16 @@ module.exports = async (req, res) => {
       }
     }
 
+    // 3. Sanitizer: If rawText is an unparsed JSON string like {"sms": "..."}, extract the string content
+    if (typeof rawText === 'string' && (rawText.trim().startsWith('{') || rawText.includes('"sms":') || rawText.includes('"text":'))) {
+      const jsonMatch = rawText.match(/"(?:sms|text|message|sms_body|rawText|content)"\s*:\s*"([\s\S]*?)"(?:\s*\}|\s*,)/i);
+      if (jsonMatch && jsonMatch[1]) {
+        rawText = jsonMatch[1];
+      } else {
+        rawText = rawText.replace(/^\s*\{\s*"(?:sms|text|message)"\s*:\s*"?/i, '').replace(/["\}]*\s*$/g, '');
+      }
+    }
+
     // Check for un-expanded MacroDroid placeholder variables (e.g. "[sms_body]", "{sms_body}", "[not_text]")
     const isPlaceholder = /^[\{\[\(]\s*(sms_body|sms_message|not_text|notification_text|sms_number|not_title)\s*[\}\]\)]$/i.test(rawText.trim()) ||
                           /^(?:\[|\{)?sms_body(?:\]|\})?$/i.test(rawText.trim()) ||
