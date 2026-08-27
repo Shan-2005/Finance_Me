@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "headers": [
     {
       "source": "/(.*)",
@@ -18,8 +19,17 @@
       ]
     }
   ],
-  "rewrites": [
-    { "source": "/api/version", "destination": "/api/version.js" },
-    { "source": "/api/ingest-notification", "destination": "/api/ingest-notification.js" }
+  "builds": [
+    { "src": "api/*.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "styles.css", "use": "@vercel/static" },
+    { "src": "app.js", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/version", "dest": "/api/version.js" },
+    { "src": "/api/ingest-notification", "dest": "/api/ingest-notification.js" },
+    { "src": "/styles.css", "dest": "/styles.css" },
+    { "src": "/app.js", "dest": "/app.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
