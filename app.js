@@ -10,6 +10,7 @@ let lastParsedTransaction = null;
 let currentAppVersion = null;
 let deferredPwaPrompt = null;
 let isPrivateModeActive = false;
+let isWritePending = false; // BUG-04: pause sync while a write is in-flight
 
 // Chart.js Instances
 let categoryChartInstance = null;
@@ -31,9 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTransactions();
   updateMetricsAndTaxonomy();
 
-  // Initial Fetch & Fast 4-Second Auto Sync Polling
+  // Initial Fetch & Auto Sync Polling (skips when a write is in-flight — BUG-04)
   fetchTransactionsFromSupabase();
-  setInterval(fetchTransactionsFromSupabase, 4000);
+  setInterval(() => { if (!isWritePending) fetchTransactionsFromSupabase(); }, 4000);
 
   checkAutoUpdate();
   setInterval(checkAutoUpdate, 30000);
@@ -383,7 +384,8 @@ function switchTab(tabId) {
   if (selectedTab) selectedTab.classList.add('active');
   if (selectedNav) selectedNav.classList.add('active');
 
-  if (tabId === 'taxonomy' || tabId === 'strategy') {
+  // BUG-10: charts only live in taxonomy tab — don't render on strategy switch
+  if (tabId === 'taxonomy') {
     renderCharts();
   }
 }
@@ -391,7 +393,10 @@ function switchTab(tabId) {
 function formatDisplayDate(dateStr) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
+    // BUG-12: date-only strings (YYYY-MM-DD) parsed as UTC → wrong day in IST.
+    // Append time so JS treats it as local time instead.
+    const normalized = dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr;
+    const d = new Date(normalized);
     if (isNaN(d.getTime())) return dateStr;
     const dateFormatted = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     const timeFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
@@ -440,10 +445,12 @@ function renderTransactions() {
     'Income': { icon: 'fa-wallet', color: '#FBBC05', bg: 'rgba(251, 188, 5, 0.18)' }
   };
 
+  // BUG-11: use data-id instead of inline onclick to avoid quote-breaking on special IDs
   container.innerHTML = filtered.map(t => {
     const meta = categoryMeta[t.category] || { icon: 'fa-credit-card', color: '#8ab4f8', bg: 'rgba(138, 180, 248, 0.18)' };
     const formattedAmount = `${curr}${parseFloat(t.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
     const tagBadges = (t.tags || []).map(tag => `<span class="txn-tag">${tag}</span>`).join(' ');
+    const safeId = t.id.replace(/'/g, '&#39;');
 
     return `
       <div class="txn-item">
@@ -469,13 +476,21 @@ function renderTransactions() {
             <i class="fa-solid fa-circle-check"></i> ${t.type === 'Credit' ? 'Received' : 'Paid'}
           </div>
           <div class="txn-actions">
-            <button class="icon-btn" onclick="editTransaction('${t.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-            <button class="icon-btn delete" onclick="deleteTransaction('${t.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            <button class="icon-btn txn-edit-btn" data-id="${safeId}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="icon-btn delete txn-delete-btn" data-id="${safeId}" title="Delete"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       </div>
     `;
   }).join('');
+
+  // Delegated event listeners (attached once after render)
+  container.querySelectorAll('.txn-edit-btn').forEach(btn =>
+    btn.addEventListener('click', () => editTransaction(btn.dataset.id))
+  );
+  container.querySelectorAll('.txn-delete-btn').forEach(btn =>
+    btn.addEventListener('click', () => deleteTransaction(btn.dataset.id))
+  );
 
   updateMetricsAndTaxonomy();
 }
@@ -498,8 +513,10 @@ function updateMetricsAndTaxonomy() {
     if (t.type === 'Credit') {
       income += amt;
     } else {
-      expenses += amt;
+      // BUG-06: only count actual expense categories — skip 'Income' typed as Debit
+      if (t.category === 'Income') return;
 
+      expenses += amt;
       merchantTotals[t.merchant] = (merchantTotals[t.merchant] || 0) + amt;
       categoryTotals[t.category] = (categoryTotals[t.category] || 0) + amt;
 
@@ -510,20 +527,30 @@ function updateMetricsAndTaxonomy() {
       } else if (t.category === 'Investments') {
         investSum += amt;
       } else {
-        unavoidableSum += amt;
+        // Unknown category → treat as unwanted (visible, not hidden in Needs)
+        unwantedSum += amt;
       }
     }
   });
 
   const netCashFlow = income - expenses;
-  const netSaved = Math.max(0, netCashFlow);
-  const savingsRate = income > 0 ? ((netSaved / income) * 100).toFixed(1) : 0;
+  // BUG-05: keep actual value for display (can be negative); clamp only for forecast math
+  const netSaved = netCashFlow;
+  const netSavedForForecast = Math.max(0, netCashFlow);
+  // BUG-07: parseFloat ensures numeric comparison in health score algorithm
+  const savingsRate = income > 0 ? parseFloat(((netSavedForForecast / income) * 100).toFixed(1)) : 0;
 
   document.getElementById('dashIncome').innerText = `${curr}${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   document.getElementById('dashExpenses').innerText = `${curr}${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  document.getElementById('dashNetCashFlow').innerText = `${curr}${netCashFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
-  document.getElementById('strategyTotalSaved').innerText = `${curr}${netSaved.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  // BUG-05: show actual cashflow — colour red when negative
+  const cashFlowEl = document.getElementById('dashNetCashFlow');
+  cashFlowEl.innerText = `${netCashFlow < 0 ? '-' : ''}${curr}${Math.abs(netCashFlow).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  cashFlowEl.style.color = netCashFlow < 0 ? 'var(--gpay-red-light)' : 'var(--gpay-green-light)';
+
+  const savedEl = document.getElementById('strategyTotalSaved');
+  savedEl.innerText = `${netSaved < 0 ? '-' : ''}${curr}${Math.abs(netSaved).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  savedEl.style.color = netSaved < 0 ? 'var(--gpay-red-light)' : '';
   document.getElementById('strategySavingsRate').innerText = `${savingsRate}% Savings Rate`;
 
   document.getElementById('unavoidableSum').innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')}`;
@@ -585,16 +612,27 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('healthScoreRating').innerText = ratingText;
   document.getElementById('healthScoreDesc').innerText = ratingDesc;
 
-  // 1-Year Forecast & 5-Year SIP Wealth Projection
-  const forecast1Yr = netSaved * 12;
-  const monthlySip = netSaved > 0 ? netSaved * 0.5 : 1000;
+  // 1-Year Forecast & 5-Year SIP Wealth Projection (BUG-05: use clamped value for forecasts)
+  const forecast1Yr = netSavedForForecast * 12;
+  const monthlySip = netSavedForForecast > 0 ? netSavedForForecast * 0.5 : 0;
   const annualRate = 0.12;
   const months = 60;
   const r = annualRate / 12;
-  const sipFutureVal = monthlySip * (((Math.pow(1 + r, months) - 1) / r) * (1 + r));
+  const sipFutureVal = monthlySip > 0 ? monthlySip * (((Math.pow(1 + r, months) - 1) / r) * (1 + r)) : 0;
 
-  document.getElementById('forecast1Year').innerText = `${curr}${forecast1Yr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  document.getElementById('forecast5Year').innerText = `${curr}${sipFutureVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  const f1El = document.getElementById('forecast1Year');
+  const f5El = document.getElementById('forecast5Year');
+  if (netSavedForForecast <= 0) {
+    f1El.innerText = 'Deficit — reduce spending';
+    f1El.style.color = 'var(--gpay-red-light)';
+    f5El.innerText = 'Deficit — reduce spending';
+    f5El.style.color = 'var(--gpay-red-light)';
+  } else {
+    f1El.innerText = `${curr}${forecast1Yr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+    f1El.style.color = '';
+    f5El.innerText = `${curr}${sipFutureVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+    f5El.style.color = '';
+  }
 
   // 50/30/20 Gauges
   const targetIncome = userProfile.salary || Math.max(income, 50000);
@@ -615,8 +653,9 @@ function updateMetricsAndTaxonomy() {
   document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / investTarget) * 100)}%`;
   document.getElementById('taxInvestBar').style.background = 'var(--gpay-green-light)';
 
-  document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString('en-IN')} / ${curr}${savingsTarget.toLocaleString('en-IN')}`;
-  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / savingsTarget) * 100)}%`;
+  // BUG-05: savings gauge uses clamped value so bar never goes negative
+  document.getElementById('taxSavingsVal').innerText = `${curr}${netSavedForForecast.toLocaleString('en-IN')} / ${curr}${savingsTarget.toLocaleString('en-IN')}`;
+  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSavedForForecast / savingsTarget) * 100)}%`;
   document.getElementById('taxSavingsBar').style.background = 'var(--gpay-blue-light)';
 
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
@@ -783,7 +822,8 @@ function editTransaction(id) {
   document.getElementById('inputType').value = t.type;
   document.getElementById('inputCategory').value = t.category;
   document.getElementById('inputMode').value = t.mode;
-  document.getElementById('inputDate').value = t.date;
+  // BUG-08: ISO timestamps like "2026-08-27T10:14:00.000Z" must be sliced to YYYY-MM-DD
+  document.getElementById('inputDate').value = (t.date || '').substring(0, 10);
   document.getElementById('inputTags').value = (t.tags || []).join(', ');
   document.getElementById('inputNotes').value = t.notes || '';
 
@@ -808,15 +848,18 @@ function deleteTransaction(id) {
     renderTransactions();
 
     if (SUPABASE_KEY) {
-      // Use eq filter with proper text encoding for string IDs like txn-123-456
-      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(id)}`, {
+      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Prefer': 'return=minimal'
         }
-      }).catch(err => console.log('Supabase Delete error:', err));
+      })
+      .then(res => {
+        if (!res.ok) console.warn('[Supabase Delete]: HTTP', res.status);
+      })
+      .catch(err => console.log('Supabase Delete error:', err));
     }
   }
 }
@@ -838,17 +881,16 @@ function clearAllRealData() {
       renderTransactions();
 
       if (SUPABASE_KEY && allIds.length > 0) {
-        // Delete each transaction by ID (text IDs like txn-123-456)
-        Promise.all(allIds.map(id =>
-          fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${SUPABASE_KEY}`,
-              'Prefer': 'return=minimal'
-            }
-          })
-        )).then(() => {
+        // BUG-15: PostgREST in() for text columns needs unquoted CSV values
+        const idList = allIds.join(',');
+        fetch(`${SUPABASE_URL}/rest/v1/transactions?id=in.(${idList})`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Prefer': 'return=minimal'
+          }
+        }).then(() => {
           alert('✅ All transactions deleted from cloud and device!');
         }).catch(err => {
           console.log('Supabase Clear error:', err);
@@ -896,16 +938,34 @@ function saveTransaction(e) {
   renderTransactions();
 
   if (SUPABASE_KEY) {
-    fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'resolution=merge-duplicates'
-      },
-      body: JSON.stringify(txnObj)
-    }).catch(err => console.log('Supabase Save error:', err));
+    isWritePending = true; // BUG-04: block sync polling while write is in-flight
+    const writeDone = () => { isWritePending = false; };
+
+    if (id) {
+      // EDIT: PATCH the existing row by its text id
+      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(txnObj)
+      }).then(writeDone).catch(err => { console.log('Supabase Update error:', err); writeDone(); });
+    } else {
+      // NEW: INSERT a fresh row
+      fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(txnObj)
+      }).then(writeDone).catch(err => { console.log('Supabase Insert error:', err); writeDone(); });
+    }
   }
 }
 
@@ -931,26 +991,42 @@ function parseRawNotification() {
   const raw = document.getElementById('rawNotificationInput').value.trim();
   if (!raw) return;
 
-  const amountRegex = /(?:rs\.?|re\.?|rupee|rupees|inr|₹|debited|credited|paid|spent|sent|transferred|amount|sum)\s*:?\s*([\d,]+(?:\.\d{1,2})?)/i;
-  const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
-  const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
+  // ── AMOUNT EXTRACTION (multi-pass, order matters) ──────────────────────────
+  // Pass 1: ₹ / Rs. prefix directly before number (most reliable)
+  const rsPrefixRegex = /(?:₹|rs\.?|re\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
+  // Pass 2: number that appears BEFORE a debit/credit keyword on the same line
+  const beforeKeywordRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
+  // Pass 3: number AFTER a keyword (e.g. "paid Rs 500" — already covered by pass 1, but fallback)
+  const afterKeywordRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
-  const amountMatch = raw.match(amountRegex);
-  const merchantMatch = raw.match(merchantRegex);
-  const typeMatch = raw.match(typeRegex);
+  let amount = 0;
+  let m;
+  if ((m = raw.match(rsPrefixRegex)))    amount = parseFloat(m[1].replace(/,/g, ''));
+  if (!amount && (m = raw.match(beforeKeywordRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
+  if (!amount && (m = raw.match(afterKeywordRegex)))  amount = parseFloat(m[1].replace(/,/g, ''));
 
-  let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0.00;
+  // Pass 4: smart fallback — skip long ref/account/phone numbers (≥9 digits) then grab first decimal
   if (!amount || amount === 0) {
-    const anyNumMatch = raw.match(/(\d+(?:\.\d{1,2})?)/);
-    if (anyNumMatch) amount = parseFloat(anyNumMatch[1]);
+    const stripped = raw.replace(/\b\d{9,}\b/g, '').replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
+    const anyNum = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
+    if (anyNum) amount = parseFloat(anyNum[1].replace(/,/g, ''));
   }
 
-  let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
-  merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32);
+  if (!amount || isNaN(amount)) amount = 0;
 
+  // ── TYPE: CREDIT vs DEBIT ──────────────────────────────────────────────────
+  const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
+  const typeMatch = raw.match(typeRegex);
   const isCredit = typeMatch && /credited|received|deposited/i.test(typeMatch[1]);
   const type = isCredit ? 'Credit' : 'Debit';
 
+  // ── MERCHANT EXTRACTION ───────────────────────────────────────────────────
+  const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
+  const merchantMatch = raw.match(merchantRegex);
+  let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
+  merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32).trim();
+
+  // ── CATEGORY ──────────────────────────────────────────────────────────────
   let category = 'Unwanted / Leak';
   if (isCredit) {
     category = 'Income';
@@ -971,7 +1047,8 @@ function parseRawNotification() {
     mode: 'GPay / UPI Auto-Sync',
     date: timestamp,
     tags: ['#auto-ingested', `#${merchant.toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-    notes: `Real Notification: "${raw.substring(0, 50)}..."`
+    notes: `Real Notification: "${raw.substring(0, 50)}..."`,
+    rawInput: raw   // BUG-13: preserve full original SMS for API re-parsing
   };
 
   document.getElementById('resMerchant').innerText = merchant;
@@ -1001,7 +1078,8 @@ function ingestParsedTransaction() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      rawText: lastParsedTransaction.notes,
+      // BUG-13: send the full original SMS, not the truncated notes string
+      rawText: lastParsedTransaction.rawInput || lastParsedTransaction.notes,
       sender: lastParsedTransaction.merchant,
       timestamp: lastParsedTransaction.date
     })

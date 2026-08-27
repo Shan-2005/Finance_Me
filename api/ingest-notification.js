@@ -46,21 +46,30 @@ module.exports = async (req, res) => {
     // Clean multiline newlines into single spaces for robust regex matching
     const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // --- AMOUNT EXTRACTION ---
-    // Try "Sent Rs.10.00", "Rs.10.00", "credited Rs 10" etc
-    const amountRegex = /(?:sent\s+)?(?:rs\.?|re\.?|rupee|rupees|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
-    let amountMatch = cleanText.match(amountRegex);
-    let amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
+    // --- AMOUNT EXTRACTION (multi-pass) ---
+    // Pass 1: ₹/Rs. prefix directly before the number (most reliable)
+    const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
+    // Pass 2: number BEFORE a debit/credit keyword (e.g. "Rs 5000 debited")
+    const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
+    // Pass 3: number AFTER a keyword (e.g. "paid Rs 500")
+    const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
-    // Fallback: any decimal-like number NOT part of phone/account/ref/date
+    let amount = 0;
+    let amtM;
+    if ((amtM = cleanText.match(rsPrefixRegex)))   amount = parseFloat(amtM[1].replace(/,/g, ''));
+    if (!amount && (amtM = cleanText.match(beforeKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
+    if (!amount && (amtM = cleanText.match(afterKwRegex)))  amount = parseFloat(amtM[1].replace(/,/g, ''));
+
+    // Pass 4: smart fallback — strip 9+ digit ref/account/phone numbers & dates, then grab first decimal
     if (!amount || amount === 0) {
-      // Strip known non-amount numbers (ref numbers, phone, acct) then extract first decimal
-      const stripped = cleanText.replace(/\b(18\d{8,}|62\d{8,}|\d{10,}|1009|\d{2}\/\d{2}\/\d{2,4})\b/g, '');
-      const numMatch = stripped.match(/\b(\d{1,7}(?:\.\d{1,2})?)\b/);
-      if (numMatch) amount = parseFloat(numMatch[1]);
+      const stripped = cleanText
+        .replace(/\b\d{9,}\b/g, '')
+        .replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
+      const numMatch = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
+      if (numMatch) amount = parseFloat(numMatch[1].replace(/,/g, ''));
     }
 
-    if (!amount || amount === 0 || isNaN(amount)) amount = 0;
+    if (!amount || isNaN(amount)) amount = 0;
 
     // --- CREDIT vs DEBIT DETECTION ---
     // Priority: debit keywords FIRST (some credit SMS also have "from" which confuses debit match)
@@ -136,6 +145,34 @@ module.exports = async (req, res) => {
     const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qtejgfhuzquifcobdvfo.supabase.co';
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG';
 
+    // --- BUG-09: DUPLICATE GUARD ---
+    // MacroDroid can retry the same SMS. Check if we already have a row with the
+    // same amount inserted within the last 90 seconds.
+    const ninetySecondsAgo = new Date(nowIST.getTime() - 90 * 1000).toISOString();
+    const dupCheckRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/transactions?amount=eq.${amount}&created_at=gte.${ninetySecondsAgo}&select=id&limit=1`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    ).catch(() => null);
+
+    if (dupCheckRes && dupCheckRes.ok) {
+      const dupRows = await dupCheckRes.json().catch(() => []);
+      if (Array.isArray(dupRows) && dupRows.length > 0) {
+        console.log('[INGEST]: Duplicate SMS detected, skipping insert. Existing id:', dupRows[0].id);
+        return res.status(200).json({
+          success: true,
+          deduplicated: true,
+          message: 'Duplicate SMS detected within 90s window — skipped to prevent double-entry.',
+          parsed: { merchant: parsedTransaction.merchant, amount: parsedTransaction.amount, type }
+        });
+      }
+    }
+
+    // Supabase REST API Persistence
     await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
       method: 'POST',
       headers: {
