@@ -110,7 +110,7 @@ function saveProfileSettings() {
   updateMetricsAndTaxonomy();
 }
 
-// Render GPAY Signature People & Merchant Avatars Row
+// Render GPAY Signature People & Merchant Avatars Row with Rich Gradients
 function renderGpayAvatars() {
   const container = document.getElementById('gpayAvatarsContainer');
   if (!container) return;
@@ -126,11 +126,11 @@ function renderGpayAvatars() {
   }
 
   const colorPalettes = [
-    'linear-gradient(135deg, #4285F4, #34A853)',
-    'linear-gradient(135deg, #EA4335, #FBBC05)',
-    'linear-gradient(135deg, #34A853, #4285F4)',
-    'linear-gradient(135deg, #6366f1, #06b6d4)',
-    'linear-gradient(135deg, #f43f5e, #f59e0b)'
+    'linear-gradient(135deg, #4285F4 0%, #34A853 100%)',
+    'linear-gradient(135deg, #EA4335 0%, #FBBC05 100%)',
+    'linear-gradient(135deg, #34A853 0%, #4285F4 100%)',
+    'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+    'linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%)'
   ];
 
   container.innerHTML = merchantsList.map((m, idx) => {
@@ -139,7 +139,7 @@ function renderGpayAvatars() {
 
     return `
       <div class="gpay-avatar-item" onclick="quickPayMerchant('${m}')">
-        <div class="gpay-avatar-bubble" style="background: ${bgGradient};">
+        <div class="gpay-avatar-bubble" style="background: ${bgGradient}; border-color: rgba(255,255,255,0.3);">
           ${char}
         </div>
         <span class="gpay-avatar-name">${m}</span>
@@ -331,21 +331,46 @@ function switchTab(tabId) {
   if (targetNav) targetNav.classList.add('active');
 }
 
-// Category Meta Mapping with GPay Color Scheme
+// Category Meta Mapping with Professional Google-Style Icons & Gradients
 function getCategoryMeta(category) {
   switch (category) {
     case 'Unavoidable / Rent':
     case 'Fixed Needs':
-      return { icon: 'fa-house', bg: 'rgba(66, 133, 244, 0.15)', color: '#8ab4f8', label: 'Unavoidable' };
+      return { 
+        icon: 'fa-house-chimney', 
+        bg: 'linear-gradient(135deg, rgba(66, 133, 244, 0.25), rgba(66, 133, 244, 0.1))', 
+        color: '#8ab4f8', 
+        label: 'Unavoidable' 
+      };
     case 'Unwanted / Leak':
     case 'Variable Wants':
-      return { icon: 'fa-bag-shopping', bg: 'rgba(234, 67, 53, 0.15)', color: '#f28b82', label: 'Unwanted Leak' };
+      return { 
+        icon: 'fa-bag-shopping', 
+        bg: 'linear-gradient(135deg, rgba(234, 67, 53, 0.25), rgba(234, 67, 53, 0.1))', 
+        color: '#f28b82', 
+        label: 'Unwanted Leak' 
+      };
     case 'Investments':
-      return { icon: 'fa-chart-line', bg: 'rgba(52, 168, 83, 0.15)', color: '#81c995', label: 'Investment' };
+      return { 
+        icon: 'fa-arrow-trend-up', 
+        bg: 'linear-gradient(135deg, rgba(52, 168, 83, 0.25), rgba(52, 168, 83, 0.1))', 
+        color: '#81c995', 
+        label: 'Investment' 
+      };
     case 'Income':
-      return { icon: 'fa-wallet', bg: 'rgba(251, 188, 5, 0.15)', color: '#fde293', label: 'Income' };
+      return { 
+        icon: 'fa-hand-holding-dollar', 
+        bg: 'linear-gradient(135deg, rgba(251, 188, 5, 0.25), rgba(251, 188, 5, 0.1))', 
+        color: '#fde293', 
+        label: 'Income' 
+      };
     default:
-      return { icon: 'fa-tag', bg: 'rgba(255, 255, 255, 0.1)', color: '#90909a', label: category };
+      return { 
+        icon: 'fa-receipt', 
+        bg: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05))', 
+        color: '#90909a', 
+        label: category 
+      };
   }
 }
 
@@ -414,13 +439,13 @@ function renderTransactions() {
       <div class="txn-item">
         <div class="txn-left">
           <div class="txn-category-icon" style="background: ${meta.bg}; color: ${meta.color};">
-            ${t.merchant ? t.merchant.charAt(0).toUpperCase() : '<i class="fa-solid fa-arrow-right"></i>'}
+            <i class="fa-solid ${meta.icon}"></i>
           </div>
           <div class="txn-details">
             <span class="txn-merchant">${t.merchant}</span>
             <div class="txn-meta">
               <span>${t.date}</span> • 
-              <span>${t.mode}</span>
+              <span><i class="fa-solid fa-mobile-screen-button" style="font-size: 10px;"></i> ${t.mode}</span>
               ${tagBadges ? `• ${tagBadges}` : ''}
             </div>
             ${t.notes ? `<div style="font-size: 11px; color: #c4c6cf; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💬 ${t.notes}</div>` : ''}
@@ -445,7 +470,7 @@ function renderTransactions() {
   updateMetricsAndTaxonomy();
 }
 
-// Calculate Summary Metrics & GPay Analytics
+// Calculate Summary Metrics & GPay Analytics with Gradient Fill Controls
 function updateMetricsAndTaxonomy() {
   let income = 0;
   let expenses = 0;
@@ -524,15 +549,19 @@ function updateMetricsAndTaxonomy() {
 
   document.getElementById('taxNeedsVal').innerText = `${curr}${unavoidableSum.toLocaleString()} / ${curr}${targetNeeds.toLocaleString()}`;
   document.getElementById('taxNeedsBar').style.width = `${Math.min(100, (unavoidableSum / targetNeeds) * 100)}%`;
+  document.getElementById('taxNeedsBar').style.background = 'linear-gradient(90deg, #4285F4 0%, #34A853 100%)';
 
   document.getElementById('taxWantsVal').innerText = `${curr}${unwantedSum.toLocaleString()} / ${curr}${targetWants.toLocaleString()}`;
   document.getElementById('taxWantsBar').style.width = `${Math.min(100, (unwantedSum / targetWants) * 100)}%`;
+  document.getElementById('taxWantsBar').style.background = 'linear-gradient(90deg, #EA4335 0%, #FBBC05 100%)';
 
   document.getElementById('taxInvestVal').innerText = `${curr}${investSum.toLocaleString()} / ${curr}${targetInvest.toLocaleString()}`;
   document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / targetInvest) * 100)}%`;
+  document.getElementById('taxInvestBar').style.background = 'linear-gradient(90deg, #34A853 0%, #06b6d4 100%)';
 
   document.getElementById('taxSavingsVal').innerText = `${curr}${netSaved.toLocaleString()} / ${curr}${targetSavings.toLocaleString()}`;
   document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSaved / targetSavings) * 100)}%`;
+  document.getElementById('taxSavingsBar').style.background = 'linear-gradient(90deg, #FBBC05 0%, #f97316 100%)';
 
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
 }
