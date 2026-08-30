@@ -79,9 +79,23 @@ public class MainActivity extends AppCompatActivity {
         // Step 2: Every time app comes to foreground, check if Notification Listener is enabled
         if (!isNotificationListenerEnabled()) {
             showNotificationListenerDialog();
+        } else {
+            tryRebindListenerService();
         }
         // Update JS with current status
         updateNotificationStatusInWebView();
+    }
+
+    private void tryRebindListenerService() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                ComponentName componentName = new ComponentName(this, FinanceNotificationListener.class);
+                FinanceNotificationListener.requestRebind(componentName);
+                android.util.Log.d("MainActivity", "Requested rebind for FinanceNotificationListener");
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Failed to rebind listener: " + e.getMessage());
+            }
+        }
     }
 
     /** Request the standard Android 13+ POST_NOTIFICATIONS runtime permission */

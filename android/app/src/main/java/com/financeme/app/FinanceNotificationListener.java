@@ -99,15 +99,13 @@ public class FinanceNotificationListener extends NotificationListenerService {
             }
             conn.setDoOutput(true);
 
-            // Escape special JSON characters cleanly
-            String escapedText = rawText.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
-            String jsonInputString = String.format(
-                "{\"rawText\": \"%s\", \"sender\": \"%s\", \"user_id\": \"%s\"}",
-                escapedText, senderApp, userId != null ? userId : ""
-            );
+            org.json.JSONObject jsonPayload = new org.json.JSONObject();
+            jsonPayload.put("rawText", rawText != null ? rawText : "");
+            jsonPayload.put("sender", senderApp != null ? senderApp : "");
+            jsonPayload.put("user_id", userId != null ? userId : "");
 
+            byte[] input = jsonPayload.toString().getBytes(StandardCharsets.UTF_8);
             try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
             }
 
