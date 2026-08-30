@@ -1076,47 +1076,81 @@ function loadSampleText(key) {
 
 function parseNotificationTextString(raw) {
   if (!raw) return null;
+  const cleanText = raw.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // ── AMOUNT EXTRACTION ──────────────────────────────────────────────────────
-  const rsPrefixRegex = /(?:₹|rs\.?|re\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
+  // ── AMOUNT EXTRACTION (MULTI-PASS) ────────────────────────────────────────
+  const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
   const rsSuffixRegex = /([\d,]+(?:\.\d{1,2})?)\s*(?:₹|rs\.?|re\.?|rupee|rupees|inr)\b/i;
-  const beforeKeywordRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
-  const afterKeywordRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
+  const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
+  const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
   let amount = 0;
-  let m;
-  if ((m = raw.match(rsPrefixRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
-  if (!amount && (m = raw.match(rsSuffixRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
-  if (!amount && (m = raw.match(beforeKeywordRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
-  if (!amount && (m = raw.match(afterKeywordRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
+  let amtM;
+  if ((amtM = cleanText.match(rsPrefixRegex)))   amount = parseFloat(amtM[1].replace(/,/g, ''));
+  if (!amount && (amtM = cleanText.match(rsSuffixRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
+  if (!amount && (amtM = cleanText.match(beforeKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
+  if (!amount && (amtM = cleanText.match(afterKwRegex)))  amount = parseFloat(amtM[1].replace(/,/g, ''));
 
   if (!amount || amount === 0) {
-    const stripped = raw.replace(/\b\d{9,}\b/g, '').replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
-    const anyNum = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
-    if (anyNum) amount = parseFloat(anyNum[1].replace(/,/g, ''));
+    const stripped = cleanText
+      .replace(/\b\d{9,}\b/g, '')
+      .replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
+    const numMatch = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
+    if (numMatch) amount = parseFloat(numMatch[1].replace(/,/g, ''));
   }
 
   if (!amount || isNaN(amount) || amount <= 0) return null;
 
-  // ── TYPE ──────────────────────────────────────────────────────────────────
-  const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
-  const typeMatch = raw.match(typeRegex);
-  const isCredit = typeMatch && /credited|received|deposited/i.test(typeMatch[1]);
-  const type = isCredit ? 'Credit' : 'Debit';
+  // ── TYPE (CREDIT vs DEBIT) ────────────────────────────────────────────────
+  const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b|\bwithdrawn\b/i.test(cleanText);
+  const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b|\breceived\b/i.test(cleanText);
+  
+  let type = 'Debit';
+  if (isDebitText) type = 'Debit';
+  else if (isCreditText) type = 'Credit';
+  const isCredit = type === 'Credit';
 
-  // ── MERCHANT ──────────────────────────────────────────────────────────────
-  const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
-  const merchantMatch = raw.match(merchantRegex);
-  let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
-  merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 32).trim();
+  // ── MERCHANT EXTRACTION (MULTI-PASS) ──────────────────────────────────────
+  let merchant = 'UPI Transfer';
 
-  // ── CATEGORY ──────────────────────────────────────────────────────────────
+  if (!isCredit) {
+    const p1 = cleanText.match(/\bTo\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+On\b|\s+on\b|\s+Ref\b|\s+ref\b|\s+Not\b|\s+not\b|\s+A\/C\b|\.|$)/i);
+    const p2 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)\s+via\b/i);
+    const p3 = cleanText.match(/\btowards\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+via|\s+on|\s+ref|\.|$)/i);
+    const p4 = cleanText.match(/\bat\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+on|\s+via|\s+ref|\.|$)/i);
+
+    const BANK_ONLY = /^(hdfc|sbi|icici|axis|kotak|paytm|phonepe|npci|bank|a\/c|account)$/i;
+
+    for (const m of [p1, p2, p3, p4]) {
+      if (m) {
+        const candidate = m[1].trim();
+        if (!BANK_ONLY.test(candidate) && !/^\d+$/.test(candidate)) {
+          merchant = candidate;
+          break;
+        }
+      }
+    }
+  } else {
+    const fromMatch = cleanText.match(/\bfrom\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+\(UPI|\s+Ref\b|\s+on\b|\.|$)/i);
+    if (fromMatch) {
+      let sender = fromMatch[1].trim();
+      if (sender.includes('@')) sender = sender.split('@')[0].replace(/\d+$/, '');
+      if (!/^(hdfc|sbi|icici|axis|kotak|bank|npci|system)$/i.test(sender)) {
+        merchant = sender;
+      }
+    }
+  }
+
+  merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 36).trim();
+  merchant = merchant.replace(/\b\w/g, l => l.toUpperCase());
+
+  // ── CATEGORY EXTRACTION ───────────────────────────────────────────────────
   let category = 'Unwanted / Leak';
   if (isCredit) {
     category = 'Income';
-  } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(raw + merchant)) {
+  } else if (/sip|mutual|index|zerodha|groww|invest|stocks|gold|nps/i.test(cleanText + merchant)) {
     category = 'Investments';
-  } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(raw + merchant)) {
+  } else if (/rent|loan|emi|hdfc|bill|electricity|water|gas|maintenance|broadband|wifi|salary|school|college/i.test(cleanText + merchant)) {
     category = 'Unavoidable / Rent';
   }
 
@@ -1124,12 +1158,20 @@ function parseNotificationTextString(raw) {
 }
 
 function parseRawNotification() {
-  const raw = document.getElementById('rawNotificationInput').value.trim();
-  if (!raw) return;
+  const inputEl = document.getElementById('rawNotificationInput');
+  if (!inputEl) return;
+  const raw = inputEl.value.trim();
+
+  if (!raw) {
+    const elCard = document.getElementById('parsedOutputCard');
+    if (elCard) elCard.style.display = 'none';
+    return;
+  }
 
   const parsed = parseNotificationTextString(raw);
   if (!parsed) {
-    showToast('⚠️ No valid transaction amount found in text.');
+    const elCard = document.getElementById('parsedOutputCard');
+    if (elCard) elCard.style.display = 'none';
     return;
   }
 
@@ -1140,7 +1182,8 @@ function parseRawNotification() {
     type: parsed.type,
     category: parsed.category,
     mode: 'GPay / UPI Auto-Sync',
-    date: timestamp
+    date: timestamp,
+    rawInput: raw
   };
 
   renderExtractedPreview();

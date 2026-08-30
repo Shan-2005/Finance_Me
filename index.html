@@ -543,7 +543,7 @@
           </div>
 
           <div class="parser-box">
-            <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
+            <textarea id="rawNotificationInput" class="parser-textarea" oninput="parseRawNotification()" placeholder="Paste payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
             <button class="btn btn-full" onclick="parseRawNotification()">
               <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Extract & Preview Transaction
             </button>
