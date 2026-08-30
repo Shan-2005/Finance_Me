@@ -431,9 +431,12 @@
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; background: var(--glass-surface-elevated); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 10px;">
-            <div>
-              <div style="font-size: 13px; font-weight: 700;" id="androidNotifStatusText">Notification Access Active</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Intercepts bank SMS, GPay & PhonePe alerts on device</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div id="notifStatusDot" style="width:10px;height:10px;border-radius:50%;background:#888;flex-shrink:0;transition:background 0.3s;"></div>
+              <div>
+                <div style="font-size:13px;font-weight:700;" id="androidNotifStatusText">Checking...</div>
+                <div style="font-size:11px;color:var(--text-muted);" id="androidNotifStatusSub">Detecting notification access status</div>
+              </div>
             </div>
             <button class="btn" id="androidGrantBtn" onclick="requestAndroidNotificationPermission()" style="font-size: 11px; padding: 6px 12px;">
               <i class="fa-solid fa-bell"></i> Check Permission

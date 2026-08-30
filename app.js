@@ -1255,18 +1255,58 @@ function handleAuthStateChange(session) {
 }
 
 function requestAndroidNotificationPermission() {
+  const isAndroid = !!window.AndroidBridge;
   const statusText = document.getElementById('androidNotifStatusText');
-  const grantBtn = document.getElementById('androidGrantBtn');
+  const statusSub  = document.getElementById('androidNotifStatusSub');
+  const statusDot  = document.getElementById('notifStatusDot');
+  const grantBtn   = document.getElementById('androidGrantBtn');
 
-  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    alert('📱 Opening Android Notification Listener Settings...\nAllow "Finance Me" to capture bank & GPay payment alerts.');
-    if (window.AndroidBridge && window.AndroidBridge.openNotificationSettings) {
+  if (isAndroid) {
+    const granted = window.AndroidBridge.isNotificationAccessGranted();
+    if (granted) {
+      if (statusText) statusText.innerText = '✅ Notification Access Granted';
+      if (statusSub)  statusSub.innerText  = 'Finance Me is reading bank & payment notifications';
+      if (statusDot)  statusDot.style.background = '#34A853';
+      if (grantBtn)   grantBtn.innerHTML = '<i class="fa-solid fa-check"></i> Active';
+    } else {
+      if (statusText) statusText.innerText = '⚠️ Notification Access Needed';
+      if (statusSub)  statusSub.innerText  = 'Tap Enable to allow Finance Me to read bank alerts';
+      if (statusDot)  statusDot.style.background = '#EA4335';
+      if (grantBtn)   grantBtn.innerHTML = '<i class="fa-solid fa-bell"></i> Enable';
       window.AndroidBridge.openNotificationSettings();
     }
   } else {
-    alert('📱 Android Native App Notification Engine:\n\nWhen installed as an APK, Finance Me automatically reads GPay, PhonePe & Bank SMS notifications in the background.\n\nYour Webhook URL has been auto-generated with your User ID for MacroDroid or Android Listener.');
+    // Browser preview
+    if (statusText) statusText.innerText = '📱 Install the Android APK to enable auto-capture';
+    if (statusSub)  statusSub.innerText  = 'Notification reading only works in the native app';
+    if (statusDot)  statusDot.style.background = '#888';
   }
-
-  if (statusText) statusText.innerText = 'Notification Engine Ready';
-  if (grantBtn) grantBtn.innerHTML = '<i class="fa-solid fa-check"></i> Active';
 }
+
+/** Called by Android MainActivity to push live status updates into the page */
+window.onAndroidNotifStatus = function(granted) {
+  const statusText = document.getElementById('androidNotifStatusText');
+  const statusSub  = document.getElementById('androidNotifStatusSub');
+  const statusDot  = document.getElementById('notifStatusDot');
+  const grantBtn   = document.getElementById('androidGrantBtn');
+
+  if (granted) {
+    if (statusText) statusText.innerText = '✅ Notification Access Granted';
+    if (statusSub)  statusSub.innerText  = 'Finance Me is actively reading bank & payment notifications';
+    if (statusDot)  statusDot.style.background = '#34A853';
+    if (grantBtn) { grantBtn.innerHTML = '<i class="fa-solid fa-check"></i> Active'; grantBtn.disabled = true; }
+  } else {
+    if (statusText) statusText.innerText = '⚠️ Notification Access Required';
+    if (statusSub)  statusSub.innerText  = 'Tap Enable to grant access in Android Settings';
+    if (statusDot)  statusDot.style.background = '#EA4335';
+    if (grantBtn) { grantBtn.innerHTML = '<i class="fa-solid fa-bell"></i> Enable'; grantBtn.disabled = false; }
+  }
+};
+
+// Auto-check status when settings tab is opened
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.AndroidBridge) {
+    window.onAndroidNotifStatus(window.AndroidBridge.isNotificationAccessGranted());
+  }
+});
+

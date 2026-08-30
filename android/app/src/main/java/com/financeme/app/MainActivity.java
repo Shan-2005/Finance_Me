@@ -5,6 +5,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -12,10 +14,14 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final int REQUEST_POST_NOTIFICATIONS = 101;
     private WebView webView;
 
     @Override
@@ -36,27 +42,61 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl("https://finance-me-smoky-rho.vercel.app");
 
-        // Ask for notification access on first launch
-        if (!isNotificationListenerEnabled()) {
-            showNotificationPermissionDialog();
-        }
+        // Step 1: Request POST_NOTIFICATIONS runtime permission (Android 13+)
+        requestPostNotificationsPermission();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Re-check every time app comes to foreground
+        // Step 2: Every time app comes to foreground, check if Notification Listener is enabled
         if (!isNotificationListenerEnabled()) {
-            showNotificationPermissionDialog();
+            showNotificationListenerDialog();
+        }
+        // Update JS with current status
+        updateNotificationStatusInWebView();
+    }
+
+    /** Request the standard Android 13+ POST_NOTIFICATIONS runtime permission */
+    private void requestPostNotificationsPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                    REQUEST_POST_NOTIFICATIONS
+                );
+            } else {
+                // Already granted — now check Notification Listener
+                if (!isNotificationListenerEnabled()) {
+                    showNotificationListenerDialog();
+                }
+            }
+        } else {
+            // Android < 13: no runtime permission needed, go straight to listener check
+            if (!isNotificationListenerEnabled()) {
+                showNotificationListenerDialog();
+            }
         }
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_POST_NOTIFICATIONS) {
+            // After POST_NOTIFICATIONS result, now check Notification Listener access
+            if (!isNotificationListenerEnabled()) {
+                showNotificationListenerDialog();
+            }
+        }
+    }
+
+    /** Check if Finance Me is in the Notification Listener whitelist */
     private boolean isNotificationListenerEnabled() {
-        String flat = Settings.Secure.getString(getContentResolver(),
-                "enabled_notification_listeners");
+        String flat = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
         if (!TextUtils.isEmpty(flat)) {
-            String[] components = flat.split(":");
-            for (String c : components) {
+            for (String c : flat.split(":")) {
                 ComponentName cn = ComponentName.unflattenFromString(c);
                 if (cn != null && getPackageName().equals(cn.getPackageName())) {
                     return true;
@@ -66,22 +106,31 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    private void showNotificationPermissionDialog() {
+    /** Show dialog explaining why we need Notification Listener, then open system settings */
+    private void showNotificationListenerDialog() {
         new AlertDialog.Builder(this)
-            .setTitle("Enable Notification Access")
-            .setMessage("Finance Me needs Notification Access to automatically read your bank transaction alerts and save them to your account.\n\nTap 'Allow' and enable Finance Me in the list.")
-            .setPositiveButton("Allow", (dialog, which) -> {
-                Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-                startActivity(intent);
+            .setTitle("Allow Notification Access")
+            .setMessage("Finance Me reads your bank & payment app notifications to automatically track transactions.\n\nTap 'Open Settings', then find Finance Me in the list and turn it ON.")
+            .setPositiveButton("Open Settings", (dialog, which) -> {
+                startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
             })
-            .setNegativeButton("Later", null)
-            .setCancelable(false)
+            .setNegativeButton("Skip for now", null)
+            .setCancelable(true)
             .show();
     }
 
+    /** Push notification access status into the WebView JS context */
+    private void updateNotificationStatusInWebView() {
+        boolean granted = isNotificationListenerEnabled();
+        String js = "if(window.onAndroidNotifStatus) window.onAndroidNotifStatus(" + granted + ");";
+        webView.post(() -> webView.evaluateJavascript(js, null));
+    }
+
+    // ── JavaScript Bridge ────────────────────────────────────────────────────
+
     public class AndroidBridge {
 
-        /** Called by the web app after Supabase login — saves user_id for the notification listener */
+        /** Called by web app after Supabase login — saves user_id for the notification listener */
         @JavascriptInterface
         public void saveUserId(String userId) {
             if (userId == null || userId.isEmpty()) return;
@@ -90,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
             android.util.Log.d("AndroidBridge", "Saved user_id: " + userId);
         }
 
-        /** Called by the web app on logout — clears the stored user_id */
+        /** Called by web app on logout */
         @JavascriptInterface
         public void clearUserId() {
             SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
@@ -105,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         }
 
-        /** Returns whether notification access is granted — readable from JS */
+        /** Returns true if notification listener access is granted */
         @JavascriptInterface
         public boolean isNotificationAccessGranted() {
             return isNotificationListenerEnabled();
