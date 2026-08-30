@@ -506,20 +506,6 @@ function renderTransactions() {
     `;
   }).join('');
 
-  // Delegated event listeners (backup handlers)
-  container.querySelectorAll('.txn-edit-btn').forEach(btn =>
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      editTransaction(btn.dataset.id);
-    })
-  );
-  container.querySelectorAll('.txn-delete-btn').forEach(btn =>
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteTransaction(btn.dataset.id);
-    })
-  );
-
   updateMetricsAndTaxonomy();
 }
 
@@ -1037,7 +1023,7 @@ async function deleteTransaction(id) {
   renderTransactions();
   showToast(`🗑️ Payment deleted: ${merchantName}`);
 
-  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+  const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
 
   // 2. Delete from Supabase cloud database (Execute BOTH client SDK and direct REST fetch to guarantee deletion)
   try {
@@ -1049,7 +1035,7 @@ async function deleteTransaction(id) {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=minimal'
         }
       });
@@ -1090,6 +1076,8 @@ async function clearAllRealData() {
 
   showToast(`🗑️ Cleared ${count} transactions from device!`);
 
+  const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
+
   try {
     if (supabaseClient) {
       await supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -1099,7 +1087,7 @@ async function clearAllRealData() {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=minimal'
         }
       });
