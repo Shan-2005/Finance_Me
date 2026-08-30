@@ -11,6 +11,8 @@ module.exports = async (req, res) => {
   }
 
   try {
+    let rawText = '';
+
     // Universal Payload Parser - Extract text from EVERY possible format MacroDroid can send
     // 1. Check URL Query Parameters FIRST (e.g. ?sms=[sms_body] from MacroDroid)
     if (req.query) {
@@ -168,6 +170,12 @@ module.exports = async (req, res) => {
     const h12 = nowIST.getUTCHours() % 12 || 12;
     const timeIST = `${String(h12).padStart(2,'0')}:${mm}:${ss} ${ampm}`;
 
+    // --- MULTI-TENANT USER ID EXTRACTION ---
+    const userId = req.headers['x-user-id'] || 
+                   (req.query && (req.query.user_id || req.query.uid)) || 
+                   (req.body && typeof req.body === 'object' && (req.body.user_id || req.body.uid)) || 
+                   null;
+
     const parsedTransaction = {
       id: `txn-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
       merchant: merchant || (isCredit ? 'Received Payment' : 'UPI Transfer'),
@@ -181,20 +189,27 @@ module.exports = async (req, res) => {
       raw_text: rawText
     };
 
+    if (userId) {
+      parsedTransaction.user_id = userId;
+    }
+
     // Supabase REST API Persistence
     const SUPABASE_URL = process.env.SUPABASE_URL || 'https://qtejgfhuzquifcobdvfo.supabase.co';
     const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG';
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
+    const authHeader = req.headers['authorization'] || `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
 
     // --- BUG-09: DUPLICATE GUARD ---
     // MacroDroid can retry the same SMS. Check if we already have a row with the
     // same raw_text and amount inserted within the last 90 seconds (UTC time).
     const ninetySecondsAgoUTC = new Date(Date.now() - 90 * 1000).toISOString();
+    const userFilter = userId ? `&user_id=eq.${userId}` : '';
     const dupCheckRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/transactions?amount=eq.${amount}&created_at=gte.${ninetySecondsAgoUTC}&select=id,merchant&limit=1`,
+      `${SUPABASE_URL}/rest/v1/transactions?amount=eq.${amount}&created_at=gte.${ninetySecondsAgoUTC}${userFilter}&select=id,merchant&limit=1`,
       {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          'Authorization': authHeader
         }
       }
     ).catch(() => null);
@@ -218,7 +233,7 @@ module.exports = async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': authHeader,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(parsedTransaction)

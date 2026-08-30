@@ -12,9 +12,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- Google Fonts, Font Awesome Icons & Chart.js -->
+  <!-- Google Fonts, Font Awesome Icons, Chart.js & Supabase JS SDK -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -54,6 +55,11 @@
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
 
+          <!-- Logout Button -->
+          <button class="refresh-btn" id="logoutBtnHeader" onclick="handleUserLogout()" title="Sign Out / Logout" style="display: none; color: var(--gpay-red-light);">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+
           <!-- User Profile Avatar Bubble -->
           <div class="gpay-profile-pill" onclick="switchTab('settings')" id="gpayHeaderAvatar">
             S
@@ -83,6 +89,20 @@
           <button class="btn btn-secondary" onclick="dismissPwaBanner()" style="font-size: 10px; padding: 4px 8px;">Dismiss</button>
           <button class="btn" onclick="triggerPwaInstall()" style="font-size: 11px; padding: 6px 12px;"><i class="fa-solid fa-download"></i> Install</button>
         </div>
+      </div>
+
+      <!-- Git Push Auto-Update Toast Banner -->
+      <div id="gitUpdateBanner" class="git-update-banner" style="display: none;">
+        <div class="git-update-content">
+          <i class="fa-solid fa-code-branch git-update-icon"></i>
+          <div>
+            <strong>New App Release Pushed to Git!</strong>
+            <div style="font-size: 10.5px; color: rgba(255,255,255,0.85);">Update downloaded automatically. Tap to reload now.</div>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="applyGitAutoUpdate()" style="font-size: 11px; padding: 6px 12px; white-space: nowrap; background: #ffffff; color: #1a73e8; font-weight: 700;">
+          <i class="fa-solid fa-arrows-rotate"></i> Reload App
+        </button>
       </div>
 
       <!-- ==========================================
@@ -377,8 +397,11 @@
             </div>
             <div style="flex: 1;">
               <input type="text" id="userNameInput" class="form-input" value="Shan" onchange="saveProfileSettings()" style="font-weight: 700; font-size: 15px; padding: 6px 10px;">
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Google Pay Verified Account</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="userEmailDisplay">Private Authenticated User</div>
             </div>
+            <button class="btn btn-secondary" onclick="handleUserLogout()" title="Sign Out" style="font-size: 11px; color: var(--gpay-red-light); border-color: rgba(234, 67, 53, 0.3);">
+              <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </button>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -395,6 +418,26 @@
                 <option value="£">£ GBP (Pound)</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <!-- NATIVE ANDROID NOTIFICATION LISTENER STATUS CARD -->
+        <div class="card" id="androidNotificationCard">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-mobile-screen-button" style="color: var(--gpay-blue-light);"></i> Android Notification Listener
+            </div>
+            <span class="card-subtitle">Native App Engine</span>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; background: var(--glass-surface-elevated); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 10px;">
+            <div>
+              <div style="font-size: 13px; font-weight: 700;" id="androidNotifStatusText">Notification Access Active</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Intercepts bank SMS, GPay & PhonePe alerts on device</div>
+            </div>
+            <button class="btn" id="androidGrantBtn" onclick="requestAndroidNotificationPermission()" style="font-size: 11px; padding: 6px 12px;">
+              <i class="fa-solid fa-bell"></i> Check Permission
+            </button>
           </div>
         </div>
 
@@ -589,6 +632,96 @@
           <i class="fa-solid fa-check"></i> Save Payment Record
         </button>
       </form>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN USER AUTHENTICATION OVERLAY (SIGN IN / REGISTER) -->
+  <div id="authOverlay" class="auth-overlay" style="display: flex;">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="app-brand-badge" style="justify-content: center; margin-bottom: 6px;">
+          <svg class="app-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 38px; height: 38px;">
+            <rect width="32" height="32" rx="16" fill="url(#logo-grad-auth)"/>
+            <path d="M8 22L14 15L18 19L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="24" cy="10" r="2.5" fill="#34A853"/>
+            <defs>
+              <linearGradient id="logo-grad-auth" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#4285F4"/>
+                <stop offset="1" stop-color="#1a73e8"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="logo-text-finance" style="font-size: 24px;">Finance</span><span class="logo-text-me" style="font-size: 24px;">Me</span>
+        </div>
+        <p class="auth-subtitle">Android Personal Finance & Automatic Notification Engine</p>
+      </div>
+
+      <!-- Auth Tabs: Sign In / Register -->
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="authTabLogin" onclick="switchAuthTab('login')">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In
+        </button>
+        <button class="auth-tab-btn" id="authTabRegister" onclick="switchAuthTab('register')">
+          <i class="fa-solid fa-user-plus"></i> Register
+        </button>
+      </div>
+
+      <!-- Alert / Feedback banner -->
+      <div id="authAlert" class="auth-alert" style="display: none;"></div>
+
+      <!-- Sign In Form -->
+      <form id="loginForm" class="auth-form" onsubmit="handleUserLogin(event)">
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-envelope"></i> Email Address</label>
+          <input type="email" id="loginEmail" class="form-input" placeholder="user@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 12px; color: var(--text-muted);">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="rememberSessionCheck" checked style="accent-color: var(--gpay-blue);"> Keep me logged in
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-full" id="loginSubmitBtn" style="padding: 12px; font-size: 14px;">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In to Account
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form" onsubmit="handleUserRegister(event)" style="display: none;">
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-user"></i> Full Name</label>
+          <input type="text" id="regName" class="form-input" placeholder="Shan" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-envelope"></i> Email Address</label>
+          <input type="email" id="regEmail" class="form-input" placeholder="user@example.com" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="At least 6 characters" minlength="6" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-shield-check"></i> Confirm Password</label>
+          <input type="password" id="regConfirmPassword" class="form-input" placeholder="Re-type password" minlength="6" required>
+        </div>
+
+        <button type="submit" class="btn btn-full" id="registerSubmitBtn" style="padding: 12px; font-size: 14px; background: linear-gradient(135deg, #34A853, #0f9d58);">
+          <i class="fa-solid fa-user-plus"></i> Create Private Account
+        </button>
+      </form>
+      
+      <div style="font-size: 11px; text-align: center; color: var(--text-muted); margin-top: 14px;">
+        <i class="fa-solid fa-shield-halved" style="color: var(--gpay-green-light);"></i> Data is strictly private to your user account via Supabase RLS
+      </div>
     </div>
   </div>
 

@@ -21,48 +21,37 @@ const server = http.createServer((req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  // Handle version API endpoint
-  if (req.method === 'GET' && req.url === '/api/version') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ version: SERVER_BUILD_ID, timestamp: new Date().toISOString() }));
+  // Handle version API endpoint (delegates to Vercel Serverless Function)
+  if (req.method === 'GET' && req.url.startsWith('/api/version')) {
+    const versionHandler = require('./api/version');
+    return versionHandler(req, res);
   }
 
-  // Handle API ingestion endpoint
-  if (req.method === 'POST' && req.url === '/api/ingest-notification') {
+  // Handle API ingestion endpoint (delegates to Vercel Serverless Function)
+  if (req.url.startsWith('/api/ingest-notification')) {
     let body = '';
     req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
-        const { rawText, sender, timestamp } = JSON.parse(body || '{}');
-        
-        if (!rawText) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'rawText is required' }));
-        }
-
-        const amountRegex = /(?:rs\.?|inr|₹)\s*([\d,]+(?:\.\d{1,2})?)/i;
-        const merchantRegex = /(?:at|vpa|to|info|paid to|transferred to)\s+([\w\s&.\-@]+?)(?=\s+on|\s+ref|\s+upi|\s+val|\s+avl|\s+bal|\.|$)/i;
-        const typeRegex = /(debited|credited|sent|received|paid)/i;
-
-        const amountMatch = rawText.match(amountRegex);
-        const merchantMatch = rawText.match(merchantRegex);
-        const typeMatch = rawText.match(typeRegex);
-
-        const parsed = {
-          amount: amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0,
-          merchant: merchantMatch ? merchantMatch[1].trim() : 'Unknown Merchant',
-          type: (typeMatch && /credited|received/i.test(typeMatch[1])) ? 'Credit' : 'Debit',
-          timestamp: timestamp || new Date().toISOString(),
-          raw: rawText,
-          source: sender || 'GPay/UPI Notification'
-        };
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: true, parsedTransaction: parsed }));
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+        req.body = body ? JSON.parse(body) : {};
+      } catch (e) {
+        req.body = body;
       }
+      
+      const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+      req.query = Object.fromEntries(parsedUrl.searchParams);
+
+      res.status = function(code) {
+        res.statusCode = code;
+        return res;
+      };
+      res.json = function(data) {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(data));
+      };
+
+      const ingestHandler = require('./api/ingest-notification');
+      await ingestHandler(req, res);
     });
     return;
   }

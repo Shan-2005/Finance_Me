@@ -19,6 +19,15 @@ let cashflowChartInstance = null;
 // Profile Settings
 let userProfile = JSON.parse(localStorage.getItem('finance_me_profile') || '{"name":"Shan","salary":100000,"currency":"₹"}');
 
+// Supabase Client & Multi-Tenant Session State
+const supabaseClient = (typeof window !== 'undefined' && window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
+
+let currentSession = null;
+let currentUser = null;
+let pendingGitUpdate = false;
+
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   const dateInput = document.getElementById('inputDate');
@@ -26,17 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
   
   initTheme();
   loadProfileSettings();
+  initAuthSession();
   restoreFromVaultBackupIfEmpty();
 
   renderTransactions();
   updateMetricsAndTaxonomy();
 
   // Initial Fetch & Auto Sync Polling (skips when a write is in-flight — BUG-04)
-  fetchTransactionsFromSupabase();
-  setInterval(() => { if (!isWritePending) fetchTransactionsFromSupabase(); }, 4000);
+  setInterval(() => { if (!isWritePending && currentUser) fetchTransactionsFromSupabase(); }, 4000);
 
   checkAutoUpdate();
-  setInterval(checkAutoUpdate, 30000);
+  setInterval(checkAutoUpdate, 20000);
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
@@ -265,15 +274,18 @@ function manualSyncFromSupabase(btnElement) {
 
 // Fetch Real Transactions from Supabase Database (Cloud Source of Truth & Instant UI Sync)
 function fetchTransactionsFromSupabase(onComplete) {
-  if (!SUPABASE_KEY) {
+  if (!SUPABASE_KEY || !currentUser) {
     if (onComplete) onComplete();
     return;
   }
 
-  fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*&order=id.desc`, {
+  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+  const userFilter = currentUser ? `&user_id=eq.${currentUser.id}` : '';
+
+  fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*${userFilter}&order=id.desc`, {
     headers: {
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`
+      'Authorization': `Bearer ${token}`
     }
   })
   .then(res => res.json())
@@ -296,7 +308,7 @@ function fetchTransactionsFromSupabase(onComplete) {
           saveToLocalStorage();
         }
         renderTransactions();
-        console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions from cloud');
+        console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions for user', currentUser.email);
       }
     }
     if (onComplete) onComplete();
@@ -307,7 +319,7 @@ function fetchTransactionsFromSupabase(onComplete) {
   });
 }
 
-// Automatic Version Check
+// Automatic Version Check & Git Push Auto-Update Notification Banner
 function checkAutoUpdate() {
   fetch('/api/version?t=' + Date.now(), { cache: 'no-store' })
     .then(res => res.json())
@@ -315,12 +327,18 @@ function checkAutoUpdate() {
       if (data && data.version) {
         if (!currentAppVersion) {
           currentAppVersion = data.version;
-        } else if (currentAppVersion !== data.version) {
-          window.location.reload(true);
+        } else if (currentAppVersion !== data.version && !pendingGitUpdate) {
+          pendingGitUpdate = true;
+          const banner = document.getElementById('gitUpdateBanner');
+          if (banner) banner.style.display = 'flex';
         }
       }
     })
-    .catch(err => console.log('[Auto-Update Check]: Local offline mode'));
+    .catch(() => console.log('[Auto-Update Check]: Local offline mode'));
+}
+
+function applyGitAutoUpdate() {
+  window.location.reload(true);
 }
 
 /* ==========================================================================
@@ -877,6 +895,10 @@ function saveTransaction(e) {
     merchant, amount, type, category, mode, date, tags, notes
   };
 
+  if (currentUser) {
+    txnObj.user_id = currentUser.id;
+  }
+
   if (id) {
     const idx = transactions.findIndex(t => t.id === id);
     if (idx !== -1) transactions[idx] = txnObj;
@@ -891,6 +913,7 @@ function saveTransaction(e) {
   if (SUPABASE_KEY) {
     isWritePending = true; // BUG-04: block sync polling while write is in-flight
     const writeDone = () => { isWritePending = false; };
+    const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
     if (id) {
       // EDIT: PATCH the existing row by its text id
@@ -899,7 +922,7 @@ function saveTransaction(e) {
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(txnObj)
@@ -911,7 +934,7 @@ function saveTransaction(e) {
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(txnObj)
@@ -1019,22 +1042,221 @@ function ingestParsedTransaction() {
     ...lastParsedTransaction
   };
 
+  if (currentUser) {
+    newTxn.user_id = currentUser.id;
+  }
+
   transactions.unshift(newTxn);
   saveToLocalStorage();
   renderTransactions();
   switchTab('dashboard');
 
+  const headers = { 'Content-Type': 'application/json' };
+  if (currentUser) headers['X-USER-ID'] = currentUser.id;
+  if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
+
   fetch('/api/ingest-notification', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: headers,
     body: JSON.stringify({
-      // BUG-13: send the full original SMS, not the truncated notes string
       rawText: lastParsedTransaction.rawInput || lastParsedTransaction.notes,
       sender: lastParsedTransaction.merchant,
-      timestamp: lastParsedTransaction.date
+      timestamp: lastParsedTransaction.date,
+      user_id: currentUser ? currentUser.id : undefined
     })
   }).catch(err => console.log('Offline mode active:', err));
   
   document.getElementById('parsedOutputCard').style.display = 'none';
   document.getElementById('rawNotificationInput').value = '';
+}
+
+/* ==========================================================================
+   SUPABASE USER AUTHENTICATION & SESSION MANAGEMENT
+   ========================================================================== */
+
+function switchAuthTab(tab) {
+  const loginTab = document.getElementById('authTabLogin');
+  const regTab = document.getElementById('authTabRegister');
+  const loginForm = document.getElementById('loginForm');
+  const regForm = document.getElementById('registerForm');
+  const alertBox = document.getElementById('authAlert');
+
+  if (alertBox) alertBox.style.display = 'none';
+
+  if (tab === 'login') {
+    if (loginTab) loginTab.classList.add('active');
+    if (regTab) regTab.classList.remove('active');
+    if (loginForm) loginForm.style.display = 'block';
+    if (regForm) regForm.style.display = 'none';
+  } else {
+    if (regTab) regTab.classList.add('active');
+    if (loginTab) loginTab.classList.remove('active');
+    if (regForm) regForm.style.display = 'block';
+    if (loginForm) loginForm.style.display = 'none';
+  }
+}
+
+function showAuthAlert(msg, type = 'error') {
+  const alertBox = document.getElementById('authAlert');
+  if (!alertBox) return;
+  alertBox.className = `auth-alert ${type}`;
+  alertBox.innerText = msg;
+  alertBox.style.display = 'block';
+}
+
+async function handleUserRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirmPassword = document.getElementById('regConfirmPassword').value;
+  const submitBtn = document.getElementById('registerSubmitBtn');
+
+  if (password !== confirmPassword) {
+    return showAuthAlert('Passwords do not match! Please verify both fields.');
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registering...';
+  }
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase Client not initialized.');
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } }
+    });
+
+    if (error) throw error;
+
+    showAuthAlert('Account created successfully! Logging you in...', 'success');
+    userProfile.name = name;
+    saveProfileSettings();
+  } catch (err) {
+    showAuthAlert(err.message || 'Registration failed.');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Create Private Account';
+    }
+  }
+}
+
+async function handleUserLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const submitBtn = document.getElementById('loginSubmitBtn');
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+  }
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase Client not initialized.');
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+
+    showAuthAlert('Sign in successful!', 'success');
+  } catch (err) {
+    showAuthAlert(err.message || 'Invalid credentials.');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In to Account';
+    }
+  }
+}
+
+async function handleUserLogout() {
+  if (confirm('Sign out of Finance Me? Your private data will be locked until you sign back in.')) {
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    currentSession = null;
+    currentUser = null;
+    transactions = [];
+    localStorage.removeItem('finance_me_transactions');
+    localStorage.removeItem('finance_me_vault_snapshot');
+    const authOverlay = document.getElementById('authOverlay');
+    if (authOverlay) authOverlay.style.display = 'flex';
+    renderTransactions();
+  }
+}
+
+function initAuthSession() {
+  if (!supabaseClient) return;
+
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    handleAuthStateChange(session);
+  });
+
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    handleAuthStateChange(session);
+  });
+}
+
+function handleAuthStateChange(session) {
+  const authOverlay = document.getElementById('authOverlay');
+  const logoutBtn = document.getElementById('logoutBtnHeader');
+  const userEmailDisplay = document.getElementById('userEmailDisplay');
+  const webhookUrlBox = document.getElementById('webhookUrlBox');
+
+  if (session && session.user) {
+    currentSession = session;
+    currentUser = session.user;
+    
+    if (authOverlay) authOverlay.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+    
+    const email = currentUser.email || 'Authenticated User';
+    if (userEmailDisplay) userEmailDisplay.innerText = email;
+
+    if (webhookUrlBox) {
+      const baseUrl = window.location.origin.includes('localhost') 
+        ? 'https://finance-me-smoky-rho.vercel.app' 
+        : window.location.origin;
+      webhookUrlBox.value = `${baseUrl}/api/ingest-notification?user_id=${currentUser.id}`;
+    }
+
+    if (currentUser.user_metadata && currentUser.user_metadata.full_name) {
+      userProfile.name = currentUser.user_metadata.full_name;
+      loadProfileSettings();
+    }
+
+    fetchTransactionsFromSupabase();
+  } else {
+    currentSession = null;
+    currentUser = null;
+    if (authOverlay) authOverlay.style.display = 'flex';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    transactions = [];
+    renderTransactions();
+  }
+}
+
+function requestAndroidNotificationPermission() {
+  const statusText = document.getElementById('androidNotifStatusText');
+  const grantBtn = document.getElementById('androidGrantBtn');
+
+  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    alert('📱 Opening Android Notification Listener Settings...\nAllow "Finance Me" to capture bank & GPay payment alerts.');
+    if (window.AndroidBridge && window.AndroidBridge.openNotificationSettings) {
+      window.AndroidBridge.openNotificationSettings();
+    }
+  } else {
+    alert('📱 Android Native App Notification Engine:\n\nWhen installed as an APK, Finance Me automatically reads GPay, PhonePe & Bank SMS notifications in the background.\n\nYour Webhook URL has been auto-generated with your User ID for MacroDroid or Android Listener.');
+  }
+
+  if (statusText) statusText.innerText = 'Notification Engine Ready';
+  if (grantBtn) grantBtn.innerHTML = '<i class="fa-solid fa-check"></i> Active';
 }
