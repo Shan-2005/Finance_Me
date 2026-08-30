@@ -49,7 +49,8 @@ public class FinanceNotificationListener extends NotificationListenerService {
         }
 
         Bundle extras = notification.extras;
-        String title = extras.getString(Notification.EXTRA_TITLE, "");
+        CharSequence titleCharSeq = extras.getCharSequence(Notification.EXTRA_TITLE);
+        String title = titleCharSeq != null ? titleCharSeq.toString() : "";
         CharSequence textCharSeq = extras.getCharSequence(Notification.EXTRA_TEXT);
         String text = textCharSeq != null ? textCharSeq.toString() : "";
 
