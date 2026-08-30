@@ -1165,6 +1165,7 @@ function parseNotificationTextString(raw) {
   }
 
   merchant = merchant.replace(/^(the|a|an)\s+/i, '').substring(0, 36).trim();
+  if (!merchant) merchant = 'UPI Transfer';
   merchant = merchant.replace(/\b\w/g, l => l.toUpperCase());
 
   // ── CATEGORY EXTRACTION ───────────────────────────────────────────────────
