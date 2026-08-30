@@ -1,5 +1,13 @@
 apply plugin: 'com.android.application'
 
+def getCommitCount = {
+    try {
+        return 'git rev-list --count HEAD'.execute().text.trim().toInteger() + 50
+    } catch (Exception e) {
+        return 100
+    }
+}
+
 android {
     namespace 'com.financeme.app'
     compileSdk 34
@@ -8,15 +16,26 @@ android {
         applicationId "com.financeme.app"
         minSdk 22
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode getCommitCount()
+        versionName "1.0." + getCommitCount()
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("release.keystore")
+            storePassword "financeme123"
+            keyAlias "financeme"
+            keyPassword "financeme123"
+        }
     }
 
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
         }
         debug {
+            signingConfig signingConfigs.release
             debuggable true
         }
     }
