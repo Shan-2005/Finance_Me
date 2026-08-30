@@ -169,6 +169,22 @@ module.exports = async (req, res) => {
     const h12 = nowIST.getUTCHours() % 12 || 12;
     const timeIST = `${String(h12).padStart(2,'0')}:${mm}:${ss} ${ampm}`;
 
+    // --- MERCHANT & NOTES SANITIZATION ---
+    if (merchant.toLowerCase().startsWith('hdfc') || merchant.toLowerCase().startsWith('sbi') || merchant.toLowerCase().startsWith('icici') || merchant.toLowerCase().startsWith('axis')) {
+      if (isCredit) {
+        if (/salary/i.test(cleanText)) merchant = 'Salary Credit';
+        else merchant = `${merchant} Deposit`;
+      } else {
+        merchant = `${merchant} Bank Transfer`;
+      }
+    }
+
+    // Capitalize words nicely
+    merchant = merchant.replace(/\b\w/g, l => l.toUpperCase());
+
+    const crypto = require('crypto');
+    const generateUuid = () => (crypto && crypto.randomUUID ? crypto.randomUUID() : 'f' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9));
+
     // --- MULTI-TENANT USER ID EXTRACTION ---
     const userId = req.headers['x-user-id'] || 
                    (req.query && (req.query.user_id || req.query.uid)) || 
@@ -176,15 +192,15 @@ module.exports = async (req, res) => {
                    null;
 
     const parsedTransaction = {
-      id: `txn-${Date.now()}-${Math.floor(Math.random() * 9999)}`,
+      id: generateUuid(),
       merchant: merchant || (isCredit ? 'Received Payment' : 'UPI Transfer'),
       amount: amount,
       type,
       category,
       mode,
       date: nowIST.toISOString(),
-      tags: ['#auto-ingested', `#${(merchant || 'upi').toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-      notes: `[${timeIST} IST] ${cleanText.substring(0, 80)}`,
+      tags: ['#auto-ingested'],
+      notes: `Auto-captured via ${mode}`,
       raw_text: rawText
     };
 

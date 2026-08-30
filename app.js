@@ -895,11 +895,18 @@ function saveTransaction(e) {
   const tagsRaw = document.getElementById('inputTags').value;
   const notes = document.getElementById('inputNotes').value.trim();
 
-  const tags = tagsRaw.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-    .map(tag => tag.startsWith('#') ? tag : `#${tag}`);
+function generateUuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
   const txnObj = {
-    id: id || `txn-${Date.now()}`,
+    id: id || generateUuid(),
     merchant, amount, type, category, mode, date, tags, notes
   };
 
@@ -1098,7 +1105,7 @@ function ingestParsedTransaction() {
   if (!lastParsedTransaction) return;
 
   const newTxn = {
-    id: `txn-${Date.now()}`,
+    id: generateUuid(),
     ...lastParsedTransaction
   };
 

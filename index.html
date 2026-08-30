@@ -449,23 +449,28 @@
             </button>
           </div>
 
-          <!-- LIVE BACKGROUND NOTIFICATION LOGS CONSOLE -->
-          <div style="margin-top: 12px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-              <span style="font-size:11px; font-weight:700; color:var(--text-muted);"><i class="fa-solid fa-terminal"></i> Live Listener Debug Logs</span>
-              <button onclick="refreshAndroidLogs()" class="btn btn-secondary" style="font-size:9.5px; padding:2px 6px;">Refresh Logs</button>
+          <!-- DEVELOPER ACTIVITY LOG (COLLAPSIBLE) -->
+          <details style="margin-top: 12px; background: rgba(0,0,0,0.25); border-radius: 10px; border: 1px solid var(--glass-border); padding: 8px 12px;">
+            <summary style="font-size:11px; font-weight:700; color:var(--text-muted); cursor:pointer;">
+              <i class="fa-solid fa-shield-halved" style="color: var(--gpay-blue-light);"></i> System Status & Diagnostics Log
+            </summary>
+            <div style="margin-top: 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                <span style="font-size:10px; color:var(--text-muted);">Background Notification Log</span>
+                <button onclick="refreshAndroidLogs()" class="btn btn-secondary" style="font-size:9.5px; padding:2px 6px;">Refresh Logs</button>
+              </div>
+              <pre id="androidDebugLogs" style="font-family: monospace; font-size: 10px; color: #a0aec0; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin:0;">Waiting for notification activity...</pre>
             </div>
-            <pre id="androidDebugLogs" style="font-family: monospace; font-size: 10px; color: #a0aec0; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin:0;">Waiting for notification activity...</pre>
-          </div>
+          </details>
         </div>
 
         <!-- AUTOMATED INGESTION ENGINE & PRIVACY EXPLAINER -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> Notification Reader & Webhook
+              <i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> Automated Bank Reader
             </div>
-            <span class="card-subtitle">Automated Ingestion</span>
+            <span class="card-subtitle">Auto-Sync Engine</span>
           </div>
 
           <!-- HOW IT WORKS & PRIVACY GUARANTEE BANNER -->
@@ -474,26 +479,16 @@
               <i class="fa-solid fa-shield-halved"></i> How Notification Reader Works & Protects Privacy
             </div>
             <ul style="font-size: 10.5px; color: var(--text-muted); line-height: 1.5; padding-left: 16px;">
-              <li><strong>Phone Filter:</strong> MacroDroid only listens to <em>Google Pay, PhonePe, Paytm, or Bank SMS</em>. Personal chats & social notifications are ignored completely.</li>
-              <li><strong>RegEx Extraction:</strong> Extracts ONLY 4 data points: <em>Merchant, Amount, Debit/Credit, and Category</em>. No bank account numbers or confidential text stored.</li>
-              <li><strong>Targeted Routing:</strong> Pushes payload securely to your private API endpoint: <code style="color: var(--gpay-green-light);">/api/ingest-notification</code>.</li>
+              <li><strong>Secure Filtering:</strong> Only reads official payment alerts (Google Pay, PhonePe, Paytm, Bank SMS). Personal chats are ignored completely.</li>
+              <li><strong>Smart Extraction:</strong> Extracts ONLY 4 points: <em>Merchant, Amount, Debit/Credit, and Category</em>. No sensitive bank numbers stored.</li>
+              <li><strong>Instant Cloud Sync:</strong> Auto-captures and syncs directly to your private dashboard in real time.</li>
             </ul>
-          </div>
-
-          <div style="background: var(--glass-surface-elevated); border: 1px solid var(--glass-border); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px;">
-            <div style="font-size: 10px; font-weight: 700; color: var(--gpay-blue-light); text-transform: uppercase; margin-bottom: 4px;">
-              <i class="fa-solid fa-link"></i> Live Webhook Endpoint URL
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="text" readonly id="webhookUrlBox" class="form-input" value="https://finance-me-smoky-rho.vercel.app/api/ingest-notification" style="flex: 1; font-size: 11px; font-family: monospace; color: var(--gpay-green-light);" onclick="this.select()">
-              <button class="btn btn-secondary" onclick="copyWebhookUrl()" style="font-size: 11px; padding: 8px 12px;"><i class="fa-solid fa-copy"></i> Copy</button>
-            </div>
           </div>
 
           <!-- INTERACTIVE LIVE TEST SAMPLES -->
           <div style="margin-bottom: 10px;">
             <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
-              <i class="fa-solid fa-vial"></i> Quick Test Preset Notifications:
+              <i class="fa-solid fa-vial"></i> Quick Test Sample Alerts:
             </div>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
               <button class="btn btn-secondary" style="font-size: 9.5px; padding: 4px 8px;" onclick="loadSampleText('swiggy')">Paid ₹480 to Swiggy (GPay)</button>
@@ -503,16 +498,16 @@
           </div>
 
           <div class="parser-box">
-            <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste real payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
+            <textarea id="rawNotificationInput" class="parser-textarea" placeholder="Paste payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
             <button class="btn btn-full" onclick="parseRawNotification()">
-              <i class="fa-solid fa-microchip"></i> Parse Notification RegEx
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Extract & Preview Transaction
             </button>
           </div>
 
           <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
             <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); margin-bottom: 6px; display: flex; justify-content: space-between;">
-              <span><i class="fa-solid fa-check-circle"></i> REGEX MATCH CONFIRMED</span>
-              <span id="parsedConfidence">Status: Valid</span>
+              <span><i class="fa-solid fa-check-circle"></i> TRANSACTION DETAILS EXTRACTED</span>
+              <span id="parsedConfidence">Status: Verified</span>
             </div>
             <div class="parsed-row"><span class="parsed-key">Merchant:</span> <span class="parsed-val" id="resMerchant">-</span></div>
             <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
@@ -521,7 +516,7 @@
             <div class="parsed-row"><span class="parsed-key">Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
 
             <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Save to GPay History & Supabase
+              <i class="fa-solid fa-circle-check"></i> Confirm & Add Transaction
             </button>
           </div>
         </div>
