@@ -897,103 +897,68 @@ function editTransaction(id) {
 
 function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#EA4335' }) {
   return new Promise((resolve) => {
-    let modal = document.getElementById('customConfirmModal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'customConfirmModal';
-      modal.className = 'modal-overlay';
-      modal.innerHTML = `
-        <div class="modal-card" style="max-width: 360px; width: 90%; text-align: center; border: 1px solid rgba(234, 67, 53, 0.3); margin: auto; background: #161822; color: #fff; padding: 22px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
-          <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(234, 67, 53, 0.18); color: #EA4335; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 22px;">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-          </div>
-          <h3 id="confirmModalTitle" style="font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #ffffff;">Confirm Deletion</h3>
-          <p id="confirmModalBody" style="font-size: 13px; color: #a0a5b5; margin-bottom: 22px; line-height: 1.4;"></p>
-          <div style="display: flex; gap: 10px;">
-            <button id="confirmCancelBtn" class="btn btn-secondary" style="flex: 1; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-weight: 600;">Cancel</button>
-            <button id="confirmActionBtn" class="btn" style="flex: 1; padding: 12px; background: #EA4335; color: white; border-radius: 14px; border: none; font-weight: 700;">Delete</button>
-          </div>
+    const oldModal = document.getElementById('customConfirmModal');
+    if (oldModal) oldModal.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'customConfirmModal';
+    modal.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: rgba(0, 0, 0, 0.88) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      z-index: 2147483647 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+      box-sizing: border-box !important;
+    `;
+
+    modal.innerHTML = `
+      <div style="max-width: 360px; width: 100%; text-align: center; border: 1px solid rgba(234, 67, 53, 0.3); background: #161822; color: #fff; padding: 24px; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.9);">
+        <div style="width: 54px; height: 54px; border-radius: 50%; background: rgba(234, 67, 53, 0.18); color: #EA4335; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 24px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
         </div>
-      `;
-      document.body.appendChild(modal);
-    }
+        <h3 style="font-size: 17px; font-weight: 700; margin: 0 0 8px 0; color: #ffffff;">${title}</h3>
+        <p style="font-size: 13px; color: #a0a5b5; margin: 0 0 22px 0; line-height: 1.4;">${body}</p>
+        <div style="display: flex; gap: 10px;">
+          <button id="confirmCancelBtn" style="flex: 1; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-weight: 600; cursor: pointer;">Cancel</button>
+          <button id="confirmActionBtn" style="flex: 1; padding: 12px; background: ${actionColor}; color: white; border-radius: 14px; border: none; font-weight: 700; cursor: pointer;">${actionText}</button>
+        </div>
+      </div>
+    `;
 
-    const titleEl = document.getElementById('confirmModalTitle');
-    const bodyEl = document.getElementById('confirmModalBody');
-    const actionBtn = document.getElementById('confirmActionBtn');
-    const cancelBtn = document.getElementById('confirmCancelBtn');
+    document.body.appendChild(modal);
 
-    if (titleEl) titleEl.innerText = title;
-    if (bodyEl) bodyEl.innerText = body;
-    if (actionBtn) {
-      actionBtn.innerText = actionText;
-      actionBtn.style.background = actionColor;
-    }
-
-    // Force display & visibility reset every time modal is triggered
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.right = '0';
-    modal.style.bottom = '0';
-    modal.style.background = 'rgba(0, 0, 0, 0.88)';
-    modal.style.backdropFilter = 'blur(16px)';
-    modal.style.webkitBackdropFilter = 'blur(16px)';
-    modal.style.zIndex = '999999';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.visibility = 'visible';
-    modal.style.opacity = '1';
-
-    modal.classList.add('active');
-
-    let resolved = false;
-
-    const handleConfirm = (e) => {
-      if (e) {
-        if (e.preventDefault) e.preventDefault();
-        if (e.stopPropagation) e.stopPropagation();
+    let isResolved = false;
+    const finish = (value) => {
+      if (isResolved) return;
+      isResolved = true;
+      if (modal && modal.parentNode) {
+        modal.parentNode.removeChild(modal);
       }
-      if (resolved) return;
-      resolved = true;
-      cleanup();
-      resolve(true);
+      resolve(value);
     };
 
-    const handleCancel = (e) => {
-      if (e) {
-        if (e.preventDefault) e.preventDefault();
-        if (e.stopPropagation) e.stopPropagation();
-      }
-      if (resolved) return;
-      resolved = true;
-      cleanup();
-      resolve(false);
-    };
-
-    const cleanup = () => {
-      modal.style.display = 'none';
-      modal.style.visibility = 'hidden';
-      modal.classList.remove('active');
-      if (actionBtn) {
-        actionBtn.onclick = null;
-        actionBtn.ontouchend = null;
-      }
-      if (cancelBtn) {
-        cancelBtn.onclick = null;
-        cancelBtn.ontouchend = null;
-      }
-    };
+    const actionBtn = modal.querySelector('#confirmActionBtn');
+    const cancelBtn = modal.querySelector('#confirmCancelBtn');
 
     if (actionBtn) {
-      actionBtn.onclick = handleConfirm;
-      actionBtn.ontouchend = handleConfirm;
+      actionBtn.onclick = (e) => { e.stopPropagation(); finish(true); };
+      actionBtn.ontouchend = (e) => { e.stopPropagation(); finish(true); };
     }
     if (cancelBtn) {
-      cancelBtn.onclick = handleCancel;
-      cancelBtn.ontouchend = handleCancel;
+      cancelBtn.onclick = (e) => { e.stopPropagation(); finish(false); };
+      cancelBtn.ontouchend = (e) => { e.stopPropagation(); finish(false); };
     }
+    modal.onclick = (e) => {
+      if (e.target === modal) finish(false);
+    };
   });
 }
 
