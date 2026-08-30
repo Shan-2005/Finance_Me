@@ -967,6 +967,17 @@ async function deleteTransaction(id) {
   const strId = String(id);
   const target = transactions.find(item => String(item.id) === strId);
   const merchantName = target ? target.merchant : 'Transaction';
+  const curr = userProfile.currency || '₹';
+  const amountStr = target ? `${curr}${target.amount}` : '';
+
+  const confirmed = await showConfirmModal({
+    title: 'Delete Payment Entry?',
+    body: `Are you sure you want to delete "${merchantName}" (${amountStr})? This will permanently remove it from your device and cloud.`,
+    actionText: 'Delete Payment',
+    actionColor: '#EA4335'
+  });
+
+  if (!confirmed) return;
 
   isWritePending = true;
 
@@ -1016,9 +1027,18 @@ async function clearAllRealData() {
     return;
   }
 
+  const count = transactions.length;
+  const confirmed = await showConfirmModal({
+    title: '🚨 Wipe All Data?',
+    body: `Are you sure you want to permanently delete ALL ${count} logged transactions from device and Supabase cloud?`,
+    actionText: 'Clear Everything',
+    actionColor: '#EA4335'
+  });
+
+  if (!confirmed) return;
+
   isWritePending = true;
 
-  const count = transactions.length;
   const allIds = transactions.map(t => t.id);
   allIds.forEach(id => markAsDeleted(String(id)));
   transactions = [];
