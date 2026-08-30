@@ -22,11 +22,17 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_POST_NOTIFICATIONS = 101;
+    private static MainActivity instance;
     private WebView webView;
+
+    public static MainActivity getInstance() {
+        return instance;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this;
 
         webView = new WebView(this);
         setContentView(webView);
@@ -165,6 +171,18 @@ public class MainActivity extends AppCompatActivity {
         boolean granted = isNotificationListenerEnabled();
         String js = "if(window.onAndroidNotifStatus) window.onAndroidNotifStatus(" + granted + ");";
         webView.post(() -> webView.evaluateJavascript(js, null));
+    }
+
+    /** Pass real-time captured notification text directly into WebView JS */
+    public void onNativeNotificationCaptured(String rawText, String packageName) {
+        runOnUiThread(() -> {
+            if (webView != null) {
+                String safeText = rawText != null ? rawText.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ") : "";
+                String safePkg = packageName != null ? packageName.replace("'", "\\'") : "";
+                String js = "if(window.onNotificationCaptured) window.onNotificationCaptured('" + safeText + "', '" + safePkg + "');";
+                webView.evaluateJavascript(js, null);
+            }
+        });
     }
 
     // ── JavaScript Bridge ────────────────────────────────────────────────────

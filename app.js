@@ -969,40 +969,37 @@ function loadSampleText(key) {
   parseRawNotification();
 }
 
-function parseRawNotification() {
-  const raw = document.getElementById('rawNotificationInput').value.trim();
-  if (!raw) return;
+function parseNotificationTextString(raw) {
+  if (!raw) return null;
 
-  // ── AMOUNT EXTRACTION (multi-pass, order matters) ──────────────────────────
-  // Pass 1: ₹ / Rs. prefix directly before number (most reliable)
+  // ── AMOUNT EXTRACTION ──────────────────────────────────────────────────────
   const rsPrefixRegex = /(?:₹|rs\.?|re\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
-  // Pass 2: number that appears BEFORE a debit/credit keyword on the same line
+  const rsSuffixRegex = /([\d,]+(?:\.\d{1,2})?)\s*(?:₹|rs\.?|re\.?|rupee|rupees|inr)\b/i;
   const beforeKeywordRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
-  // Pass 3: number AFTER a keyword (e.g. "paid Rs 500" — already covered by pass 1, but fallback)
   const afterKeywordRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
   let amount = 0;
   let m;
-  if ((m = raw.match(rsPrefixRegex)))    amount = parseFloat(m[1].replace(/,/g, ''));
+  if ((m = raw.match(rsPrefixRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
+  if (!amount && (m = raw.match(rsSuffixRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
   if (!amount && (m = raw.match(beforeKeywordRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
-  if (!amount && (m = raw.match(afterKeywordRegex)))  amount = parseFloat(m[1].replace(/,/g, ''));
+  if (!amount && (m = raw.match(afterKeywordRegex))) amount = parseFloat(m[1].replace(/,/g, ''));
 
-  // Pass 4: smart fallback — skip long ref/account/phone numbers (≥9 digits) then grab first decimal
   if (!amount || amount === 0) {
     const stripped = raw.replace(/\b\d{9,}\b/g, '').replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
     const anyNum = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
     if (anyNum) amount = parseFloat(anyNum[1].replace(/,/g, ''));
   }
 
-  if (!amount || isNaN(amount)) amount = 0;
+  if (!amount || isNaN(amount) || amount <= 0) return null;
 
-  // ── TYPE: CREDIT vs DEBIT ──────────────────────────────────────────────────
+  // ── TYPE ──────────────────────────────────────────────────────────────────
   const typeRegex = /(debited|credited|sent|received|paid|spent|deposited)/i;
   const typeMatch = raw.match(typeRegex);
   const isCredit = typeMatch && /credited|received|deposited/i.test(typeMatch[1]);
   const type = isCredit ? 'Credit' : 'Debit';
 
-  // ── MERCHANT EXTRACTION ───────────────────────────────────────────────────
+  // ── MERCHANT ──────────────────────────────────────────────────────────────
   const merchantRegex = /(?:to|at|vpa|paid to|credited from|credited with|sent to|spent at|transferred to|towards)\s+([A-Za-z0-9\s&.\-@]+?)(?=\s+via|\s+for|\s+on|\s+ref|\s+vpa|\s+from|\s+a\/c|\.|$)/i;
   const merchantMatch = raw.match(merchantRegex);
   let merchant = merchantMatch ? merchantMatch[1].trim() : 'GPay Merchant';
@@ -1018,16 +1015,65 @@ function parseRawNotification() {
     category = 'Unavoidable / Rent';
   }
 
-  const timestamp = new Date().toISOString().split('T')[0];
-  const curr = userProfile.currency || '₹';
+  return { amount, type, merchant, category };
+}
 
+function parseRawNotification() {
+  const raw = document.getElementById('rawNotificationInput').value.trim();
+  if (!raw) return;
+
+  const parsed = parseNotificationTextString(raw);
+  if (!parsed) {
+    showToast('⚠️ No valid transaction amount found in text.');
+    return;
+  }
+
+  const timestamp = new Date().toISOString().split('T')[0];
   lastParsedTransaction = {
-    merchant,
-    amount,
-    type,
-    category,
+    merchant: parsed.merchant,
+    amount: parsed.amount,
+    type: parsed.type,
+    category: parsed.category,
     mode: 'GPay / UPI Auto-Sync',
-    date: timestamp,
+    date: timestamp
+  };
+
+  renderExtractedPreview();
+}
+
+/** REAL-TIME NOTIFICATION HANDLER INJECTED FROM ANDROID NATIVE BRIDGE */
+window.onNotificationCaptured = function(rawText, packageName) {
+  console.log('⚡ Realtime Notification Captured:', packageName, rawText);
+  const parsed = parseNotificationTextString(rawText);
+  if (!parsed || !parsed.amount || parsed.amount <= 0) {
+    console.log('Ignored non-financial notification:', rawText);
+    return;
+  }
+
+  const newTxn = {
+    id: 'txn-' + Date.now(),
+    merchant: parsed.merchant,
+    amount: parsed.amount,
+    type: parsed.type,
+    category: parsed.category,
+    mode: 'Android Auto-Capture',
+    date: new Date().toISOString().split('T')[0],
+    created_at: new Date().toISOString(),
+    user_id: currentUser ? currentUser.id : null
+  };
+
+  // Prepend to local UI state and render instantly!
+  transactions.unshift(newTxn);
+  renderTransactions();
+  updateHeaderStats();
+
+  // Save to Supabase directly
+  if (currentUser) {
+    saveTransactionToSupabase(newTxn);
+  }
+
+  showToast(`⚡ Auto-Captured: ${newTxn.type === 'Credit' ? '+' : '-'}₹${newTxn.amount} (${newTxn.merchant})`);
+};
     tags: ['#auto-ingested', `#${merchant.toLowerCase().replace(/[^a-z0-9]/g, '')}`],
     notes: `Real Notification: "${raw.substring(0, 50)}..."`,
     rawInput: raw   // BUG-13: preserve full original SMS for API re-parsing

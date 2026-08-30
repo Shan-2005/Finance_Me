@@ -79,6 +79,11 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
         logEvent(this, "📩 Captured from [" + packageName + "]: " + fullContent);
 
+        // Forward real-time notification to MainActivity WebView JS context
+        if (MainActivity.getInstance() != null) {
+            MainActivity.getInstance().onNativeNotificationCaptured(fullContent, packageName);
+        }
+
         // Retrieve user_id stored by the web app session (if available)
         SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
         String userId = prefs.getString("user_id", "");
