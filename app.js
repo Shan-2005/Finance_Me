@@ -297,12 +297,12 @@ function manualSyncFromSupabase(btnElement) {
 
 // Fetch Real Transactions from Supabase Database (Cloud Source of Truth & Instant UI Sync)
 function fetchTransactionsFromSupabase(onComplete) {
-  if (!SUPABASE_KEY || !currentUser) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
     if (onComplete) onComplete();
     return;
   }
 
-  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+  const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
   const userFilter = currentUser ? `&or=(user_id.eq.${currentUser.id},user_id.is.null)` : '';
 
   fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*${userFilter}&order=id.desc`, {
@@ -314,26 +314,28 @@ function fetchTransactionsFromSupabase(onComplete) {
   .then(res => res.json())
   .then(data => {
     if (Array.isArray(data)) {
-      // Smart Merge: Combine cloud records and local records by ID so local items are never wiped out
       const mergedMap = new Map();
 
-      // 1. Add cloud items (ignoring blacklisted deleted IDs)
+      // 1. Add cloud items from Supabase (master source of truth, ignoring blacklisted deleted IDs)
       data.forEach(item => {
-        if (item && item.id && !deletedTxnIds.has(item.id)) {
-          mergedMap.set(item.id, item);
+        if (item && item.id && !deletedTxnIds.has(String(item.id))) {
+          mergedMap.set(String(item.id), item);
         }
       });
 
-      // 2. Preserve local items that may be in-flight or offline
+      // 2. Only preserve local items if created offline in the last 3 minutes
       transactions.forEach(item => {
-        if (item && item.id && !deletedTxnIds.has(item.id) && !mergedMap.has(item.id)) {
-          mergedMap.set(item.id, item);
+        if (item && item.id && !deletedTxnIds.has(String(item.id)) && !mergedMap.has(String(item.id))) {
+          const isFreshOffline = item._createdLocallyAt && (Date.now() - item._createdLocallyAt < 180000);
+          if (isFreshOffline) {
+            mergedMap.set(String(item.id), item);
+          }
         }
       });
 
       const mergedList = Array.from(mergedMap.values());
 
-      // Sort by full ISO timestamp so newest auto-sync items always show at top
+      // Sort by full ISO timestamp
       mergedList.sort((a, b) => {
         const da = new Date(b.date);
         const db = new Date(a.date);
@@ -345,7 +347,7 @@ function fetchTransactionsFromSupabase(onComplete) {
         transactions = mergedList;
         saveToLocalStorage();
         renderTransactions();
-        console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions for user', currentUser.email);
+        console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions');
       }
     }
     if (onComplete) onComplete();
@@ -905,41 +907,90 @@ function editTransaction(id) {
 
 function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#EA4335' }) {
   return new Promise((resolve) => {
-    const modal = document.getElementById('customConfirmModal');
+    let modal = document.getElementById('customConfirmModal');
     if (!modal) {
-      resolve(true);
-      return;
+      modal = document.createElement('div');
+      modal.id = 'customConfirmModal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-card" style="max-width: 360px; width: 90%; text-align: center; border: 1px solid rgba(234, 67, 53, 0.3); margin: auto; background: #161822; color: #fff; padding: 22px; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+          <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(234, 67, 53, 0.18); color: #EA4335; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 22px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h3 id="confirmModalTitle" style="font-size: 17px; font-weight: 700; margin-bottom: 8px; color: #ffffff;">Confirm Deletion</h3>
+          <p id="confirmModalBody" style="font-size: 13px; color: #a0a5b5; margin-bottom: 22px; line-height: 1.4;"></p>
+          <div style="display: flex; gap: 10px;">
+            <button id="confirmCancelBtn" class="btn btn-secondary" style="flex: 1; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-weight: 600;">Cancel</button>
+            <button id="confirmActionBtn" class="btn" style="flex: 1; padding: 12px; background: #EA4335; color: white; border-radius: 14px; border: none; font-weight: 700;">Delete</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
     }
+
     const titleEl = document.getElementById('confirmModalTitle');
     const bodyEl = document.getElementById('confirmModalBody');
     const actionBtn = document.getElementById('confirmActionBtn');
     const cancelBtn = document.getElementById('confirmCancelBtn');
 
-    titleEl.innerText = title;
-    bodyEl.innerText = body;
-    actionBtn.innerText = actionText;
-    actionBtn.style.background = actionColor;
+    if (titleEl) titleEl.innerText = title;
+    if (bodyEl) bodyEl.innerText = body;
+    if (actionBtn) {
+      actionBtn.innerText = actionText;
+      actionBtn.style.background = actionColor;
+    }
+
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.right = '0';
+    modal.style.bottom = '0';
+    modal.style.background = 'rgba(0, 0, 0, 0.88)';
+    modal.style.backdropFilter = 'blur(16px)';
+    modal.style.webkitBackdropFilter = 'blur(16px)';
+    modal.style.zIndex = '999999';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
 
     modal.classList.add('active');
 
-    const handleConfirm = () => {
+    const handleConfirm = (e) => {
+      if (e && e.stopPropagation) e.stopPropagation();
       cleanup();
       resolve(true);
     };
 
-    const handleCancel = () => {
+    const handleCancel = (e) => {
+      if (e && e.stopPropagation) e.stopPropagation();
       cleanup();
       resolve(false);
     };
 
     const cleanup = () => {
+      modal.style.display = 'none';
+      modal.style.visibility = 'hidden';
       modal.classList.remove('active');
-      actionBtn.removeEventListener('click', handleConfirm);
-      cancelBtn.removeEventListener('click', handleCancel);
+      if (actionBtn) {
+        actionBtn.removeEventListener('click', handleConfirm);
+        actionBtn.removeEventListener('touchend', handleConfirm);
+      }
+      if (cancelBtn) {
+        cancelBtn.removeEventListener('click', handleCancel);
+        cancelBtn.removeEventListener('touchend', handleCancel);
+      }
     };
 
-    actionBtn.addEventListener('click', handleConfirm);
-    cancelBtn.addEventListener('click', handleCancel);
+    if (actionBtn) {
+      actionBtn.addEventListener('click', handleConfirm);
+      actionBtn.addEventListener('touchend', handleConfirm);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', handleCancel);
+      cancelBtn.addEventListener('touchend', handleCancel);
+    }
   });
 }
 
