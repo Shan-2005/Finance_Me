@@ -24,18 +24,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Gradle 8.5
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
-          unzip -q gradle-8.5-bin.zip
-          echo "$PWD/gradle-8.5/bin" >> $GITHUB_PATH
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
-      - name: Build Android APK with Gradle 8.5
+      - name: Build Android APK with Gradle Wrapper
         run: |
           cd android
-          gradle assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee ../build.log
+        continue-on-error: false
+
+      - name: Show build log on failure
+        if: failure()
+        run: tail -n 300 build.log || true
 
       - name: Upload Built APK Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Finance-Me-App-debug.apk
