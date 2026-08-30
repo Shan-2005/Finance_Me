@@ -194,31 +194,36 @@ function togglePrivateMode() {
 
 // Export Transactions to CSV
 function exportTransactionsCSV() {
-  if (transactions.length === 0) {
+  if (!transactions || transactions.length === 0) {
     alert('No real transactions logged to export!');
     return;
   }
 
   const headers = ['ID', 'Date', 'Merchant', 'Amount', 'Type', 'Category', 'Payment Mode', 'Notes'];
   const rows = transactions.map(t => [
-    t.id,
-    t.date,
+    `"${t.id || ''}"`,
+    `"${t.date || ''}"`,
     `"${(t.merchant || '').replace(/"/g, '""')}"`,
-    t.amount,
-    t.type,
-    `"${t.category}"`,
-    `"${t.mode}"`,
+    t.amount || 0,
+    `"${t.type || ''}"`,
+    `"${t.category || ''}"`,
+    `"${t.mode || ''}"`,
     `"${(t.notes || '').replace(/"/g, '""')}"`
   ]);
 
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
+  const csvString = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
+  link.href = url;
   link.setAttribute('download', `Finance_Me_Report_${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  showToast('📥 CSV Report downloaded!');
 }
 
 // PWA Installation Handler
@@ -892,13 +897,13 @@ async function deleteTransaction(id) {
   if (!id) return;
   const strId = String(id);
   const target = transactions.find(item => String(item.id) === strId);
-  if (!target) {
-    console.warn('Delete cancelled: Transaction ID not found in local array:', id);
-    return;
-  }
-
+  
+  const merchantName = target ? target.merchant : 'Transaction';
   const curr = userProfile.currency || '₹';
-  const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n\nThis will remove the transaction permanently.`;
+  const amountStr = target ? `${curr}${target.amount}` : '';
+  const message = target 
+    ? `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${amountStr}\n\nThis will remove the transaction permanently.`
+    : `Delete transaction (${strId})?`;
 
   if (!confirm(message)) return;
 
@@ -909,7 +914,7 @@ async function deleteTransaction(id) {
   transactions = transactions.filter(item => String(item.id) !== strId);
   saveToLocalStorage();
   renderTransactions();
-  showToast(`🗑️ Payment deleted: ${target.merchant}`);
+  showToast(`🗑️ Payment deleted: ${merchantName}`);
 
   const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
@@ -952,57 +957,52 @@ async function deleteTransaction(id) {
 }
 
 async function clearAllRealData() {
-  if (transactions.length === 0) {
+  if (!transactions || transactions.length === 0) {
     alert('No real transactions logged to clear!');
     return;
   }
 
-  const promptInput = prompt(`🚨 EXTREME CAUTION: DATA LOSS WARNING!\n\nYou are about to permanently delete ALL ${transactions.length} logged transactions.\n\nTo confirm, please type "DELETE ALL" in the box below:`);
-  
-  if (promptInput === 'DELETE ALL') {
-    if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
-      isWritePending = true;
+  if (!confirm(`🚨 DATA LOSS WARNING!\n\nAre you sure you want to permanently delete ALL ${transactions.length} logged transactions?\n\nThis cannot be undone!`)) {
+    return;
+  }
 
-      const allIds = transactions.map(t => t.id);
-      allIds.forEach(id => markAsDeleted(id));
-      transactions = [];
-      localStorage.removeItem('finance_me_transactions');
-      localStorage.removeItem('finance_me_vault_snapshot');
-      renderTransactions();
+  isWritePending = true;
 
-      const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+  const allIds = transactions.map(t => t.id);
+  allIds.forEach(id => markAsDeleted(String(id)));
+  transactions = [];
+  localStorage.removeItem('finance_me_transactions');
+  localStorage.removeItem('finance_me_vault_snapshot');
+  renderTransactions();
 
-      try {
-        if (supabaseClient && currentUser) {
-          const { error } = await supabaseClient
-            .from('transactions')
-            .delete()
-            .eq('user_id', currentUser.id);
+  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
-          if (error) console.warn('[Clear All Client Error]:', error.message);
-        } else if (SUPABASE_KEY && allIds.length > 0) {
-          const idList = allIds.map(i => `"${i}"`).join(',');
-          await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=in.(${idList})`, {
-            method: 'DELETE',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': `Bearer ${token}`,
-              'Prefer': 'return=minimal'
-            }
-          });
+  try {
+    if (supabaseClient) {
+      const dbQuery = currentUser
+        ? supabaseClient.from('transactions').delete().eq('user_id', currentUser.id)
+        : supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      const { error } = await dbQuery;
+      if (error) console.warn('[Clear All Client Error]:', error.message);
+    } else if (SUPABASE_KEY) {
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${token}`,
+          'Prefer': 'return=minimal'
         }
-        alert('✅ All transactions cleared from device and cloud!');
-      } catch (err) {
-        console.error('[Clear All Error]:', err);
-        alert('✅ Cleared locally.');
-      } finally {
-        setTimeout(() => {
-          isWritePending = false;
-        }, 1500);
-      }
+      });
     }
-  } else if (promptInput !== null) {
-    alert('❌ Confirmation failed! You did not type "DELETE ALL". Deletion cancelled.');
+    showToast('🗑️ All transactions cleared from device and cloud!');
+  } catch (err) {
+    console.error('[Clear All Exception]:', err);
+    showToast('✅ Cleared locally.');
+  } finally {
+    setTimeout(() => {
+      isWritePending = false;
+    }, 1500);
   }
 }
 
