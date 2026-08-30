@@ -448,6 +448,15 @@
               <i class="fa-solid fa-download" style="color: var(--gpay-blue-light);"></i> Download Latest APK Update
             </button>
           </div>
+
+          <!-- LIVE BACKGROUND NOTIFICATION LOGS CONSOLE -->
+          <div style="margin-top: 12px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+              <span style="font-size:11px; font-weight:700; color:var(--text-muted);"><i class="fa-solid fa-terminal"></i> Live Listener Debug Logs</span>
+              <button onclick="refreshAndroidLogs()" class="btn btn-secondary" style="font-size:9.5px; padding:2px 6px;">Refresh Logs</button>
+            </div>
+            <pre id="androidDebugLogs" style="font-family: monospace; font-size: 10px; color: #a0aec0; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin:0;">Waiting for notification activity...</pre>
+          </div>
         </div>
 
         <!-- AUTOMATED INGESTION ENGINE & PRIVACY EXPLAINER -->

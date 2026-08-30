@@ -1291,6 +1291,17 @@ function requestAndroidNotificationPermission() {
   }
 }
 
+function refreshAndroidLogs() {
+  const logPre = document.getElementById('androidDebugLogs');
+  if (!logPre) return;
+  if (window.AndroidBridge && window.AndroidBridge.getDebugLogs) {
+    const logs = window.AndroidBridge.getDebugLogs();
+    logPre.innerText = logs || 'No notifications captured yet.';
+  } else {
+    logPre.innerText = 'Running in browser mode. Install/open APK to view live listener logs.';
+  }
+}
+
 /** Called by Android MainActivity to push live status updates into the page */
 window.onAndroidNotifStatus = function(granted) {
   const statusText = document.getElementById('androidNotifStatusText');
@@ -1309,12 +1320,15 @@ window.onAndroidNotifStatus = function(granted) {
     if (statusDot)  statusDot.style.background = '#EA4335';
     if (grantBtn) { grantBtn.innerHTML = '<i class="fa-solid fa-bell"></i> Enable'; grantBtn.disabled = false; }
   }
+  refreshAndroidLogs();
 };
 
-// Auto-check status when settings tab is opened
+// Auto-check status & logs when settings tab is opened
 document.addEventListener('DOMContentLoaded', () => {
   if (window.AndroidBridge) {
     window.onAndroidNotifStatus(window.AndroidBridge.isNotificationAccessGranted());
   }
+  refreshAndroidLogs();
+  setInterval(refreshAndroidLogs, 3000);
 });
 

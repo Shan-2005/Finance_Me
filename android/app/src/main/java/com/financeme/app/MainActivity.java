@@ -201,6 +201,20 @@ public class MainActivity extends AppCompatActivity {
             return isNotificationListenerEnabled();
         }
 
+        /** Returns live background notification debug logs for display on UI */
+        @JavascriptInterface
+        public String getDebugLogs() {
+            SharedPreferences prefs = getSharedPreferences("FinanceMeDebugLogs", Context.MODE_PRIVATE);
+            return prefs.getString("logs", "No notifications captured yet.");
+        }
+
+        /** Clears debug logs */
+        @JavascriptInterface
+        public void clearDebugLogs() {
+            SharedPreferences prefs = getSharedPreferences("FinanceMeDebugLogs", Context.MODE_PRIVATE);
+            prefs.edit().remove("logs").apply();
+        }
+
         /** Opens external download URL for app update */
         @JavascriptInterface
         public void openDownloadUrl(String url) {

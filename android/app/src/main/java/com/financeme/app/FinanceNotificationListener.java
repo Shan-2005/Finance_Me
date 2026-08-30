@@ -77,11 +77,15 @@ public class FinanceNotificationListener extends NotificationListenerService {
             return;
         }
 
-        Log.d(TAG, "Captured notification from " + packageName + ": " + fullContent);
+        logEvent(this, "📩 Captured from [" + packageName + "]: " + fullContent);
 
         // Retrieve user_id stored by the web app session (if available)
         SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
         String userId = prefs.getString("user_id", "");
+
+        if (userId == null || userId.isEmpty()) {
+            logEvent(this, "⚠️ Warning: user_id is empty in SharedPreferences!");
+        }
 
         // Asynchronously post to backend Vercel Ingestion API
         new Thread(() -> sendToIngestionApi(fullContent, packageName, userId)).start();
@@ -111,10 +115,25 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
             int code = conn.getResponseCode();
             Log.d(TAG, "Ingestion API HTTP Response: " + code);
+            logEvent(this, "✅ Ingestion API Response: HTTP " + code);
             conn.disconnect();
         } catch (Exception e) {
             Log.e(TAG, "Failed to send notification to API: " + e.getMessage());
+            logEvent(this, "❌ API Error: " + e.getMessage());
         }
+    }
+
+    public static void logEvent(Context ctx, String msg) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences("FinanceMeDebugLogs", Context.MODE_PRIVATE);
+            String existing = prefs.getString("logs", "");
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault());
+            String time = sdf.format(new java.util.Date());
+            String newLine = "[" + time + "] " + msg;
+            String updated = newLine + "\n" + existing;
+            if (updated.length() > 3000) updated = updated.substring(0, 3000);
+            prefs.edit().putString("logs", updated).apply();
+        } catch (Exception ignored) {}
     }
 
     @Override
