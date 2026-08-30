@@ -6,6 +6,14 @@ const SUPABASE_URL = 'https://qtejgfhuzquifcobdvfo.supabase.co';
 let SUPABASE_KEY = 'sb_publishable_lzW8KJcHnrknUmyB42suyg_ZMYng2fG'; 
 
 let transactions = JSON.parse(localStorage.getItem('finance_me_transactions') || '[]');
+let deletedTxnIds = new Set(JSON.parse(localStorage.getItem('finance_me_deleted_ids') || '[]'));
+
+function markAsDeleted(id) {
+  if (!id) return;
+  deletedTxnIds.add(id);
+  localStorage.setItem('finance_me_deleted_ids', JSON.stringify(Array.from(deletedTxnIds)));
+}
+
 let lastParsedTransaction = null;
 let currentAppVersion = null;
 let deferredPwaPrompt = null;
@@ -294,14 +302,16 @@ function fetchTransactionsFromSupabase(onComplete) {
       // Smart Merge: Combine cloud records and local records by ID so local items are never wiped out
       const mergedMap = new Map();
 
-      // 1. Add cloud items
+      // 1. Add cloud items (ignoring blacklisted deleted IDs)
       data.forEach(item => {
-        if (item && item.id) mergedMap.set(item.id, item);
+        if (item && item.id && !deletedTxnIds.has(item.id)) {
+          mergedMap.set(item.id, item);
+        }
       });
 
       // 2. Preserve local items that may be in-flight or offline
       transactions.forEach(item => {
-        if (item && item.id && !mergedMap.has(item.id)) {
+        if (item && item.id && !deletedTxnIds.has(item.id) && !mergedMap.has(item.id)) {
           mergedMap.set(item.id, item);
         }
       });
@@ -882,16 +892,18 @@ async function deleteTransaction(id) {
 
   isWritePending = true;
 
-  // 1. Remove locally immediately for responsive UI
+  // 1. Mark as permanently deleted in local blacklist & remove from active state
+  markAsDeleted(id);
   transactions = transactions.filter(item => item.id !== id);
   saveToLocalStorage();
   renderTransactions();
+  showToast(`🗑️ Payment deleted: ${target.merchant}`);
 
   const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
-  // 2. Delete from Supabase cloud using authenticated user token
+  // 2. Delete from Supabase cloud database
   try {
-    if (supabaseClient && currentUser) {
+    if (supabaseClient) {
       const { error } = await supabaseClient
         .from('transactions')
         .delete()
@@ -940,6 +952,7 @@ async function clearAllRealData() {
       isWritePending = true;
 
       const allIds = transactions.map(t => t.id);
+      allIds.forEach(id => markAsDeleted(id));
       transactions = [];
       localStorage.removeItem('finance_me_transactions');
       localStorage.removeItem('finance_me_vault_snapshot');
