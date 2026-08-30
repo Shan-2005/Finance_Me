@@ -575,6 +575,14 @@ function updateMetricsAndTaxonomy() {
   healthScore = Math.min(100, Math.max(10, Math.round(healthScore)));
   document.getElementById('healthScoreVal').innerText = healthScore;
 
+  const scoreSvgEl = document.getElementById('scoreSvgCircle');
+  if (scoreSvgEl) {
+    const totalCircumference = 213; // 2 * PI * 34
+    const offset = totalCircumference - (totalCircumference * (healthScore / 100));
+    scoreSvgEl.style.strokeDasharray = totalCircumference;
+    scoreSvgEl.style.strokeDashoffset = offset;
+  }
+
   let ratingText = 'Balanced';
   let ratingDesc = 'Healthy financial split between needs and savings';
   if (healthScore >= 85) {

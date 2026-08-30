@@ -1099,15 +1099,234 @@ body::before {
   outline: none;
 }
 
-.profile-select-input {
-  background: transparent;
-  border: none;
-  color: var(--text-main);
-  font-family: var(--font-heading);
-  font-size: 12px;
+/* ==========================================================================
+   FUTURISTIC STRATEGY & WEALTH ENGINE STYLES
+   ========================================================================== */
+
+.strategy-hero-card {
+  background: linear-gradient(135deg, rgba(26, 115, 232, 0.14) 0%, rgba(52, 168, 83, 0.14) 100%);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+  border-radius: 24px;
+  padding: 18px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.strategy-hero-card::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(52, 168, 83, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.strategy-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.strategy-score-ring-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.strategy-score-svg {
+  transform: rotate(-90deg);
+  width: 80px;
+  height: 80px;
+}
+
+.strategy-score-svg-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 7;
+}
+
+.strategy-score-svg-fill {
+  fill: none;
+  stroke: url(#scoreGrad);
+  stroke-width: 7;
+  stroke-dasharray: 213;
+  stroke-dashoffset: 30;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.strategy-score-center-text {
+  position: absolute;
+  text-align: center;
+}
+
+.strategy-score-val-big {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.strategy-score-subtext {
+  font-size: 9px;
+  color: var(--text-muted);
   font-weight: 700;
-  width: 100%;
-  outline: none;
-  cursor: pointer;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.strategy-hero-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.strategy-hero-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gpay-green-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.strategy-saved-amount {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font-display);
+  margin: 4px 0;
+}
+
+.strategy-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.strategy-pill-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(52, 168, 83, 0.2);
+  color: var(--gpay-green-light);
+  border: 1px solid rgba(52, 168, 83, 0.3);
+}
+
+.strategy-pill-rating {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(66, 133, 244, 0.2);
+  color: var(--gpay-blue-light);
+  border: 1px solid rgba(66, 133, 244, 0.3);
+}
+
+.strategy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.strategy-metric-card {
+  background: var(--glass-surface);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px 10px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.strategy-metric-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.strategy-metric-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.strategy-metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+}
+
+.strategy-metric-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font-amount);
+  margin-top: 2px;
+}
+
+.strategy-forecast-box {
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.strategy-forecast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.strategy-forecast-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+}
+
+.strategy-forecast-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.strategy-forecast-item {
+  background: var(--glass-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.strategy-forecast-num {
+  font-size: 18px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  margin-top: 4px;
 }
 
