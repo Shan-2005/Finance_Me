@@ -48,6 +48,19 @@ public class MainActivity extends AppCompatActivity {
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         
+        webView.setWebChromeClient(new android.webkit.WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
+                result.confirm();
+                return true;
+            }
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, android.webkit.JsResult result) {
+                result.confirm();
+                return true;
+            }
+        });
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -244,6 +257,38 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             } catch (Exception e) {
                 android.util.Log.e("AndroidBridge", "Failed to open download url: " + e.getMessage());
+            }
+        }
+
+        /** Saves CSV report file directly into native Android Downloads folder */
+        @JavascriptInterface
+        public void downloadCSV(String csvData, String filename) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    android.content.ContentValues values = new android.content.ContentValues();
+                    values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, filename);
+                    values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv");
+                    values.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS);
+
+                    android.net.Uri uri = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri != null) {
+                        java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+                        if (os != null) {
+                            os.write(csvData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                            os.close();
+                            runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, "📥 CSV saved to Downloads folder!", android.widget.Toast.LENGTH_LONG).show());
+                        }
+                    }
+                } else {
+                    java.io.File downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+                    java.io.File file = new java.io.File(downloadsDir, filename);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(file);
+                    fos.write(csvData.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    fos.close();
+                    runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, "📥 CSV saved to Downloads folder!", android.widget.Toast.LENGTH_LONG).show());
+                }
+            } catch (Exception e) {
+                android.util.Log.e("AndroidBridge", "Error saving CSV to downloads: " + e.getMessage());
             }
         }
     }

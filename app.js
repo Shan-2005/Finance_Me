@@ -213,6 +213,14 @@ function exportTransactionsCSV() {
 
   const csvString = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
   const fileName = `Finance_Me_Report_${new Date().toISOString().split('T')[0]}.csv`;
+
+  // 1. Native Android App Bridge: Direct CSV saving to Android Downloads folder
+  if (window.AndroidBridge && typeof window.AndroidBridge.downloadCSV === 'function') {
+    window.AndroidBridge.downloadCSV(csvString, fileName);
+    showToast('📥 CSV saved to Android Downloads folder!');
+    return;
+  }
+
   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
   
   if (window.navigator && window.navigator.msSaveOrOpenBlob) {
