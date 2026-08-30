@@ -981,18 +981,6 @@ async function clearAllRealData() {
   }
 }
 
-function saveTransaction(e) {
-  e.preventDefault();
-  const id = document.getElementById('txnId').value;
-  const merchant = document.getElementById('inputMerchant').value.trim();
-  const amount = parseFloat(document.getElementById('inputAmount').value);
-  const type = document.getElementById('inputType').value;
-  const category = document.getElementById('inputCategory').value;
-  const mode = document.getElementById('inputMode').value;
-  const date = document.getElementById('inputDate').value;
-  const tagsRaw = document.getElementById('inputTags').value;
-  const notes = document.getElementById('inputNotes').value.trim();
-
 function generateUuid() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -1002,6 +990,21 @@ function generateUuid() {
     return v.toString(16);
   });
 }
+
+function saveTransaction(e) {
+  e.preventDefault();
+  const id = document.getElementById('txnId').value;
+  const merchant = document.getElementById('inputMerchant').value.trim();
+  const amount = parseFloat(document.getElementById('inputAmount').value);
+  const type = document.getElementById('inputType').value;
+  const category = document.getElementById('inputCategory').value;
+  const mode = document.getElementById('inputMode').value;
+  const rawDate = document.getElementById('inputDate').value;
+  const tagsRaw = document.getElementById('inputTags').value;
+  const notes = document.getElementById('inputNotes').value.trim();
+
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+  const date = rawDate ? new Date(rawDate).toISOString() : new Date().toISOString();
 
   const txnObj = {
     id: id || generateUuid(),
@@ -1024,26 +1027,34 @@ function generateUuid() {
   renderTransactions();
 
   if (SUPABASE_KEY) {
-    isWritePending = true; // BUG-04: block sync polling while write is in-flight
+    isWritePending = true;
     const writeDone = () => { isWritePending = false; };
     const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
-    if (id) {
-      // EDIT: PATCH the existing row by its text id
-      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${token}`,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(txnObj)
-      }).then(writeDone).catch(err => { console.log('Supabase Update error:', err); writeDone(); });
+    if (supabaseClient) {
+      const dbMethod = id 
+        ? supabaseClient.from('transactions').update(txnObj).eq('id', id)
+        : supabaseClient.from('transactions').insert([txnObj]);
+      
+      dbMethod.then(({ error }) => {
+        writeDone();
+        if (error) {
+          console.error('Supabase Save Error:', error);
+          showToast(`⚠️ Supabase error: ${error.message}`);
+        } else {
+          showToast('✅ Saved to Supabase Database!');
+        }
+      }).catch(err => {
+        writeDone();
+        console.error('Supabase Save Catch:', err);
+      });
     } else {
-      // NEW: INSERT a fresh row
-      fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
-        method: 'POST',
+      const url = id 
+        ? `${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`
+        : `${SUPABASE_URL}/rest/v1/transactions`;
+      
+      fetch(url, {
+        method: id ? 'PATCH' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_KEY,
@@ -1051,7 +1062,19 @@ function generateUuid() {
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(txnObj)
-      }).then(writeDone).catch(err => { console.log('Supabase Insert error:', err); writeDone(); });
+      })
+      .then(res => {
+        writeDone();
+        if (res.ok) {
+          showToast('✅ Saved to Supabase Database!');
+        } else {
+          res.json().then(e => showToast(`⚠️ Database notice: ${e.message || res.statusText}`));
+        }
+      })
+      .catch(err => {
+        writeDone();
+        console.log('Supabase Save Catch:', err);
+      });
     }
   }
 }
