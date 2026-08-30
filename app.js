@@ -338,10 +338,15 @@ function checkAutoUpdate() {
 }
 
 function applyGitAutoUpdate() {
+  const directApkUrl = 'https://github.com/Shan-2005/Finance_Me/releases/download/latest-build/Finance-Me.apk';
+  const releasePageUrl = 'https://github.com/Shan-2005/Finance_Me/releases/tag/latest-build';
+
   if (window.AndroidBridge && window.AndroidBridge.openDownloadUrl) {
-    window.AndroidBridge.openDownloadUrl('https://github.com/Shan-2005/Finance_Me/releases/download/latest-build/Finance-Me.apk');
+    window.AndroidBridge.openDownloadUrl(directApkUrl);
+  } else {
+    // For older APK builds or browser fallback, redirect to GitHub release page
+    window.open(releasePageUrl, '_system') || (window.location.href = releasePageUrl);
   }
-  window.location.reload(true);
 }
 
 /* ==========================================================================
