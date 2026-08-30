@@ -159,6 +159,18 @@ public class MainActivity extends AppCompatActivity {
         public boolean isNotificationAccessGranted() {
             return isNotificationListenerEnabled();
         }
+
+        /** Opens external download URL for app update */
+        @JavascriptInterface
+        public void openDownloadUrl(String url) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                android.util.Log.e("AndroidBridge", "Failed to open download url: " + e.getMessage());
+            }
+        }
     }
 
     @Override

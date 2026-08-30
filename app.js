@@ -338,6 +338,9 @@ function checkAutoUpdate() {
 }
 
 function applyGitAutoUpdate() {
+  if (window.AndroidBridge && window.AndroidBridge.openDownloadUrl) {
+    window.AndroidBridge.openDownloadUrl('https://github.com/Shan-2005/Finance_Me/releases/download/latest-build/Finance-Me.apk');
+  }
   window.location.reload(true);
 }
 
