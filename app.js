@@ -1064,35 +1064,34 @@ function renderExtractedPreview() {
 /** REAL-TIME NOTIFICATION HANDLER INJECTED FROM ANDROID NATIVE BRIDGE */
 window.onNotificationCaptured = function(rawText, packageName) {
   console.log('⚡ Realtime Notification Captured:', packageName, rawText);
+  if (!rawText) return;
+
+  // 1. Put incoming text into the manual parser box in Settings
+  const inputEl = document.getElementById('rawNotificationInput');
+  if (inputEl) inputEl.value = rawText;
+
+  // 2. Parse using the exact manual notification parser logic
   const parsed = parseNotificationTextString(rawText);
   if (!parsed || !parsed.amount || parsed.amount <= 0) {
     console.log('Ignored non-financial notification:', rawText);
     return;
   }
 
-  const newTxn = {
-    id: 'txn-' + Date.now(),
+  const timestamp = new Date().toISOString().split('T')[0];
+  lastParsedTransaction = {
     merchant: parsed.merchant,
     amount: parsed.amount,
     type: parsed.type,
     category: parsed.category,
-    mode: 'Android Auto-Capture',
-    date: new Date().toISOString().split('T')[0],
-    created_at: new Date().toISOString(),
-    user_id: currentUser ? currentUser.id : null
+    mode: 'GPay / UPI Auto-Sync',
+    date: timestamp,
+    rawInput: rawText
   };
 
-  // Prepend to local UI state and render instantly!
-  transactions.unshift(newTxn);
-  renderTransactions();
-  updateHeaderStats();
+  // 3. Trigger the EXACT manual ingest function that saves & renders to dashboard!
+  ingestParsedTransaction();
 
-  // Save to Supabase directly
-  if (currentUser) {
-    saveTransactionToSupabase(newTxn);
-  }
-
-  showToast(`⚡ Auto-Captured: ${newTxn.type === 'Credit' ? '+' : '-'}₹${newTxn.amount} (${newTxn.merchant})`);
+  showToast(`⚡ Auto-Captured: ${parsed.type === 'Credit' ? '+' : '-'}₹${parsed.amount} (${parsed.merchant})`);
 };
 
 function ingestParsedTransaction() {
