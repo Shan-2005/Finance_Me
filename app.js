@@ -990,30 +990,64 @@ async function deleteTransaction(id) {
 
   const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
 
-  // 2. Delete from Supabase cloud database
+  // 2. Delete from Supabase cloud database (multi-pass for numeric & string IDs + RLS user_id filtering)
   try {
-    if (supabaseClient) {
-      const { error } = await supabaseClient
-        .from('transactions')
-        .delete()
-        .eq('id', strId);
+    const isNum = !isNaN(strId) && !isNaN(parseFloat(strId));
+    const targetId = isNum ? Number(strId) : strId;
 
-      if (error) {
-        console.warn('[Supabase SDK Delete Warning]:', error.message);
+    if (supabaseClient) {
+      let sdkQuery = supabaseClient.from('transactions').delete().eq('id', strId);
+      if (currentUser && currentUser.id) {
+        sdkQuery = sdkQuery.eq('user_id', currentUser.id);
+      }
+      const { error: err1 } = await sdkQuery;
+      if (err1) console.warn('[Supabase SDK Delete Warning]:', err1.message);
+
+      if (isNum) {
+        let sdkQueryNum = supabaseClient.from('transactions').delete().eq('id', targetId);
+        if (currentUser && currentUser.id) {
+          sdkQueryNum = sdkQueryNum.eq('user_id', currentUser.id);
+        }
+        await sdkQueryNum;
       }
     }
+
     if (SUPABASE_KEY) {
-      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
+      const userFilter = (currentUser && currentUser.id) ? `&user_id=eq.${currentUser.id}` : '';
+      const deleteUrl = `${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}${userFilter}`;
+      
+      const res = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${token}`,
-          'Prefer': 'return=minimal'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
         }
       });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.warn('[Supabase REST Delete Failed]:', res.status, errJson);
+
+        if (isNum) {
+          await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${targetId}${userFilter}`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            }
+          });
+        }
+      } else {
+        const deletedRows = await res.json().catch(() => []);
+        console.log('[Supabase Cloud Delete Success]: Deleted rows:', deletedRows);
+      }
     }
   } catch (err) {
-    console.error('[Delete Exception]:', err);
+    console.error('[Delete Cloud Exception]:', err);
   } finally {
     setTimeout(() => {
       isWritePending = false;
@@ -1052,14 +1086,14 @@ async function clearAllRealData() {
 
   try {
     if (supabaseClient) {
-      const dbQuery = currentUser
+      const dbQuery = (currentUser && currentUser.id)
         ? supabaseClient.from('transactions').delete().eq('user_id', currentUser.id)
         : supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       await dbQuery;
     }
     if (SUPABASE_KEY) {
-      const userFilter = currentUser ? `&user_id=eq.${currentUser.id}` : '';
-      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000${userFilter}`, {
+      const userFilter = (currentUser && currentUser.id) ? `user_id=eq.${currentUser.id}` : 'id=neq.00000000-0000-0000-0000-000000000000';
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions?${userFilter}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
