@@ -62,17 +62,19 @@ module.exports = async (req, res) => {
     // Clean multiline newlines into single spaces for robust regex matching
     const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // --- AMOUNT EXTRACTION (multi-pass) ---
-    // Pass 1: ₹/Rs/Rs./INR prefix directly before or attached to number (e.g., "Rs.1.00", "Rs 1.00", "₹500")
+    // Pass 1: ₹/Rs/Rs./INR prefix directly before number (e.g. "Rs.1.00", "Rs 1.00", "₹500")
     const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
-    // Pass 2: number BEFORE debit/credit keyword (e.g. "1.00 sent", "500 debited")
+    // Pass 2: number followed by currency suffix (e.g. "450 rs", "450rs", "450 rupees", "450 INR")
+    const rsSuffixRegex = /([\d,]+(?:\.\d{1,2})?)\s*(?:₹|rs\.?|re\.?|rupee|rupees|inr)\b/i;
+    // Pass 3: number BEFORE debit/credit keyword (e.g. "1.00 sent", "500 debited")
     const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
-    // Pass 3: number AFTER keyword (e.g. "sent Rs.1.00", "paid 500")
+    // Pass 4: number AFTER keyword (e.g. "sent Rs.1.00", "paid 450", "paid 500")
     const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
     let amount = 0;
     let amtM;
     if ((amtM = cleanText.match(rsPrefixRegex)))   amount = parseFloat(amtM[1].replace(/,/g, ''));
+    if (!amount && (amtM = cleanText.match(rsSuffixRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
     if (!amount && (amtM = cleanText.match(beforeKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
     if (!amount && (amtM = cleanText.match(afterKwRegex)))  amount = parseFloat(amtM[1].replace(/,/g, ''));
 

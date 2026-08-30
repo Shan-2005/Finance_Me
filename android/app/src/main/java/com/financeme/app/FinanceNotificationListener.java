@@ -68,7 +68,10 @@ public class FinanceNotificationListener extends NotificationListenerService {
                               packageName.contains("sms") ||
                               packageName.contains("mms");
                               
-        boolean hasFinancialKeywords = fullContent.toLowerCase().matches(".*\\b(sent|debited|credited|paid|spent|hdfc|sbi|icici|axis|upi|a/c|rs\\.?|₹|inr)\\b.*");
+        boolean hasFinancialKeywords = java.util.regex.Pattern.compile(
+            "\\b(sent|debited|credited|paid|spent|hdfc|sbi|icici|axis|upi|a/c|rs|₹|inr)\\b",
+            java.util.regex.Pattern.CASE_INSENSITIVE | java.util.regex.Pattern.DOTALL
+        ).matcher(fullContent).find();
 
         if (!isTargetPkg && !hasFinancialKeywords) {
             return;
