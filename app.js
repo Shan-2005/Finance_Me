@@ -944,6 +944,7 @@ function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#
       actionBtn.style.background = actionColor;
     }
 
+    // Force display & visibility reset every time modal is triggered
     modal.style.position = 'fixed';
     modal.style.top = '0';
     modal.style.left = '0';
@@ -961,14 +962,26 @@ function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#
 
     modal.classList.add('active');
 
+    let resolved = false;
+
     const handleConfirm = (e) => {
-      if (e && e.stopPropagation) e.stopPropagation();
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      if (resolved) return;
+      resolved = true;
       cleanup();
       resolve(true);
     };
 
     const handleCancel = (e) => {
-      if (e && e.stopPropagation) e.stopPropagation();
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      if (resolved) return;
+      resolved = true;
       cleanup();
       resolve(false);
     };
@@ -978,22 +991,22 @@ function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#
       modal.style.visibility = 'hidden';
       modal.classList.remove('active');
       if (actionBtn) {
-        actionBtn.removeEventListener('click', handleConfirm);
-        actionBtn.removeEventListener('touchend', handleConfirm);
+        actionBtn.onclick = null;
+        actionBtn.ontouchend = null;
       }
       if (cancelBtn) {
-        cancelBtn.removeEventListener('click', handleCancel);
-        cancelBtn.removeEventListener('touchend', handleCancel);
+        cancelBtn.onclick = null;
+        cancelBtn.ontouchend = null;
       }
     };
 
     if (actionBtn) {
-      actionBtn.addEventListener('click', handleConfirm);
-      actionBtn.addEventListener('touchend', handleConfirm);
+      actionBtn.onclick = handleConfirm;
+      actionBtn.ontouchend = handleConfirm;
     }
     if (cancelBtn) {
-      cancelBtn.addEventListener('click', handleCancel);
-      cancelBtn.addEventListener('touchend', handleCancel);
+      cancelBtn.onclick = handleCancel;
+      cancelBtn.ontouchend = handleCancel;
     }
   });
 }
