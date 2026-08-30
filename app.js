@@ -280,7 +280,7 @@ function fetchTransactionsFromSupabase(onComplete) {
   }
 
   const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
-  const userFilter = currentUser ? `&user_id=eq.${currentUser.id}` : '';
+  const userFilter = currentUser ? `&or=(user_id.eq.${currentUser.id},user_id.is.null)` : '';
 
   fetch(`${SUPABASE_URL}/rest/v1/transactions?select=*${userFilter}&order=id.desc`, {
     headers: {
