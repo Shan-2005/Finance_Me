@@ -519,22 +519,36 @@ function updateMetricsAndTaxonomy() {
   // BUG-07: parseFloat ensures numeric comparison in health score algorithm
   const savingsRate = income > 0 ? parseFloat(((netSavedForForecast / income) * 100).toFixed(1)) : 0;
 
-  document.getElementById('dashIncome').innerText = `${curr}${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  document.getElementById('dashExpenses').innerText = `${curr}${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  const dashInc = document.getElementById('dashIncome');
+  if (dashInc) dashInc.innerText = `${curr}${income.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+
+  const dashExp = document.getElementById('dashExpenses');
+  if (dashExp) dashExp.innerText = `${curr}${expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   // BUG-05: show actual cashflow — colour red when negative
   const cashFlowEl = document.getElementById('dashNetCashFlow');
-  cashFlowEl.innerText = `${netCashFlow < 0 ? '-' : ''}${curr}${Math.abs(netCashFlow).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  cashFlowEl.style.color = netCashFlow < 0 ? 'var(--gpay-red-light)' : 'var(--gpay-green-light)';
+  if (cashFlowEl) {
+    cashFlowEl.innerText = `${netCashFlow < 0 ? '-' : ''}${curr}${Math.abs(netCashFlow).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    cashFlowEl.style.color = netCashFlow < 0 ? 'var(--gpay-red-light)' : 'var(--gpay-green-light)';
+  }
 
   const savedEl = document.getElementById('strategyTotalSaved');
-  savedEl.innerText = `${netSaved < 0 ? '-' : ''}${curr}${Math.abs(netSaved).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  savedEl.style.color = netSaved < 0 ? 'var(--gpay-red-light)' : '';
-  document.getElementById('strategySavingsRate').innerText = `${savingsRate}% Savings Rate`;
+  if (savedEl) {
+    savedEl.innerText = `${netSaved < 0 ? '-' : ''}${curr}${Math.abs(netSaved).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+    savedEl.style.color = netSaved < 0 ? 'var(--gpay-red-light)' : '';
+  }
 
-  document.getElementById('unavoidableSum').innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')}`;
-  document.getElementById('unwantedSum').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')}`;
-  document.getElementById('investmentsSum').innerText = `${curr}${investSum.toLocaleString('en-IN')}`;
+  const stratRateEl = document.getElementById('strategySavingsRate');
+  if (stratRateEl) stratRateEl.innerText = `${savingsRate}% Savings Rate`;
+
+  const unavEl = document.getElementById('unavoidableSum');
+  if (unavEl) unavEl.innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')}`;
+
+  const unwantEl = document.getElementById('unwantedSum');
+  if (unwantEl) unwantEl.innerText = `${curr}${unwantedSum.toLocaleString('en-IN')}`;
+
+  const invEl = document.getElementById('investmentsSum');
+  if (invEl) invEl.innerText = `${curr}${investSum.toLocaleString('en-IN')}`;
 
   // Top Merchant & Top Category
   let topMerchant = 'None logged';
@@ -555,8 +569,11 @@ function updateMetricsAndTaxonomy() {
     }
   });
 
-  document.getElementById('topMerchantVal').innerText = topMerchant;
-  document.getElementById('topCategoryVal').innerText = topCategory;
+  const topMerchEl = document.getElementById('topMerchantVal');
+  if (topMerchEl) topMerchEl.innerText = topMerchant;
+
+  const topCatEl = document.getElementById('topCategoryVal');
+  if (topCatEl) topCatEl.innerText = topCategory;
 
   // Financial Health Score Algorithm (0 to 100)
   let healthScore = 50;
@@ -573,7 +590,8 @@ function updateMetricsAndTaxonomy() {
   }
 
   healthScore = Math.min(100, Math.max(10, Math.round(healthScore)));
-  document.getElementById('healthScoreVal').innerText = healthScore;
+  const hScoreValEl = document.getElementById('healthScoreVal');
+  if (hScoreValEl) hScoreValEl.innerText = healthScore;
 
   const scoreSvgEl = document.getElementById('scoreSvgCircle');
   if (scoreSvgEl) {
@@ -596,8 +614,11 @@ function updateMetricsAndTaxonomy() {
     ratingDesc = 'High unwanted leaks detected. Review AI recommendations below.';
   }
 
-  document.getElementById('healthScoreRating').innerText = ratingText;
-  document.getElementById('healthScoreDesc').innerText = ratingDesc;
+  const hRatingEl = document.getElementById('healthScoreRating');
+  if (hRatingEl) hRatingEl.innerText = ratingText;
+
+  const hDescEl = document.getElementById('healthScoreDesc');
+  if (hDescEl) hDescEl.innerText = ratingDesc;
 
   // 1-Year Forecast & 5-Year SIP Wealth Projection (BUG-05: use clamped value for forecasts)
   const forecast1Yr = netSavedForForecast * 12;
@@ -609,41 +630,58 @@ function updateMetricsAndTaxonomy() {
 
   const f1El = document.getElementById('forecast1Year');
   const f5El = document.getElementById('forecast5Year');
-  if (netSavedForForecast <= 0) {
-    f1El.innerText = 'Deficit — reduce spending';
-    f1El.style.color = 'var(--gpay-red-light)';
-    f5El.innerText = 'Deficit — reduce spending';
-    f5El.style.color = 'var(--gpay-red-light)';
-  } else {
-    f1El.innerText = `${curr}${forecast1Yr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-    f1El.style.color = '';
-    f5El.innerText = `${curr}${sipFutureVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-    f5El.style.color = '';
+  if (f1El && f5El) {
+    if (netSavedForForecast <= 0) {
+      f1El.innerText = 'Deficit — reduce spending';
+      f1El.style.color = 'var(--gpay-red-light)';
+      f5El.innerText = 'Deficit — reduce spending';
+      f5El.style.color = 'var(--gpay-red-light)';
+    } else {
+      f1El.innerText = `${curr}${forecast1Yr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+      f1El.style.color = '';
+      f5El.innerText = `${curr}${sipFutureVal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+      f5El.style.color = '';
+    }
   }
 
-  // 50/30/20 Gauges
+  // 50/30/20 Gauges (Safeguarded)
   const targetIncome = userProfile.salary || Math.max(income, 50000);
   const needsTarget = targetIncome * 0.5;
   const wantsTarget = targetIncome * 0.3;
   const investTarget = targetIncome * 0.15;
   const savingsTarget = targetIncome * 0.05;
 
-  document.getElementById('taxNeedsVal').innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')} / ${curr}${needsTarget.toLocaleString('en-IN')}`;
-  document.getElementById('taxNeedsBar').style.width = `${Math.min(100, (unavoidableSum / needsTarget) * 100)}%`;
-  document.getElementById('taxNeedsBar').style.background = unavoidableSum > needsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-blue-light)';
+  const tNeedsVal = document.getElementById('taxNeedsVal');
+  const tNeedsBar = document.getElementById('taxNeedsBar');
+  if (tNeedsVal && tNeedsBar) {
+    tNeedsVal.innerText = `${curr}${unavoidableSum.toLocaleString('en-IN')} / ${curr}${needsTarget.toLocaleString('en-IN')}`;
+    tNeedsBar.style.width = `${Math.min(100, (unavoidableSum / needsTarget) * 100)}%`;
+    tNeedsBar.style.background = unavoidableSum > needsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-blue-light)';
+  }
 
-  document.getElementById('taxWantsVal').innerText = `${curr}${unwantedSum.toLocaleString('en-IN')} / ${curr}${wantsTarget.toLocaleString('en-IN')}`;
-  document.getElementById('taxWantsBar').style.width = `${Math.min(100, (unwantedSum / wantsTarget) * 100)}%`;
-  document.getElementById('taxWantsBar').style.background = unwantedSum > wantsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-yellow-light)';
+  const tWantsVal = document.getElementById('taxWantsVal');
+  const tWantsBar = document.getElementById('taxWantsBar');
+  if (tWantsVal && tWantsBar) {
+    tWantsVal.innerText = `${curr}${unwantedSum.toLocaleString('en-IN')} / ${curr}${wantsTarget.toLocaleString('en-IN')}`;
+    tWantsBar.style.width = `${Math.min(100, (unwantedSum / wantsTarget) * 100)}%`;
+    tWantsBar.style.background = unwantedSum > wantsTarget ? 'var(--gpay-red-light)' : 'var(--gpay-yellow-light)';
+  }
 
-  document.getElementById('taxInvestVal').innerText = `${curr}${investSum.toLocaleString('en-IN')} / ${curr}${investTarget.toLocaleString('en-IN')}`;
-  document.getElementById('taxInvestBar').style.width = `${Math.min(100, (investSum / investTarget) * 100)}%`;
-  document.getElementById('taxInvestBar').style.background = 'var(--gpay-green-light)';
+  const tInvestVal = document.getElementById('taxInvestVal');
+  const tInvestBar = document.getElementById('taxInvestBar');
+  if (tInvestVal && tInvestBar) {
+    tInvestVal.innerText = `${curr}${investSum.toLocaleString('en-IN')} / ${curr}${investTarget.toLocaleString('en-IN')}`;
+    tInvestBar.style.width = `${Math.min(100, (investSum / investTarget) * 100)}%`;
+    tInvestBar.style.background = 'var(--gpay-green-light)';
+  }
 
-  // BUG-05: savings gauge uses clamped value so bar never goes negative
-  document.getElementById('taxSavingsVal').innerText = `${curr}${netSavedForForecast.toLocaleString('en-IN')} / ${curr}${savingsTarget.toLocaleString('en-IN')}`;
-  document.getElementById('taxSavingsBar').style.width = `${Math.min(100, (netSavedForForecast / savingsTarget) * 100)}%`;
-  document.getElementById('taxSavingsBar').style.background = 'var(--gpay-blue-light)';
+  const tSavingsVal = document.getElementById('taxSavingsVal');
+  const tSavingsBar = document.getElementById('taxSavingsBar');
+  if (tSavingsVal && tSavingsBar) {
+    tSavingsVal.innerText = `${curr}${netSavedForForecast.toLocaleString('en-IN')} / ${curr}${savingsTarget.toLocaleString('en-IN')}`;
+    tSavingsBar.style.width = `${Math.min(100, (netSavedForForecast / savingsTarget) * 100)}%`;
+    tSavingsBar.style.background = 'var(--gpay-blue-light)';
+  }
 
   renderWaysToSaveAdvice(income, expenses, unavoidableSum, unwantedSum, investSum, netSaved, curr);
 }
