@@ -1234,6 +1234,11 @@ function handleAuthStateChange(session) {
     }
 
     fetchTransactionsFromSupabase();
+
+    // Pass user_id to Android native notification listener (no-op in browser)
+    if (window.AndroidBridge && window.AndroidBridge.saveUserId) {
+      window.AndroidBridge.saveUserId(currentUser.id);
+    }
   } else {
     currentSession = null;
     currentUser = null;
@@ -1241,6 +1246,11 @@ function handleAuthStateChange(session) {
     if (logoutBtn) logoutBtn.style.display = 'none';
     transactions = [];
     renderTransactions();
+
+    // Clear user_id from Android notification listener on logout
+    if (window.AndroidBridge && window.AndroidBridge.clearUserId) {
+      window.AndroidBridge.clearUserId();
+    }
   }
 }
 
