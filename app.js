@@ -195,7 +195,7 @@ function togglePrivateMode() {
 // Export Transactions to CSV
 function exportTransactionsCSV() {
   if (!transactions || transactions.length === 0) {
-    alert('No real transactions logged to export!');
+    showToast('⚠️ No transactions logged to export!');
     return;
   }
 
@@ -897,19 +897,11 @@ async function deleteTransaction(id) {
   if (!id) return;
   const strId = String(id);
   const target = transactions.find(item => String(item.id) === strId);
-  
   const merchantName = target ? target.merchant : 'Transaction';
-  const curr = userProfile.currency || '₹';
-  const amountStr = target ? `${curr}${target.amount}` : '';
-  const message = target 
-    ? `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${amountStr}\n\nThis will remove the transaction permanently.`
-    : `Delete transaction (${strId})?`;
-
-  if (!confirm(message)) return;
 
   isWritePending = true;
 
-  // 1. Mark as permanently deleted in local blacklist & remove from active state
+  // 1. Mark as permanently deleted in local blacklist & remove from active state immediately
   markAsDeleted(strId);
   transactions = transactions.filter(item => String(item.id) !== strId);
   saveToLocalStorage();
@@ -958,22 +950,21 @@ async function deleteTransaction(id) {
 
 async function clearAllRealData() {
   if (!transactions || transactions.length === 0) {
-    alert('No real transactions logged to clear!');
-    return;
-  }
-
-  if (!confirm(`🚨 DATA LOSS WARNING!\n\nAre you sure you want to permanently delete ALL ${transactions.length} logged transactions?\n\nThis cannot be undone!`)) {
+    showToast('⚠️ No transactions to clear!');
     return;
   }
 
   isWritePending = true;
 
+  const count = transactions.length;
   const allIds = transactions.map(t => t.id);
   allIds.forEach(id => markAsDeleted(String(id)));
   transactions = [];
   localStorage.removeItem('finance_me_transactions');
   localStorage.removeItem('finance_me_vault_snapshot');
   renderTransactions();
+
+  showToast(`🗑️ Cleared ${count} transactions from device!`);
 
   const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
@@ -995,10 +986,9 @@ async function clearAllRealData() {
         }
       });
     }
-    showToast('🗑️ All transactions cleared from device and cloud!');
+    showToast('✅ Cloud database reset successfully!');
   } catch (err) {
     console.error('[Clear All Exception]:', err);
-    showToast('✅ Cleared locally.');
   } finally {
     setTimeout(() => {
       isWritePending = false;
