@@ -305,7 +305,7 @@ function manualSyncFromSupabase(btnElement) {
 
 // Fetch Real Transactions from Supabase Database (Cloud Source of Truth & Instant UI Sync)
 function fetchTransactionsFromSupabase(onComplete) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
+  if (!SUPABASE_KEY || !currentUser) {
     if (onComplete) onComplete();
     return;
   }
@@ -324,26 +324,22 @@ function fetchTransactionsFromSupabase(onComplete) {
     if (Array.isArray(data)) {
       const mergedMap = new Map();
 
-      // 1. Add cloud items from Supabase (master source of truth, ignoring blacklisted deleted IDs)
+      // 1. Add cloud items (ignoring blacklisted deleted IDs)
       data.forEach(item => {
         if (item && item.id && !deletedTxnIds.has(String(item.id))) {
           mergedMap.set(String(item.id), item);
         }
       });
 
-      // 2. Only preserve local items if created offline in the last 3 minutes
+      // 2. Preserve local items that may be in-flight or offline
       transactions.forEach(item => {
         if (item && item.id && !deletedTxnIds.has(String(item.id)) && !mergedMap.has(String(item.id))) {
-          const isFreshOffline = item._createdLocallyAt && (Date.now() - item._createdLocallyAt < 180000);
-          if (isFreshOffline) {
-            mergedMap.set(String(item.id), item);
-          }
+          mergedMap.set(String(item.id), item);
         }
       });
 
       const mergedList = Array.from(mergedMap.values());
 
-      // Sort by full ISO timestamp
       mergedList.sort((a, b) => {
         const da = new Date(b.date);
         const db = new Date(a.date);
