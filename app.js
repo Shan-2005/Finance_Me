@@ -192,7 +192,7 @@ function togglePrivateMode() {
   if (privacyIcon) privacyIcon.className = isPrivateModeActive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
 }
 
-// Export Transactions to CSV
+// Export Transactions to CSV (Optimized for Opera & Mobile Browsers)
 function exportTransactionsCSV() {
   if (!transactions || transactions.length === 0) {
     showToast('⚠️ No transactions logged to export!');
@@ -212,16 +212,26 @@ function exportTransactionsCSV() {
   ]);
 
   const csvString = [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+  const fileName = `Finance_Me_Report_${new Date().toISOString().split('T')[0]}.csv`;
   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
   
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', `Finance_Me_Report_${new Date().toISOString().split('T')[0]}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+    window.navigator.msSaveOrOpenBlob(blob, fileName);
+  } else {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    link.setAttribute('target', '_blank');
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    
+    setTimeout(() => {
+      if (document.body.contains(link)) document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 1500);
+  }
 
   showToast('📥 CSV Report downloaded!');
 }

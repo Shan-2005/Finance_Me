@@ -692,10 +692,33 @@ body::before {
   font-family: var(--font-body);
 }
 
-.txn-actions { display: flex; gap: 8px; margin-top: 2px; }
-.icon-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 2px; }
-.icon-btn:hover { color: var(--text-main); }
-.icon-btn.delete:hover { color: var(--gpay-red-light); }
+.txn-actions { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+.icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover, .icon-btn:active { background: rgba(255, 255, 255, 0.12); color: var(--text-main); }
+.icon-btn.delete {
+  color: #EA4335;
+  background: rgba(234, 67, 53, 0.12);
+  border-color: rgba(234, 67, 53, 0.25);
+}
+.icon-btn.delete:hover, .icon-btn.delete:active {
+  background: rgba(234, 67, 53, 0.25);
+  color: #fff;
+}
 
 /* TAXONOMY & BUDGET GAUGES */
 .tax-bucket { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
