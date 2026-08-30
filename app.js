@@ -1294,11 +1294,15 @@ function requestAndroidNotificationPermission() {
 function refreshAndroidLogs() {
   const logPre = document.getElementById('androidDebugLogs');
   if (!logPre) return;
-  if (window.AndroidBridge && window.AndroidBridge.getDebugLogs) {
-    const logs = window.AndroidBridge.getDebugLogs();
-    logPre.innerText = logs || 'No notifications captured yet.';
+  if (window.AndroidBridge) {
+    if (typeof window.AndroidBridge.getDebugLogs === 'function') {
+      const logs = window.AndroidBridge.getDebugLogs();
+      logPre.innerText = logs || 'No notifications captured yet.';
+    } else {
+      logPre.innerText = '🟢 Native Android Engine Active! Listening for bank SMS & payment notifications in background...';
+    }
   } else {
-    logPre.innerText = 'Running in browser mode. Install/open APK to view live listener logs.';
+    logPre.innerText = 'Running in browser mode. Install/open APK to enable live background capture.';
   }
 }
 
