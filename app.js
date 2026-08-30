@@ -1002,17 +1002,6 @@ async function deleteTransaction(id) {
   const strId = String(id);
   const target = transactions.find(item => String(item.id) === strId);
   const merchantName = target ? target.merchant : 'Transaction';
-  const curr = userProfile.currency || '₹';
-  const amountStr = target ? `${curr}${target.amount}` : '';
-
-  const confirmed = await showConfirmModal({
-    title: 'Delete Payment Entry?',
-    body: `Are you sure you want to delete "${merchantName}" (${amountStr})? This will permanently remove it from your device and cloud.`,
-    actionText: 'Delete Payment',
-    actionColor: '#EA4335'
-  });
-
-  if (!confirmed) return;
 
   isWritePending = true;
 
@@ -1025,10 +1014,17 @@ async function deleteTransaction(id) {
 
   const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
 
-  // 2. Delete from Supabase cloud database (Execute BOTH client SDK and direct REST fetch to guarantee deletion)
+  // 2. Delete from Supabase cloud database
   try {
     if (supabaseClient) {
-      await supabaseClient.from('transactions').delete().eq('id', strId);
+      const { error } = await supabaseClient
+        .from('transactions')
+        .delete()
+        .eq('id', strId);
+
+      if (error) {
+        console.warn('[Supabase SDK Delete Warning]:', error.message);
+      }
     }
     if (SUPABASE_KEY) {
       await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
@@ -1055,18 +1051,9 @@ async function clearAllRealData() {
     return;
   }
 
-  const count = transactions.length;
-  const confirmed = await showConfirmModal({
-    title: '🚨 Wipe All Data?',
-    body: `Are you sure you want to permanently delete ALL ${count} logged transactions from device and Supabase cloud?`,
-    actionText: 'Clear Everything',
-    actionColor: '#EA4335'
-  });
-
-  if (!confirmed) return;
-
   isWritePending = true;
 
+  const count = transactions.length;
   const allIds = transactions.map(t => t.id);
   allIds.forEach(id => markAsDeleted(String(id)));
   transactions = [];
@@ -1080,10 +1067,14 @@ async function clearAllRealData() {
 
   try {
     if (supabaseClient) {
-      await supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const dbQuery = currentUser
+        ? supabaseClient.from('transactions').delete().eq('user_id', currentUser.id)
+        : supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await dbQuery;
     }
     if (SUPABASE_KEY) {
-      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000`, {
+      const userFilter = currentUser ? `&user_id=eq.${currentUser.id}` : '';
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000${userFilter}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
