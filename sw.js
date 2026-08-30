@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'finance-me-v4';
+const CACHE_VERSION = 'finance-me-v5-network-first';
 const STATIC_ASSETS = ['/', '/index.html', '/app.js', '/styles.css', '/manifest.json', '/logo.png'];
 
 // Install: cache core static assets immediately
@@ -6,7 +6,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(cache => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting(); // Activate new SW immediately, don't wait for old tabs to close
+  self.skipWaiting(); // Activate new SW immediately
 });
 
 // Activate: delete ALL old caches so stale JS/CSS never gets served after an update
@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network-first for navigation & API; cache-first for static assets
+// Fetch: Network-First for ALL code & API assets to prevent stale JS caching on Android
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -30,29 +30,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for HTML navigation (ensures fresh index.html on update)
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_VERSION).then(c => c.put(event.request, clone));
-          return res;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Cache-first for static assets (JS, CSS, fonts, images) — fast load
+  // Network-First strategy for JS, CSS, and HTML navigation (ensures fresh app.js on update)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      const networkFetch = fetch(event.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_VERSION).then(c => c.put(event.request, clone));
-        return res;
-      });
-      return cached || networkFetch;
-    })
+    fetch(event.request)
+      .then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_VERSION).then(c => c.put(event.request, clone));
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Fallback to cache if completely offline
+        return caches.match(event.request);
+      })
   );
 });
