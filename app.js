@@ -487,10 +487,16 @@ function renderTransactions() {
 
   // Delegated event listeners (attached once after render)
   container.querySelectorAll('.txn-edit-btn').forEach(btn =>
-    btn.addEventListener('click', () => editTransaction(btn.dataset.id))
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editTransaction(btn.dataset.id);
+    })
   );
   container.querySelectorAll('.txn-delete-btn').forEach(btn =>
-    btn.addEventListener('click', () => deleteTransaction(btn.dataset.id))
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteTransaction(btn.dataset.id);
+    })
   );
 
   updateMetricsAndTaxonomy();
@@ -859,7 +865,9 @@ function closeModal() {
 }
 
 function editTransaction(id) {
-  const t = transactions.find(item => item.id === id);
+  if (!id) return;
+  const strId = String(id);
+  const t = transactions.find(item => String(item.id) === strId);
   if (!t) return;
 
   document.getElementById('modalHeaderTitle').innerText = 'Edit Payment Entry';
@@ -869,7 +877,6 @@ function editTransaction(id) {
   document.getElementById('inputType').value = t.type;
   document.getElementById('inputCategory').value = t.category;
   document.getElementById('inputMode').value = t.mode;
-  // BUG-08: ISO timestamps like "2026-08-27T10:14:00.000Z" must be sliced to YYYY-MM-DD
   document.getElementById('inputDate').value = (t.date || '').substring(0, 10);
   document.getElementById('inputTags').value = (t.tags || []).join(', ');
   document.getElementById('inputNotes').value = t.notes || '';
@@ -882,8 +889,13 @@ function editTransaction(id) {
    ========================================================================== */
 
 async function deleteTransaction(id) {
-  const target = transactions.find(item => item.id === id);
-  if (!target) return;
+  if (!id) return;
+  const strId = String(id);
+  const target = transactions.find(item => String(item.id) === strId);
+  if (!target) {
+    console.warn('Delete cancelled: Transaction ID not found in local array:', id);
+    return;
+  }
 
   const curr = userProfile.currency || '₹';
   const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n\nThis will remove the transaction permanently.`;
@@ -893,8 +905,8 @@ async function deleteTransaction(id) {
   isWritePending = true;
 
   // 1. Mark as permanently deleted in local blacklist & remove from active state
-  markAsDeleted(id);
-  transactions = transactions.filter(item => item.id !== id);
+  markAsDeleted(strId);
+  transactions = transactions.filter(item => String(item.id) !== strId);
   saveToLocalStorage();
   renderTransactions();
   showToast(`🗑️ Payment deleted: ${target.merchant}`);
@@ -907,11 +919,11 @@ async function deleteTransaction(id) {
       const { error } = await supabaseClient
         .from('transactions')
         .delete()
-        .eq('id', id);
+        .eq('id', strId);
 
       if (error) {
         console.warn('[Supabase Delete Error via Client]:', error.message);
-        await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+        await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
           method: 'DELETE',
           headers: {
             'apikey': SUPABASE_KEY,
@@ -921,7 +933,7 @@ async function deleteTransaction(id) {
         });
       }
     } else if (SUPABASE_KEY) {
-      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
