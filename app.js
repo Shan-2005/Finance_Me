@@ -893,11 +893,62 @@ function editTransaction(id) {
    SAFEGUARDED DELETION MECHANISMS
    ========================================================================== */
 
+function showConfirmModal({ title, body, actionText = 'Delete', actionColor = '#EA4335' }) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('customConfirmModal');
+    if (!modal) {
+      resolve(true);
+      return;
+    }
+    const titleEl = document.getElementById('confirmModalTitle');
+    const bodyEl = document.getElementById('confirmModalBody');
+    const actionBtn = document.getElementById('confirmActionBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    titleEl.innerText = title;
+    bodyEl.innerText = body;
+    actionBtn.innerText = actionText;
+    actionBtn.style.background = actionColor;
+
+    modal.classList.add('active');
+
+    const handleConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const handleCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const cleanup = () => {
+      modal.classList.remove('active');
+      actionBtn.removeEventListener('click', handleConfirm);
+      cancelBtn.removeEventListener('click', handleCancel);
+    };
+
+    actionBtn.addEventListener('click', handleConfirm);
+    cancelBtn.addEventListener('click', handleCancel);
+  });
+}
+
 async function deleteTransaction(id) {
   if (!id) return;
   const strId = String(id);
   const target = transactions.find(item => String(item.id) === strId);
   const merchantName = target ? target.merchant : 'Transaction';
+  const curr = userProfile.currency || '₹';
+  const amountStr = target ? `${curr}${target.amount}` : '';
+
+  const confirmed = await showConfirmModal({
+    title: 'Delete Payment Entry?',
+    body: `Are you sure you want to delete "${merchantName}" (${amountStr})? This will permanently remove it from your device and cloud.`,
+    actionText: 'Delete Payment',
+    actionColor: '#EA4335'
+  });
+
+  if (!confirmed) return;
 
   isWritePending = true;
 
@@ -954,9 +1005,18 @@ async function clearAllRealData() {
     return;
   }
 
+  const count = transactions.length;
+  const confirmed = await showConfirmModal({
+    title: '🚨 Wipe All Data?',
+    body: `Are you sure you want to permanently delete ALL ${count} logged transactions from device and Supabase cloud?`,
+    actionText: 'Clear Everything',
+    actionColor: '#EA4335'
+  });
+
+  if (!confirmed) return;
+
   isWritePending = true;
 
-  const count = transactions.length;
   const allIds = transactions.map(t => t.id);
   allIds.forEach(id => markAsDeleted(String(id)));
   transactions = [];
