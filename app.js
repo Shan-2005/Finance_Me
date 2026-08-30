@@ -1243,7 +1243,13 @@ window.onNotificationCaptured = function(rawText, packageName) {
 };
 
 function ingestParsedTransaction() {
-  if (!lastParsedTransaction) return;
+  if (!lastParsedTransaction) {
+    parseRawNotification();
+  }
+  if (!lastParsedTransaction) {
+    showToast('⚠️ Please enter or paste a valid payment notification text first.');
+    return;
+  }
 
   const newTxn = {
     id: generateUuid(),
@@ -1255,14 +1261,18 @@ function ingestParsedTransaction() {
     newTxn.user_id = currentUser.id;
   }
 
+  // 1. Local update & UI rendering
   transactions.unshift(newTxn);
   saveToLocalStorage();
   renderTransactions();
   switchTab('dashboard');
 
-  // Guaranteed Direct Push to Supabase Cloud Database
+  // 2. Direct Supabase Client Insertion with Guaranteed Toast Feedback
   if (SUPABASE_KEY) {
+    isWritePending = true;
+    const writeDone = () => { isWritePending = false; };
     const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+
     const dbPayload = {
       id: newTxn.id,
       merchant: newTxn.merchant,
@@ -1273,40 +1283,62 @@ function ingestParsedTransaction() {
       date: new Date().toISOString(),
       notes: newTxn.rawInput ? `[Auto-Captured] ${newTxn.rawInput}` : (newTxn.notes || '')
     };
+
     if (currentUser) {
       dbPayload.user_id = currentUser.id;
     }
 
-    fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${token}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify(dbPayload)
-    }).then(r => console.log('⚡ Supabase Cloud Insert Status:', r.status))
-      .catch(err => console.log('Supabase Direct Insert Warning:', err));
+    if (supabaseClient) {
+      supabaseClient
+        .from('transactions')
+        .insert([dbPayload])
+        .then(({ data, error }) => {
+          writeDone();
+          if (error) {
+            console.error('Supabase Insert Error:', error);
+            showToast(`⚠️ Database alert: ${error.message || 'Insert failed'}`);
+          } else {
+            console.log('⚡ Supabase Direct Insert Successful!');
+            showToast('✅ Saved to Supabase Database!');
+          }
+        })
+        .catch(err => {
+          writeDone();
+          console.log('Supabase Direct Insert Catch:', err);
+        });
+    } else {
+      fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${token}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(dbPayload)
+      })
+      .then(res => res.json())
+      .then(resData => {
+        writeDone();
+        if (Array.isArray(resData) && resData.length > 0) {
+          showToast('✅ Saved to Supabase Database!');
+        } else if (resData && resData.message) {
+          showToast(`⚠️ Database notice: ${resData.message}`);
+        }
+      })
+      .catch(err => {
+        writeDone();
+        console.log('Supabase REST Insert Catch:', err);
+      });
+    }
   }
 
-  const headers = { 'Content-Type': 'application/json' };
-  if (currentUser) headers['X-USER-ID'] = currentUser.id;
-  if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
-
-  fetch('/api/ingest-notification', {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify({
-      rawText: lastParsedTransaction.rawInput || lastParsedTransaction.notes,
-      sender: lastParsedTransaction.merchant,
-      timestamp: lastParsedTransaction.date,
-      user_id: currentUser ? currentUser.id : undefined
-    })
-  }).catch(err => console.log('Offline mode active:', err));
-  
-  document.getElementById('parsedOutputCard').style.display = 'none';
-  document.getElementById('rawNotificationInput').value = '';
+  // Clear parser card and input box
+  const parsedOutputCard = document.getElementById('parsedOutputCard');
+  if (parsedOutputCard) parsedOutputCard.style.display = 'none';
+  const rawNotificationInput = document.getElementById('rawNotificationInput');
+  if (rawNotificationInput) rawNotificationInput.value = '';
+  lastParsedTransaction = null;
 }
 
 /* ==========================================================================
