@@ -1111,9 +1111,23 @@ function ingestParsedTransaction() {
   renderTransactions();
   switchTab('dashboard');
 
-  // Direct Push to Supabase Cloud Database
-  if (SUPABASE_KEY && currentUser) {
+  // Guaranteed Direct Push to Supabase Cloud Database
+  if (SUPABASE_KEY) {
     const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+    const dbPayload = {
+      id: newTxn.id,
+      merchant: newTxn.merchant,
+      amount: newTxn.amount,
+      type: newTxn.type,
+      category: newTxn.category,
+      mode: newTxn.mode || 'GPay / UPI Auto-Sync',
+      date: new Date().toISOString(),
+      notes: newTxn.rawInput ? `[Auto-Captured] ${newTxn.rawInput}` : (newTxn.notes || '')
+    };
+    if (currentUser) {
+      dbPayload.user_id = currentUser.id;
+    }
+
     fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
       method: 'POST',
       headers: {
@@ -1122,8 +1136,9 @@ function ingestParsedTransaction() {
         'Authorization': `Bearer ${token}`,
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify(newTxn)
-    }).catch(err => console.log('Supabase Direct Insert Warning:', err));
+      body: JSON.stringify(dbPayload)
+    }).then(r => console.log('⚡ Supabase Cloud Insert Status:', r.status))
+      .catch(err => console.log('Supabase Direct Insert Warning:', err));
   }
 
   const headers = { 'Content-Type': 'application/json' };
