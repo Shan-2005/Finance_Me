@@ -859,36 +859,63 @@ function editTransaction(id) {
    SAFEGUARDED DELETION MECHANISMS
    ========================================================================== */
 
-function deleteTransaction(id) {
+async function deleteTransaction(id) {
   const target = transactions.find(item => item.id === id);
   if (!target) return;
 
   const curr = userProfile.currency || '₹';
   const message = `⚠️ CONFIRM DELETION:\n\nAre you sure you want to delete payment:\n• Payee: ${target.merchant}\n• Amount: ${curr}${target.amount}\n\nThis will remove the transaction permanently.`;
 
-  if (confirm(message)) {
-    transactions = transactions.filter(item => item.id !== id);
-    saveToLocalStorage();
-    renderTransactions();
+  if (!confirm(message)) return;
 
-    if (SUPABASE_KEY) {
-      fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+  isWritePending = true;
+
+  // 1. Remove locally immediately for responsive UI
+  transactions = transactions.filter(item => item.id !== id);
+  saveToLocalStorage();
+  renderTransactions();
+
+  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+
+  // 2. Delete from Supabase cloud using authenticated user token
+  try {
+    if (supabaseClient && currentUser) {
+      const { error } = await supabaseClient
+        .from('transactions')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.warn('[Supabase Delete Error via Client]:', error.message);
+        await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${token}`,
+            'Prefer': 'return=minimal'
+          }
+        });
+      }
+    } else if (SUPABASE_KEY) {
+      await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Authorization': `Bearer ${token}`,
           'Prefer': 'return=minimal'
         }
-      })
-      .then(res => {
-        if (!res.ok) console.warn('[Supabase Delete]: HTTP', res.status);
-      })
-      .catch(err => console.log('Supabase Delete error:', err));
+      });
     }
+  } catch (err) {
+    console.error('[Delete Exception]:', err);
+  } finally {
+    setTimeout(() => {
+      isWritePending = false;
+    }, 1500);
   }
 }
 
-function clearAllRealData() {
+async function clearAllRealData() {
   if (transactions.length === 0) {
     alert('No real transactions logged to clear!');
     return;
@@ -898,30 +925,43 @@ function clearAllRealData() {
   
   if (promptInput === 'DELETE ALL') {
     if (confirm('Final check: Are you 100% sure? This action CANNOT be undone!')) {
+      isWritePending = true;
+
       const allIds = transactions.map(t => t.id);
       transactions = [];
       localStorage.removeItem('finance_me_transactions');
       localStorage.removeItem('finance_me_vault_snapshot');
       renderTransactions();
 
-      if (SUPABASE_KEY && allIds.length > 0) {
-        // BUG-15: PostgREST in() for text columns needs unquoted CSV values
-        const idList = allIds.join(',');
-        fetch(`${SUPABASE_URL}/rest/v1/transactions?id=in.(${idList})`, {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Prefer': 'return=minimal'
-          }
-        }).then(() => {
-          alert('✅ All transactions deleted from cloud and device!');
-        }).catch(err => {
-          console.log('Supabase Clear error:', err);
-          alert('✅ Cleared locally. Cloud sync may take a moment.');
-        });
-      } else {
-        alert('✅ All transactions cleared successfully.');
+      const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+
+      try {
+        if (supabaseClient && currentUser) {
+          const { error } = await supabaseClient
+            .from('transactions')
+            .delete()
+            .eq('user_id', currentUser.id);
+
+          if (error) console.warn('[Clear All Client Error]:', error.message);
+        } else if (SUPABASE_KEY && allIds.length > 0) {
+          const idList = allIds.map(i => `"${i}"`).join(',');
+          await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=in.(${idList})`, {
+            method: 'DELETE',
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${token}`,
+              'Prefer': 'return=minimal'
+            }
+          });
+        }
+        alert('✅ All transactions cleared from device and cloud!');
+      } catch (err) {
+        console.error('[Clear All Error]:', err);
+        alert('✅ Cleared locally.');
+      } finally {
+        setTimeout(() => {
+          isWritePending = false;
+        }, 1500);
       }
     }
   } else if (promptInput !== null) {
