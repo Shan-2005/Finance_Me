@@ -1111,6 +1111,21 @@ function ingestParsedTransaction() {
   renderTransactions();
   switchTab('dashboard');
 
+  // Direct Push to Supabase Cloud Database
+  if (SUPABASE_KEY && currentUser) {
+    const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
+    fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(newTxn)
+    }).catch(err => console.log('Supabase Direct Insert Warning:', err));
+  }
+
   const headers = { 'Content-Type': 'application/json' };
   if (currentUser) headers['X-USER-ID'] = currentUser.id;
   if (currentSession) headers['Authorization'] = `Bearer ${currentSession.access_token}`;
