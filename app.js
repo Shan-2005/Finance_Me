@@ -1041,6 +1041,26 @@ function parseRawNotification() {
   renderExtractedPreview();
 }
 
+function renderExtractedPreview() {
+  if (!lastParsedTransaction) return;
+  const { merchant, amount, type, category, date } = lastParsedTransaction;
+  const curr = userProfile.currency || '₹';
+
+  const elM = document.getElementById('resMerchant');
+  const elA = document.getElementById('resAmount');
+  const elT = document.getElementById('resType');
+  const elC = document.getElementById('resCategory');
+  const elD = document.getElementById('resTime');
+  const elCard = document.getElementById('parsedOutputCard');
+
+  if (elM) elM.innerText = merchant;
+  if (elA) elA.innerText = `${curr}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  if (elT) elT.innerText = type;
+  if (elC) elC.innerText = category;
+  if (elD) elD.innerText = date;
+  if (elCard) elCard.style.display = 'block';
+}
+
 /** REAL-TIME NOTIFICATION HANDLER INJECTED FROM ANDROID NATIVE BRIDGE */
 window.onNotificationCaptured = function(rawText, packageName) {
   console.log('⚡ Realtime Notification Captured:', packageName, rawText);
@@ -1074,19 +1094,6 @@ window.onNotificationCaptured = function(rawText, packageName) {
 
   showToast(`⚡ Auto-Captured: ${newTxn.type === 'Credit' ? '+' : '-'}₹${newTxn.amount} (${newTxn.merchant})`);
 };
-    tags: ['#auto-ingested', `#${merchant.toLowerCase().replace(/[^a-z0-9]/g, '')}`],
-    notes: `Real Notification: "${raw.substring(0, 50)}..."`,
-    rawInput: raw   // BUG-13: preserve full original SMS for API re-parsing
-  };
-
-  document.getElementById('resMerchant').innerText = merchant;
-  document.getElementById('resAmount').innerText = `${curr}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  document.getElementById('resType').innerText = type;
-  document.getElementById('resCategory').innerText = category;
-  document.getElementById('resTime').innerText = timestamp;
-
-  document.getElementById('parsedOutputCard').style.display = 'block';
-}
 
 function ingestParsedTransaction() {
   if (!lastParsedTransaction) return;
