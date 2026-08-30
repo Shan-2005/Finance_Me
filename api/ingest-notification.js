@@ -63,11 +63,11 @@ module.exports = async (req, res) => {
     const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
     // --- AMOUNT EXTRACTION (multi-pass) ---
-    // Pass 1: ₹/Rs. prefix directly before the number (most reliable)
+    // Pass 1: ₹/Rs/Rs./INR prefix directly before or attached to number (e.g., "Rs.1.00", "Rs 1.00", "₹500")
     const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
-    // Pass 2: number BEFORE a debit/credit keyword (e.g. "Rs 5000 debited")
+    // Pass 2: number BEFORE debit/credit keyword (e.g. "1.00 sent", "500 debited")
     const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
-    // Pass 3: number AFTER a keyword (e.g. "paid Rs 500")
+    // Pass 3: number AFTER keyword (e.g. "sent Rs.1.00", "paid 500")
     const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
     let amount = 0;
@@ -96,11 +96,10 @@ module.exports = async (req, res) => {
     }
 
     // --- CREDIT vs DEBIT DETECTION ---
-    // Priority: debit keywords FIRST (some credit SMS also have "from" which confuses debit match)
-    const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b/i.test(cleanText);
-    const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b/i.test(cleanText);
+    const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b|\bwithdrawn\b/i.test(cleanText);
+    const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b|\breceived\b/i.test(cleanText);
     
-    let type = 'Debit'; // Default to Debit (safer)
+    let type = 'Debit';
     if (isDebitText) type = 'Debit';
     else if (isCreditText) type = 'Credit';
     const isCredit = type === 'Credit';
@@ -109,16 +108,15 @@ module.exports = async (req, res) => {
     let merchant = 'UPI Transfer';
 
     if (!isCredit) {
-      // P1: "to <merchant> via" — stops before "via" (fixes "Swiggy via UPI")
-      const p1 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)\s+via\b/i);
-      // P2: "towards <merchant>" — captures rent, bills, EMI
-      const p2 = cleanText.match(/\btowards\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+via|\s+on|\s+ref|\.|$)/i);
-      // P3: "to <merchant>" followed by known terminators
-      const p3 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)(?=\s+on\b|\s+ref\b|\s+not\b|\s+a\/c\b|\.|$)/i);
+      // P1: "To <Merchant>" followed by On / Ref / Not / A/C / line end (e.g., "To SOPHY ROSE JOSEPHINA On 27/08/26")
+      const p1 = cleanText.match(/\bTo\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+On\b|\s+on\b|\s+Ref\b|\s+ref\b|\s+Not\b|\s+not\b|\s+A\/C\b|\.|$)/i);
+      // P2: "to <merchant> via" — stops before "via"
+      const p2 = cleanText.match(/\bto\s+([A-Za-z][A-Za-z0-9\s&.\-@]{1,35}?)\s+via\b/i);
+      // P3: "towards <merchant>"
+      const p3 = cleanText.match(/\btowards\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+via|\s+on|\s+ref|\.|$)/i);
       // P4: "at <merchant>"
       const p4 = cleanText.match(/\bat\s+([A-Za-z][A-Za-z0-9\s&.\-]{1,35}?)(?=\s+on|\s+via|\s+ref|\.|$)/i);
 
-      // Only reject if the candidate itself IS a bank/system identifier, not just contains one
       const BANK_ONLY = /^(hdfc|sbi|icici|axis|kotak|paytm|phonepe|npci|bank|a\/c|account)$/i;
 
       for (const m of [p1, p2, p3, p4]) {
@@ -131,7 +129,6 @@ module.exports = async (req, res) => {
         }
       }
     } else {
-      // Credit: "from VPA name@bank" or "from Person/Company Name"
       const fromMatch = cleanText.match(/\bfrom\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9\s&.\-@]{1,40}?)(?=\s+\(UPI|\s+Ref\b|\s+on\b|\.|$)/i);
       if (fromMatch) {
         let sender = fromMatch[1].trim();

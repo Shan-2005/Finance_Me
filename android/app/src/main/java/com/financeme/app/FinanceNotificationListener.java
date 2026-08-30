@@ -43,20 +43,37 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
         if (notification == null || notification.extras == null) return;
 
-        // Check if notification is from a target financial or SMS application
-        if (!TARGET_PACKAGES.contains(packageName) && !packageName.contains("messaging") && !packageName.contains("sms")) {
-            return;
-        }
-
         Bundle extras = notification.extras;
         CharSequence titleCharSeq = extras.getCharSequence(Notification.EXTRA_TITLE);
         String title = titleCharSeq != null ? titleCharSeq.toString() : "";
+        
         CharSequence textCharSeq = extras.getCharSequence(Notification.EXTRA_TEXT);
         String text = textCharSeq != null ? textCharSeq.toString() : "";
 
-        if (text.trim().isEmpty()) return;
+        CharSequence bigTextCharSeq = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
+        String bigText = bigTextCharSeq != null ? bigTextCharSeq.toString() : "";
 
-        String fullContent = title + " " + text;
+        // Combine title, text, and bigText to get the complete multi-line SMS content
+        StringBuilder sb = new StringBuilder();
+        if (!title.isEmpty()) sb.append(title).append(" ");
+        if (!text.isEmpty()) sb.append(text).append(" ");
+        if (!bigText.isEmpty() && !bigText.equals(text)) sb.append(bigText);
+
+        String fullContent = sb.toString().trim();
+        if (fullContent.isEmpty()) return;
+
+        // Package filtering: accept known financial packages, messaging apps, or notifications containing bank keywords
+        boolean isTargetPkg = TARGET_PACKAGES.contains(packageName) || 
+                              packageName.contains("messaging") || 
+                              packageName.contains("sms") ||
+                              packageName.contains("mms");
+                              
+        boolean hasFinancialKeywords = fullContent.toLowerCase().matches(".*\\b(sent|debited|credited|paid|spent|hdfc|sbi|icici|axis|upi|a/c|rs\\.?|₹|inr)\\b.*");
+
+        if (!isTargetPkg && !hasFinancialKeywords) {
+            return;
+        }
+
         Log.d(TAG, "Captured notification from " + packageName + ": " + fullContent);
 
         // Retrieve user_id stored by the web app session (if available)
