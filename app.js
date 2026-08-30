@@ -1175,7 +1175,7 @@ function parseRawNotification() {
     return;
   }
 
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = new Date().toISOString();
   lastParsedTransaction = {
     merchant: parsed.merchant,
     amount: parsed.amount,
@@ -1205,7 +1205,7 @@ function renderExtractedPreview() {
   if (elA) elA.innerText = `${curr}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   if (elT) elT.innerText = type;
   if (elC) elC.innerText = category;
-  if (elD) elD.innerText = date;
+  if (elD) elD.innerText = formatDisplayDate(date);
   if (elCard) elCard.style.display = 'block';
 }
 
@@ -1225,7 +1225,7 @@ window.onNotificationCaptured = function(rawText, packageName) {
     return;
   }
 
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = new Date().toISOString();
   lastParsedTransaction = {
     merchant: parsed.merchant,
     amount: parsed.amount,
@@ -1247,7 +1247,8 @@ function ingestParsedTransaction() {
 
   const newTxn = {
     id: generateUuid(),
-    ...lastParsedTransaction
+    ...lastParsedTransaction,
+    date: lastParsedTransaction.date || new Date().toISOString()
   };
 
   if (currentUser) {
