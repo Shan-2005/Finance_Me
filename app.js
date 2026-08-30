@@ -291,22 +291,34 @@ function fetchTransactionsFromSupabase(onComplete) {
   .then(res => res.json())
   .then(data => {
     if (Array.isArray(data)) {
-      // Sort by full ISO timestamp so newest SMS auto-sync always shows at top
-      data.sort((a, b) => {
+      // Smart Merge: Combine cloud records and local records by ID so local items are never wiped out
+      const mergedMap = new Map();
+
+      // 1. Add cloud items
+      data.forEach(item => {
+        if (item && item.id) mergedMap.set(item.id, item);
+      });
+
+      // 2. Preserve local items that may be in-flight or offline
+      transactions.forEach(item => {
+        if (item && item.id && !mergedMap.has(item.id)) {
+          mergedMap.set(item.id, item);
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values());
+
+      // Sort by full ISO timestamp so newest auto-sync items always show at top
+      mergedList.sort((a, b) => {
         const da = new Date(b.date);
         const db = new Date(a.date);
         if (!isNaN(da) && !isNaN(db)) return da - db;
         return String(b.id).localeCompare(String(a.id));
       });
 
-      if (JSON.stringify(data) !== JSON.stringify(transactions)) {
-        transactions = data;
-        localStorage.setItem('finance_me_transactions', JSON.stringify(transactions));
-        if (transactions.length === 0) {
-          localStorage.removeItem('finance_me_vault_snapshot');
-        } else {
-          saveToLocalStorage();
-        }
+      if (JSON.stringify(mergedList) !== JSON.stringify(transactions)) {
+        transactions = mergedList;
+        saveToLocalStorage();
         renderTransactions();
         console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions for user', currentUser.email);
       }

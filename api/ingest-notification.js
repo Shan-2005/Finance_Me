@@ -199,13 +199,11 @@ module.exports = async (req, res) => {
       category,
       mode,
       date: nowIST.toISOString(),
-      tags: ['#auto-ingested'],
-      notes: `Auto-captured via ${mode}`,
-      raw_text: rawText
+      notes: rawText ? `[Auto-Captured] ${cleanText.substring(0, 200)}` : `Auto-captured via ${mode}`
     };
 
-    if (userId) {
-      parsedTransaction.user_id = userId;
+    if (userId && typeof userId === 'string' && userId.trim().length > 5) {
+      parsedTransaction.user_id = userId.trim();
     }
 
     // Supabase REST API Persistence
