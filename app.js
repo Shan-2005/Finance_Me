@@ -482,15 +482,15 @@ function renderTransactions() {
             <i class="fa-solid fa-circle-check"></i> ${t.type === 'Credit' ? 'Received' : 'Paid'}
           </div>
           <div class="txn-actions">
-            <button class="icon-btn txn-edit-btn" data-id="${safeId}" title="Edit"><i class="fa-solid fa-pen"></i></button>
-            <button class="icon-btn delete txn-delete-btn" data-id="${safeId}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            <button class="icon-btn txn-edit-btn" onclick="event.stopPropagation(); editTransaction('${safeId}')" data-id="${safeId}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button class="icon-btn delete txn-delete-btn" onclick="event.stopPropagation(); deleteTransaction('${safeId}')" data-id="${safeId}" title="Delete"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>
       </div>
     `;
   }).join('');
 
-  // Delegated event listeners (attached once after render)
+  // Delegated event listeners (backup handlers)
   container.querySelectorAll('.txn-edit-btn').forEach(btn =>
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -961,31 +961,17 @@ async function deleteTransaction(id) {
 
   const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
 
-  // 2. Delete from Supabase cloud database
+  // 2. Delete from Supabase cloud database (Execute BOTH client SDK and direct REST fetch to guarantee deletion)
   try {
     if (supabaseClient) {
-      const { error } = await supabaseClient
-        .from('transactions')
-        .delete()
-        .eq('id', strId);
-
-      if (error) {
-        console.warn('[Supabase Delete Error via Client]:', error.message);
-        await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${token}`,
-            'Prefer': 'return=minimal'
-          }
-        });
-      }
-    } else if (SUPABASE_KEY) {
+      await supabaseClient.from('transactions').delete().eq('id', strId);
+    }
+    if (SUPABASE_KEY) {
       await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=eq.${strId}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Prefer': 'return=minimal'
         }
       });
@@ -1026,22 +1012,16 @@ async function clearAllRealData() {
 
   showToast(`🗑️ Cleared ${count} transactions from device!`);
 
-  const token = currentSession ? currentSession.access_token : SUPABASE_KEY;
-
   try {
     if (supabaseClient) {
-      const dbQuery = currentUser
-        ? supabaseClient.from('transactions').delete().eq('user_id', currentUser.id)
-        : supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      const { error } = await dbQuery;
-      if (error) console.warn('[Clear All Client Error]:', error.message);
-    } else if (SUPABASE_KEY) {
+      await supabaseClient.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    }
+    if (SUPABASE_KEY) {
       await fetch(`${SUPABASE_URL}/rest/v1/transactions?id=neq.00000000-0000-0000-0000-000000000000`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Prefer': 'return=minimal'
         }
       });
