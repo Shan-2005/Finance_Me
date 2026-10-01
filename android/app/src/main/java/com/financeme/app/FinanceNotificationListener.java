@@ -19,7 +19,7 @@ import java.util.Set;
 public class FinanceNotificationListener extends NotificationListenerService {
 
     private static final String TAG = "FinanceNotifListener";
-    private static final String API_URL = "https://finance-me-smoky-rho.vercel.app/api/ingest-notification";
+    private static final String API_URL = "https://n1ej1706me.execute-api.ap-south-1.amazonaws.com/api/ingest-notification";
 
     // Target financial & messaging package names
     private static final Set<String> TARGET_PACKAGES = new HashSet<>(Arrays.asList(

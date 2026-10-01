@@ -4,3 +4,8 @@ node_modules/
 *.log
 .vscode/
 .idea/
+android/.gradle/
+android/app/build/
+android/local.properties
+*.apk
+

@@ -88,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl("https://finance-me-smoky-rho.vercel.app");
+        webView.loadUrl("http://financeme-joeshan-295183256325.s3-website.ap-south-1.amazonaws.com");
 
         // Step 1: Request POST_NOTIFICATIONS runtime permission (Android 13+)
         requestPostNotificationsPermission();
