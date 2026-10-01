@@ -1558,9 +1558,16 @@ async function handleUserRegister(e) {
 
     if (error) throw error;
 
-    showAuthAlert('Account created successfully! Logging you in...', 'success');
-    userProfile.name = name;
-    saveProfileSettings();
+    if (data.user && (!data.session || (data.user.identities && data.user.identities.length === 0))) {
+      showAuthAlert('✉️ Verification email sent! Please check your inbox and confirm your email before signing in.', 'success');
+      userProfile.name = name;
+      saveProfileSettings();
+      setTimeout(() => switchAuthTab('login'), 3000);
+    } else {
+      showAuthAlert('Account created successfully! Logging you in...', 'success');
+      userProfile.name = name;
+      saveProfileSettings();
+    }
   } catch (err) {
     showAuthAlert(err.message || 'Registration failed.');
   } finally {
@@ -1590,7 +1597,12 @@ async function handleUserLogin(e) {
       password
     });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message && error.message.toLowerCase().includes('email not confirmed')) {
+        throw new Error('✉️ Email not confirmed yet. Please click the verification link sent to your inbox.');
+      }
+      throw error;
+    }
 
     showAuthAlert('Sign in successful!', 'success');
   } catch (err) {
