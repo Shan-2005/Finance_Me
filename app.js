@@ -2996,14 +2996,14 @@ function renderBankPassbook() {
 
   if (accounts.length === 0) {
     container.innerHTML = `
-      <div class="bank-account-card" style="flex: 1; min-width: 260px; text-align: center; cursor: pointer;" onclick="openSmsScanModal()">
-        <div style="font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">
+      <div class="bank-account-card bank-account-card-empty" style="flex: 1; min-width: 260px; text-align: center; cursor: pointer; background: var(--glass-surface-elevated); border: 1px dashed var(--glass-border); box-shadow: none;" onclick="openSmsScanModal()">
+        <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
           <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Auto-Track Passbook
         </div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+        <div style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
           Tap "Scan SMS" to reconstruct your bank balances & past spends.
         </div>
-        <button type="button" class="btn btn-sm btn-primary" style="margin: 0 auto;">
+        <button type="button" class="btn btn-sm btn-primary" style="margin: 0 auto; border-radius: 20px; padding: 7px 18px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
           <i class="fa-solid fa-envelope-open-text"></i> Scan Past SMS
         </button>
       </div>
