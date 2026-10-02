@@ -33,24 +33,43 @@ public class FinanceNotificationListener extends NotificationListenerService {
     // In-memory cache of recent signatures to instantly drop duplicate events
     private static final ConcurrentHashMap<String, Long> recentSignatures = new ConcurrentHashMap<>();
 
-    // Target financial, banking, UPI & messaging package names
+    // Target financial, banking, UPI & messaging package names in India and worldwide
     private static final Set<String> TARGET_PACKAGES = new HashSet<>(Arrays.asList(
-        "com.google.android.apps.nfc.phone",   // Google Pay
-        "com.phonepe.app",                     // PhonePe
-        "net.one97.paytm",                     // Paytm
-        "in.org.npci.upiapp",                  // BHIM UPI
-        "com.dreamplug.androidapp",            // CRED
-        "in.amazon.mShop.android.shopping",    // Amazon Pay
-        "com.google.android.apps.messaging",   // Google Messages
-        "com.samsung.android.messaging",       // Samsung SMS
-        "com.android.mms",                     // Stock Android SMS
-        "com.hdfcbank.payzapp",                // HDFC PayZapp
-        "com.snapwork.hdfc",                   // HDFC Mobile Banking
-        "com.sbi.upi",                         // BHIM SBI Pay
-        "com.sbi.lotusintouch",                // YONO SBI
-        "com.icicibank.imobile",               // ICICI iMobile
-        "com.axis.mobile",                     // Axis Mobile
-        "com.msf.kbank.mobile"                 // Kotak Bank
+        "com.google.android.apps.nbu.paisa.user", // Google Pay India (Tez)
+        "com.google.android.apps.nfc.phone",      // Google Pay Global
+        "com.phonepe.app",                        // PhonePe
+        "net.one97.paytm",                        // Paytm
+        "in.org.npci.upiapp",                     // BHIM UPI
+        "com.dreamplug.androidapp",               // CRED
+        "in.amazon.mShop.android.shopping",       // Amazon Pay
+        "com.whatsapp",                           // WhatsApp Payments (UPI)
+        "com.myairtelapp",                        // Airtel Thanks / Payments Bank
+        "com.mobikwik_new",                       // MobiKwik
+        "com.freecharge.android",                 // Freecharge
+        "com.slicepay",                           // Slice
+        "club.jupiter",                           // Jupiter
+        "money.fi",                               // Fi Money
+        "com.fampay.in",                          // FamPay
+        "com.google.android.apps.messaging",      // Google Messages
+        "com.samsung.android.messaging",          // Samsung SMS
+        "com.android.mms",                        // Stock Android SMS
+        "com.coloros.mms",                        // Realme / Oppo ColorOS SMS
+        "com.oppo.mms",                           // Oppo SMS
+        "com.oneplus.mms",                        // OnePlus SMS
+        "com.miui.sms",                           // Xiaomi MIUI SMS
+        "com.xiaomi.mms",                         // Xiaomi MMS
+        "com.vivo.mms",                           // Vivo SMS
+        "com.truecaller",                         // Truecaller SMS
+        "com.hdfcbank.payzapp",                   // HDFC PayZapp
+        "com.snapwork.hdfc",                      // HDFC Mobile Banking
+        "com.sbi.upi",                            // BHIM SBI Pay
+        "com.sbi.lotusintouch",                   // YONO SBI
+        "com.icicibank.imobile",                  // ICICI iMobile
+        "com.axis.mobile",                        // Axis Mobile
+        "com.msf.kbank.mobile",                   // Kotak Bank
+        "com.bankofbaroda.mconnect",              // bob World
+        "com.canarabank.mobility",                // Canara ai1
+        "com.unionbank.ecommerce.mobile.android"  // Union Bank Vyom
     ));
 
     @Override
@@ -63,31 +82,50 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
         Bundle extras = notification.extras;
         CharSequence titleCharSeq = extras.getCharSequence(Notification.EXTRA_TITLE);
-        String title = titleCharSeq != null ? titleCharSeq.toString() : "";
+        String title = sanitizeString(titleCharSeq != null ? titleCharSeq.toString() : "");
 
         CharSequence textCharSeq = extras.getCharSequence(Notification.EXTRA_TEXT);
-        String text = textCharSeq != null ? textCharSeq.toString() : "";
+        String text = sanitizeString(textCharSeq != null ? textCharSeq.toString() : "");
 
         CharSequence bigTextCharSeq = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
-        String bigText = bigTextCharSeq != null ? bigTextCharSeq.toString() : "";
+        String bigText = sanitizeString(bigTextCharSeq != null ? bigTextCharSeq.toString() : "");
 
-        // Combine title, text, and bigText to get full SMS content
+        CharSequence subTextCharSeq = extras.getCharSequence(Notification.EXTRA_SUB_TEXT);
+        String subText = sanitizeString(subTextCharSeq != null ? subTextCharSeq.toString() : "");
+
+        CharSequence summaryCharSeq = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT);
+        String summaryText = sanitizeString(summaryCharSeq != null ? summaryCharSeq.toString() : "");
+
+        // Combine title, text, bigText, subText to get complete SMS/Notification content
         StringBuilder sb = new StringBuilder();
         if (!title.isEmpty()) sb.append(title).append(" ");
+        if (!subText.isEmpty()) sb.append(subText).append(" ");
         if (!text.isEmpty()) sb.append(text).append(" ");
-        if (!bigText.isEmpty() && !bigText.equals(text)) sb.append(bigText);
+        if (!bigText.isEmpty() && !bigText.equals(text)) sb.append(bigText).append(" ");
+        if (!summaryText.isEmpty() && !summaryText.equals(title)) sb.append(summaryText).append(" ");
 
-        String fullContent = sb.toString().trim();
+        // Also check InboxStyle bundled messages (e.g. from Google Messages)
+        CharSequence[] lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES);
+        if (lines != null && lines.length > 0) {
+            for (CharSequence line : lines) {
+                if (line != null) sb.append(sanitizeString(line.toString())).append(" ");
+            }
+        }
+
+        String fullContent = sb.toString().replaceAll("\\s+", " ").trim();
         if (fullContent.length() < 5) return;
 
-        // 1. Package filtering
+        // 1. Target Package & Keyword filtering
         boolean isTargetPkg = TARGET_PACKAGES.contains(packageName) ||
                               packageName.contains("messaging") ||
                               packageName.contains("sms") ||
-                              packageName.contains("mms");
+                              packageName.contains("mms") ||
+                              packageName.contains("bank") ||
+                              packageName.contains("paisa") ||
+                              packageName.contains("upi");
 
         boolean hasFinancialKeywords = Pattern.compile(
-            "\\b(sent|debited|credited|paid|spent|withdrawn|hdfc|sbi|icici|axis|kotak|upi|a/c|rs|₹|inr)\\b",
+            "\\b(sent|debited|credited|paid|spent|withdrawn|refund|reversed|cashback|hdfc|sbi|icici|axis|kotak|upi|a/c|rs|₹|inr)\\b",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
         ).matcher(fullContent).find();
 
@@ -96,12 +134,17 @@ public class FinanceNotificationListener extends NotificationListenerService {
         }
 
         // 2. Reject OTPs, Promos, Non-transactional notifications
-        boolean isNoise = Pattern.compile(
-            "\\b(otp|verification code|secret code|pre-approved|apply now|flat \\d+% off|declined|insufficient funds)\\b",
+        boolean isExplicitFinancial = Pattern.compile(
+            "\\b(debited|credited|refunded|reversed|withdrawn|salary credited|spent rs|paid rs)\\b",
             Pattern.CASE_INSENSITIVE
         ).matcher(fullContent).find();
 
-        if (isNoise && !Pattern.compile("\\b(debited|credited|refunded|reversed)\\b", Pattern.CASE_INSENSITIVE).matcher(fullContent).find()) {
+        boolean isNoise = Pattern.compile(
+            "\\b(otp|one time password|verification code|secret code|pre-approved|apply now|flat \\d+% off|declined|insufficient funds|bill due|payment due)\\b",
+            Pattern.CASE_INSENSITIVE
+        ).matcher(fullContent).find();
+
+        if (isNoise && !isExplicitFinancial) {
             return;
         }
 
@@ -125,12 +168,18 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
         final PowerManager.WakeLock finalLock = wakeLock;
 
-        // Forward immediately to WebView if running in foreground
+        // 5. Always persist to local queue so notifications received while locked/closed are NEVER lost
+        persistCapturedNotification(fullContent, packageName);
+
+        // 6. Update local sync timestamp immediately
+        updateLastSyncTimestamp();
+
+        // 7. If MainActivity is alive, immediately flush and notify WebView!
         if (MainActivity.getInstance() != null) {
-            MainActivity.getInstance().onNativeNotificationCaptured(fullContent, packageName);
+            MainActivity.getInstance().flushPendingNotificationsToWebView();
         }
 
-        // Retrieve user_id stored by the web app session
+        // 8. Ingest to cloud asynchronously
         SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
         String userId = prefs.getString("user_id", "");
 
@@ -143,6 +192,40 @@ public class FinanceNotificationListener extends NotificationListenerService {
                 }
             }
         }).start();
+    }
+
+    /** Cleans NBSP, zero-width spaces, and HTML entities */
+    private String sanitizeString(String input) {
+        if (input == null) return "";
+        return input.replace("\u00A0", " ")
+                    .replace("\u200B", "")
+                    .replace("\u200C", "")
+                    .replace("\u200D", "")
+                    .replace("\uFEFF", "")
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .trim();
+    }
+
+    /** Stores notification in durable queue so it can be ingested when app opens */
+    private synchronized void persistCapturedNotification(String rawText, String packageName) {
+        try {
+            SharedPreferences queuePrefs = getSharedPreferences("FinanceMeCapturedQueue", Context.MODE_PRIVATE);
+            String rawJson = queuePrefs.getString("pending_notifications", "[]");
+            JSONArray array = new JSONArray(rawJson);
+
+            JSONObject item = new JSONObject();
+            item.put("rawText", rawText);
+            item.put("packageName", packageName);
+            item.put("timestamp", System.currentTimeMillis());
+            array.put(item);
+
+            queuePrefs.edit().putString("pending_notifications", array.toString()).apply();
+            Log.d(TAG, "Persisted notification to local queue. Total pending: " + array.length());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to persist captured notification: " + e.getMessage());
+        }
     }
 
     /**

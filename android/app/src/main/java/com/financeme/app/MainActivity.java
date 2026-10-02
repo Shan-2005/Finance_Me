@@ -114,6 +114,9 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
         long lastSync = prefs.getLong("last_sync_timestamp", 0);
         updateLastSyncTimeInWebView(lastSync);
+
+        // Step 3: Flush any notifications captured while phone was locked or app was closed
+        flushPendingNotificationsToWebView();
     }
 
     private void tryRebindListenerService() {
@@ -217,9 +220,47 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    /** Flushes any notifications captured while app was in background or device was locked */
+    public void flushPendingNotificationsToWebView() {
+        runOnUiThread(() -> {
+            if (webView == null) return;
+            try {
+                SharedPreferences queuePrefs = getSharedPreferences("FinanceMeCapturedQueue", Context.MODE_PRIVATE);
+                String rawJson = queuePrefs.getString("pending_notifications", "[]");
+                org.json.JSONArray array = new org.json.JSONArray(rawJson);
+                if (array.length() == 0) return;
+
+                android.util.Log.d("MainActivity", "Flushing " + array.length() + " pending notifications to WebView");
+                for (int i = 0; i < array.length(); i++) {
+                    org.json.JSONObject item = array.getJSONObject(i);
+                    String rawText = item.optString("rawText", "");
+                    String pkg = item.optString("packageName", "");
+                    if (!rawText.isEmpty()) {
+                        String safeText = rawText.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
+                        String safePkg = pkg.replace("'", "\\'");
+                        String js = "if(window.onNotificationCaptured) window.onNotificationCaptured('" + safeText + "', '" + safePkg + "');";
+                        webView.evaluateJavascript(js, null);
+                    }
+                }
+                queuePrefs.edit().putString("pending_notifications", "[]").apply();
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Error flushing pending notifications: " + e.getMessage());
+            }
+        });
+    }
+
     // ── JavaScript Bridge ────────────────────────────────────────────────────
 
     public class AndroidBridge {
+
+        /** Returns all pending notifications captured while app was closed or device was locked */
+        @JavascriptInterface
+        public String getPendingNotificationsJson() {
+            SharedPreferences prefs = getSharedPreferences("FinanceMeCapturedQueue", Context.MODE_PRIVATE);
+            String raw = prefs.getString("pending_notifications", "[]");
+            prefs.edit().putString("pending_notifications", "[]").apply();
+            return raw;
+        }
 
         /** Called by web app after Supabase login — saves user_id for the notification listener */
         @JavascriptInterface
