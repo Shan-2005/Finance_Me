@@ -14,6 +14,8 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.net.Uri;
+import android.os.PowerManager;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -42,6 +44,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         webView.clearCache(true);
@@ -88,7 +92,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl("http://financeme-joeshan-295183256325.s3-website.ap-south-1.amazonaws.com");
+        // Load native assets for instant offline responsiveness & reliable background sync
+        webView.loadUrl("file:///android_asset/index.html");
 
         // Step 1: Request POST_NOTIFICATIONS runtime permission (Android 13+)
         requestPostNotificationsPermission();
@@ -105,6 +110,10 @@ public class MainActivity extends AppCompatActivity {
         }
         // Update JS with current status
         updateNotificationStatusInWebView();
+        
+        SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
+        long lastSync = prefs.getLong("last_sync_timestamp", 0);
+        updateLastSyncTimeInWebView(lastSync);
     }
 
     private void tryRebindListenerService() {
@@ -188,6 +197,14 @@ public class MainActivity extends AppCompatActivity {
         webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
+    /** Push last sync timestamp to WebView JS */
+    public void updateLastSyncTimeInWebView(long timestamp) {
+        String js = "if(window.onLastSyncUpdated) window.onLastSyncUpdated(" + timestamp + ");";
+        if (webView != null) {
+            webView.post(() -> webView.evaluateJavascript(js, null));
+        }
+    }
+
     /** Pass real-time captured notification text directly into WebView JS */
     public void onNativeNotificationCaptured(String rawText, String packageName) {
         runOnUiThread(() -> {
@@ -246,6 +263,63 @@ public class MainActivity extends AppCompatActivity {
         public void clearDebugLogs() {
             SharedPreferences prefs = getSharedPreferences("FinanceMeDebugLogs", Context.MODE_PRIVATE);
             prefs.edit().remove("logs").apply();
+        }
+
+        /** Returns last sync timestamp in milliseconds */
+        @JavascriptInterface
+        public long getLastSyncTimestamp() {
+            SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
+            return prefs.getLong("last_sync_timestamp", 0);
+        }
+
+        /** Returns count of pending offline notifications */
+        @JavascriptInterface
+        public int getOfflineQueueCount() {
+            SharedPreferences queuePrefs = getSharedPreferences("FinanceMeOfflineQueue", Context.MODE_PRIVATE);
+            String rawJson = queuePrefs.getString("queue", "[]");
+            try {
+                return new org.json.JSONArray(rawJson).length();
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        /** Request ignoring battery optimizations so listener works in background / lock screen */
+        @JavascriptInterface
+        public void requestIgnoreBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    String pkg = getPackageName();
+                    PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                    if (pm != null && !pm.isIgnoringBatteryOptimizations(pkg)) {
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + pkg));
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("AndroidBridge", "Failed battery optimization request: " + e.getMessage());
+                }
+            }
+        }
+
+        /** Returns true if battery optimizations are ignored */
+        @JavascriptInterface
+        public boolean isBatteryOptimizationIgnored() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+            }
+            return true;
+        }
+
+        /** Trigger manual flush of offline queue */
+        @JavascriptInterface
+        public void triggerManualSync() {
+            SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
+            String userId = prefs.getString("user_id", "");
+            FinanceNotificationListener listener = new FinanceNotificationListener();
+            new Thread(() -> listener.flushOfflineQueue(userId)).start();
         }
 
         /** Opens external download URL for app update */

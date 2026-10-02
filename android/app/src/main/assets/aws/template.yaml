@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Finance Me - 100% Always Free Serverless Stack (DynamoDB + Lambda Function URL with Self-Contained Auth)'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: 'prod'
+    Description: 'Deployment environment identifier'
+
+Resources:
+  # ============================================================================
+  # 1. DYNAMODB TABLES (Provisioned 5 RCU / 5 WCU - 100% Always Free Forever)
+  # ============================================================================
+  TransactionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'FinanceMe_Transactions_${EnvironmentName}'
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      Tags:
+        - Key: App
+          Value: FinanceMe
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'FinanceMe_Users_${EnvironmentName}'
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      Tags:
+        - Key: App
+          Value: FinanceMe
+
+  BalancesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'FinanceMe_Balances_${EnvironmentName}'
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      Tags:
+        - Key: App
+          Value: FinanceMe
+
+  # ============================================================================
+  # 2. IAM EXECUTION ROLE FOR LAMBDA
+  # ============================================================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'FinanceMe-LambdaRole-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DynamoDBAndLogsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt TransactionsTable.Arn
+                  - !GetAtt UsersTable.Arn
+                  - !GetAtt BalancesTable.Arn
+
+  # ============================================================================
+  # 3. LAMBDA FUNCTION & FUNCTION URL ($0 API GATEWAY FEES)
+  # ============================================================================
+  BackendFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'FinanceMe-Backend-${EnvironmentName}'
+      Runtime: nodejs20.x
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      MemorySize: 256
+      Timeout: 15
+      Environment:
+        Variables:
+          TRANSACTIONS_TABLE: !Ref TransactionsTable
+          USERS_TABLE: !Ref UsersTable
+          BALANCES_TABLE: !Ref BalancesTable
+          JWT_SECRET: !Sub 'finance_me_${AWS::AccountId}_secret_key'
+          APP_VERSION: !Sub 'aws-${EnvironmentName}-2.1'
+      Code:
+        ZipFile: |
+          // Placeholder code - real code will be uploaded from aws/lambda.zip
+          exports.handler = async () => ({
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ message: 'Finance Me Backend ready. Please upload aws/lambda.zip' })
+          });
+
+  BackendFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt BackendFunction.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - '*'
+        AllowHeaders:
+          - '*'
+        MaxAge: 86400
+
+  BackendFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt BackendFunction.Arn
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
+# ==============================================================================
+# OUTPUTS
+# ==============================================================================
+Outputs:
+  LambdaFunctionUrl:
+    Description: 'Public HTTPS Endpoint for Auth, SMS Ingestion, and Transactions CRUD'
+    Value: !GetAtt BackendFunctionUrl.FunctionUrl
+
+  TransactionsTableName:
+    Description: 'DynamoDB Transactions Table Name'
+    Value: !Ref TransactionsTable
+
+  UsersTableName:
+    Description: 'DynamoDB Users Table Name'
+    Value: !Ref UsersTable
