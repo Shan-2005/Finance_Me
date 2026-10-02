@@ -55,8 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Axio Bank Passbook & Bill Reminders
   loadBankAccounts();
-  renderBankPassbook();
   loadBillReminders();
+  reconstructBankAccountsFromTransactions();
+  renderBankPassbook();
   renderBillsDeck();
 
   // Ingest any notifications queued while app was closed or device was locked
@@ -392,6 +393,9 @@ function fetchTransactionsFromSupabase(onComplete) {
         transactions = mergedList;
         saveToLocalStorage();
         renderTransactions();
+        reconstructBankAccountsFromTransactions();
+        renderBankPassbook();
+        renderBillsDeck();
         console.log('[Supabase Auto-Sync]: Synced', transactions.length, 'transactions');
       }
     }
@@ -1151,6 +1155,9 @@ async function deleteTransaction(id) {
   transactions = transactions.filter(item => String(item.id) !== strId);
   saveToLocalStorage();
   renderTransactions();
+  updateMetricsAndTaxonomy();
+  renderBankPassbook();
+  renderBillsDeck();
   showToast(`🗑️ Payment deleted: ${merchantName}`);
 
   const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
@@ -1241,11 +1248,18 @@ async function clearAllRealData() {
   const allIds = transactions.map(t => t.id);
   allIds.forEach(id => markAsDeleted(String(id)));
   transactions = [];
+  userBankAccounts = {};
+  userBillReminders = [];
+  saveBankAccounts();
+  saveBillReminders();
   localStorage.removeItem('finance_me_transactions');
   localStorage.removeItem('finance_me_vault_snapshot');
   renderTransactions();
+  updateMetricsAndTaxonomy();
+  renderBankPassbook();
+  renderBillsDeck();
 
-  showToast(`🗑️ Cleared ${count} transactions from device!`);
+  showToast(`🗑️ Cleared all data from device!`);
 
   const token = (currentSession && currentSession.access_token) ? currentSession.access_token : SUPABASE_KEY;
 
@@ -1302,9 +1316,20 @@ function saveTransaction(e) {
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
   const date = rawDate ? new Date(rawDate).toISOString() : new Date().toISOString();
 
+  const brand = resolveMerchantBrandDetails(notes, merchant, type);
   const txnObj = {
     id: id || generateUuid(),
-    merchant, amount, type, category, mode, date, tags, notes
+    merchant: brand.isRecognized ? brand.title : merchant,
+    amount,
+    type,
+    category: category || brand.category,
+    mode,
+    date,
+    tags,
+    notes,
+    subtitle: brand.subtitle,
+    icon: brand.icon,
+    brandColor: brand.color
   };
 
   if (currentUser) {
@@ -1321,6 +1346,9 @@ function saveTransaction(e) {
   saveToLocalStorage();
   closeModal();
   renderTransactions();
+  updateMetricsAndTaxonomy();
+  renderBankPassbook();
+  renderBillsDeck();
 
   if (SUPABASE_KEY) {
     isWritePending = true;
@@ -2062,7 +2090,13 @@ async function approveReviewItem(id) {
     category: item.category,
     mode: item.mode || 'GPay / UPI Auto-Sync',
     date: item.date || new Date().toISOString(),
-    notes: item.referenceId ? `[Auto-Captured Ref: ${item.referenceId}]` : (item.rawText ? `[Auto-Captured] ${item.rawText}` : '')
+    notes: item.rawText ? `[Auto-Captured] ${item.rawText}` : (item.referenceId ? `[Auto-Captured Ref: ${item.referenceId}]` : ''),
+    rawText: item.rawText,
+    referenceId: item.referenceId,
+    accountMask: item.accountMask,
+    subtitle: item.subtitle,
+    icon: item.icon,
+    brandColor: item.brandColor
   };
 
   if (currentUser) {
@@ -2073,6 +2107,9 @@ async function approveReviewItem(id) {
   transactions.unshift(newTxn);
   saveToLocalStorage();
   renderTransactions();
+  updateMetricsAndTaxonomy();
+  renderBankPassbook();
+  renderBillsDeck();
 
   // 2. Remove from review queue
   needsReviewTransactions.splice(itemIdx, 1);
@@ -2137,7 +2174,13 @@ async function approveAllReviewItems() {
       category: item.category,
       mode: item.mode || 'GPay / UPI Auto-Sync',
       date: item.date || new Date().toISOString(),
-      notes: item.referenceId ? `[Auto-Captured Ref: ${item.referenceId}]` : (item.rawText ? `[Auto-Captured] ${item.rawText}` : '')
+      notes: item.rawText ? `[Auto-Captured] ${item.rawText}` : (item.referenceId ? `[Auto-Captured Ref: ${item.referenceId}]` : ''),
+      rawText: item.rawText,
+      referenceId: item.referenceId,
+      accountMask: item.accountMask,
+      subtitle: item.subtitle,
+      icon: item.icon,
+      brandColor: item.brandColor
     };
     if (currentUser) newTxn.user_id = currentUser.id;
     transactions.unshift(newTxn);
@@ -2148,6 +2191,9 @@ async function approveAllReviewItems() {
   saveReviewQueue();
   saveToLocalStorage();
   renderTransactions();
+  updateMetricsAndTaxonomy();
+  renderBankPassbook();
+  renderBillsDeck();
   renderInbox();
   showToast(`✅ Approved all ${count} transactions!`);
 }
@@ -2220,7 +2266,15 @@ window.onNotificationCaptured = function(rawText, packageName, timestamp = Date.
   const inputEl = document.getElementById('rawNotificationInput');
   if (inputEl) inputEl.value = rawText;
 
-  // 2. Classify & extract using Critic-Engine certified notification reader
+  // 2. Extract Running Bank Balance immediately (works on debit, credit, or balance SMS)
+  const maskMatch = rawText.match(/\b(?:a\/c|account|card)\s*(?:ending\s*(?:with)?|no\.?|[*#xX]+)?\s*[:.-]?\s*([*#xX]*\d{3,4})\b/i);
+  const accMask = maskMatch ? maskMatch[1].replace(/[*#xX]/g, '') : null;
+  extractRunningBalance(rawText, accMask, null, timestamp);
+
+  // 3. Extract Credit Card Statement / Bill Reminders immediately
+  extractBillReminder(rawText, timestamp);
+
+  // 4. Classify & extract using Critic-Engine certified notification reader
   const readResult = notificationClassifier.readNotification({
     text: rawText,
     packageName: packageName || '',
@@ -2234,7 +2288,7 @@ window.onNotificationCaptured = function(rawText, packageName, timestamp = Date.
 
   const parsed = readResult.parsed;
 
-  // 3. Multi-Factor & Cross-Source Deduplication Check
+  // 5. Multi-Factor & Cross-Source Deduplication Check
   if (readResult.isDuplicate) {
     console.log('⚡ Handled duplicate/cross-source notification:', readResult.duplicateReason);
 
@@ -2268,25 +2322,31 @@ window.onNotificationCaptured = function(rawText, packageName, timestamp = Date.
     return;
   }
 
-  // 4. Update sync timestamp
+  // 6. Update sync timestamp
   lastSyncTimestamp = Date.now();
   updateLastSyncDisplay();
 
-  // 5. Route to Dedicated "Needs Review" Queue
+  // 7. Resolve Merchant Brand Details (Axio-Grade Smart Titling)
+  const brand = resolveMerchantBrandDetails(rawText, parsed.merchant, parsed.type);
+
+  // 8. Route to Dedicated "Needs Review" Queue
   const reviewItem = {
     id: generateUuid(),
-    merchant: parsed.merchant,
+    merchant: brand.title || parsed.merchant,
     amount: parsed.amount,
     type: parsed.type,
-    category: parsed.category,
+    category: parsed.category || brand.category,
     mode: parsed.mode,
     referenceId: parsed.referenceId,
-    accountMask: parsed.accountMask,
+    accountMask: parsed.accountMask || accMask,
     confidence: parsed.confidence,
     rawText: parsed.rawContent || rawText,
     packageName: packageName || '',
-    date: new Date().toISOString(),
+    date: new Date(timestamp || Date.now()).toISOString(),
     signature: parsed.signature,
+    subtitle: brand.subtitle,
+    icon: brand.icon,
+    brandColor: brand.color,
     status: 'needs_review'
   };
 
@@ -2297,7 +2357,7 @@ window.onNotificationCaptured = function(rawText, packageName, timestamp = Date.
   saveReviewQueue();
   renderInbox();
 
-  showToast(`🔔 Auto-Captured: ${parsed.merchant} (${parsed.type === 'Credit' ? '+' : '-'}₹${parsed.amount}) - Needs Review`);
+  showToast(`🔔 Auto-Captured: ${reviewItem.merchant} (${parsed.type === 'Credit' ? '+' : '-'}₹${parsed.amount}) - Needs Review`);
 };
 
 /** Ingests any notifications stored in Android's durable queue while phone was locked or app killed */
@@ -2748,12 +2808,18 @@ function loadBillReminders() {
   }
 }
 
-function saveBillReminders() {
-  try {
-    localStorage.setItem('finance_me_bill_reminders', JSON.stringify(userBillReminders));
-  } catch (e) {
-    console.error('Failed to save bill reminders:', e);
-  }
+function reconstructBankAccountsFromTransactions() {
+  if (!Array.isArray(transactions) || transactions.length === 0) return;
+
+  transactions.forEach(t => {
+    const text = (t.notes || '') + ' ' + (t.rawText || '') + ' ' + (t.merchant || '');
+    const maskMatch = text.match(/\b(?:a\/c|account|card)\s*(?:ending\s*(?:with)?|no\.?|[*#xX]+)?\s*[:.-]?\s*([*#xX]*\d{3,4})\b/i);
+    const accMask = maskMatch ? maskMatch[1].replace(/[*#xX]/g, '') : (t.accountMask || null);
+    extractRunningBalance(text, accMask, null, new Date(t.date || Date.now()).getTime());
+    extractBillReminder(text, new Date(t.date || Date.now()).getTime());
+  });
+  saveBankAccounts();
+  saveBillReminders();
 }
 
 /**
@@ -2921,19 +2987,19 @@ function extractRunningBalance(rawText, accountMask = null, bankName = null, tim
 function extractBillReminder(rawText, timestamp = Date.now()) {
   if (!rawText || typeof rawText !== 'string') return null;
 
-  const isBill = /\b(bill of|statement for|total amount due|total due|min(?:imum)? amount due|min due|pay before|due date is)\b/i.test(rawText);
+  const isBill = /\b(bill of|statement for|total(?:\s+amt|\s+amount)?\s*due|total due|min(?:imum)?(?:\s+amt|\s+amount)?\s*due|min due|pay before|due date is)\b/i.test(rawText);
   if (!isBill) return null;
 
   // Extract Total Bill Amount
   let totalDue = 0;
-  const dueMatch = rawText.match(/(?:bill of|total(?: amount)? due|bill amount)\s*[:.-]?\s*(?:is|of)?\s*[:.-]?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  const dueMatch = rawText.match(/(?:bill of|total(?:\s+amt|\s+amount)?\s*due|bill amount)\s*[:.-]?\s*(?:is|of)?\s*[:.-]?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
   if (dueMatch && dueMatch[1]) {
     totalDue = parseFloat(dueMatch[1].replace(/,/g, ''));
   }
 
   // Extract Minimum Due
   let minDue = 0;
-  const minMatch = rawText.match(/(?:min(?:imum)?(?: amount)? due|min due)\s*[:.-]?\s*(?:is|of)?\s*[:.-]?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  const minMatch = rawText.match(/(?:min(?:imum)?(?:\s+amt|\s+amount)?\s*due|min due)\s*[:.-]?\s*(?:is|of)?\s*[:.-]?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
   if (minMatch && minMatch[1]) {
     minDue = parseFloat(minMatch[1].replace(/,/g, ''));
   }
