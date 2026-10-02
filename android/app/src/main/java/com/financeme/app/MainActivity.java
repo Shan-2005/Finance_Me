@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_POST_NOTIFICATIONS = 101;
+    private static final int REQUEST_READ_SMS = 1002;
     private static MainActivity instance;
     private WebView webView;
 
@@ -163,6 +164,10 @@ public class MainActivity extends AppCompatActivity {
             if (!isNotificationListenerEnabled()) {
                 showNotificationListenerDialog();
             }
+        } else if (requestCode == REQUEST_READ_SMS) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            String js = "if(window.onSmsPermissionResult) window.onSmsPermissionResult(" + granted + ");";
+            if (webView != null) webView.post(() -> webView.evaluateJavascript(js, null));
         }
     }
 
@@ -290,6 +295,90 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public boolean isNotificationAccessGranted() {
             return isNotificationListenerEnabled();
+        }
+
+        /** Checks if runtime READ_SMS permission is granted */
+        @JavascriptInterface
+        public boolean isSmsPermissionGranted() {
+            return ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.READ_SMS)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+
+        /** Requests runtime READ_SMS permission */
+        @JavascriptInterface
+        public void requestSmsPermission() {
+            runOnUiThread(() -> {
+                ActivityCompat.requestPermissions(
+                    MainActivity.this,
+                    new String[]{android.Manifest.permission.READ_SMS},
+                    REQUEST_READ_SMS
+                );
+            });
+        }
+
+        /**
+         * Scans existing SMS inbox messages (Axio/Walnut style)
+         * Filters financial SMS, extracts body, sender, date
+         * @param daysLimit number of past days to scan (0 for all time)
+         * @return JSON string array of SMS objects
+         */
+        @JavascriptInterface
+        public String scanInboxSms(int daysLimit) {
+            if (!isSmsPermissionGranted()) {
+                return "{\"error\":\"PERMISSION_DENIED\"}";
+            }
+
+            org.json.JSONArray array = new org.json.JSONArray();
+            android.net.Uri uri = android.net.Uri.parse("content://sms/inbox");
+            String[] projection = new String[]{"_id", "address", "body", "date"};
+
+            String selection = null;
+            String[] selectionArgs = null;
+
+            if (daysLimit > 0) {
+                long cutoff = System.currentTimeMillis() - ((long) daysLimit * 24 * 60 * 60 * 1000);
+                selection = "date >= ?";
+                selectionArgs = new String[]{String.valueOf(cutoff)};
+            }
+
+            android.database.Cursor cursor = null;
+            try {
+                cursor = getContentResolver().query(uri, projection, selection, selectionArgs, "date DESC");
+                if (cursor != null && cursor.moveToFirst()) {
+                    int bodyIdx = cursor.getColumnIndex("body");
+                    int addrIdx = cursor.getColumnIndex("address");
+                    int dateIdx = cursor.getColumnIndex("date");
+
+                    int count = 0;
+                    java.util.regex.Pattern financialPattern = java.util.regex.Pattern.compile(
+                        "\\b(debited|credited|spent|paid|withdrawn|salary|refund|reversed|avl bal|avail bal|balance|statement|total due|min due|upi ref|a/c|rs\\.?|inr|₹)\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE
+                    );
+
+                    do {
+                        String body = bodyIdx != -1 ? cursor.getString(bodyIdx) : "";
+                        String sender = addrIdx != -1 ? cursor.getString(addrIdx) : "";
+                        long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0;
+
+                        if (body != null && financialPattern.matcher(body).find()) {
+                            org.json.JSONObject obj = new org.json.JSONObject();
+                            obj.put("body", body);
+                            obj.put("sender", sender != null ? sender : "");
+                            obj.put("date", date);
+                            array.put(obj);
+                            count++;
+                            if (count >= 1000) break; // Safety cap
+                        }
+                    } while (cursor.moveToNext());
+                }
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Error scanning SMS inbox: " + e.getMessage());
+                return "{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
+            } finally {
+                if (cursor != null) cursor.close();
+            }
+
+            return array.toString();
         }
 
         /** Returns live background notification debug logs for display on UI */
