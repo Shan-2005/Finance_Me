@@ -25,8 +25,8 @@ module.exports = async (req, res) => {
         rawText = req.body;
       } else if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
         rawText = req.body.rawText || req.body.notificationText || req.body.text || req.body.message ||
-                  req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms ||
-                  req.body.content || req.body.data || '';
+          req.body.sms_body || req.body.sms_message || req.body.body || req.body.sms ||
+          req.body.content || req.body.data || '';
         if (!rawText) {
           const vals = Object.values(req.body).filter(v => typeof v === 'string' && v.trim().length > 3);
           if (vals.length > 0) rawText = vals.join(' ');
@@ -46,21 +46,36 @@ module.exports = async (req, res) => {
 
     // Check for un-expanded MacroDroid placeholder variables (e.g. "[sms_body]", "{sms_body}", "[not_text]")
     const isPlaceholder = /^[\{\[\(]\s*(sms_body|sms_message|not_text|notification_text|sms_number|not_title)\s*[\}\]\)]$/i.test(rawText.trim()) ||
-                          /^(?:\[|\{)?sms_body(?:\]|\})?$/i.test(rawText.trim()) ||
-                          /^(?:\[|\{)?not_text(?:\]|\})?$/i.test(rawText.trim());
+      /^(?:\[|\{)?sms_body(?:\]|\})?$/i.test(rawText.trim()) ||
+      /^(?:\[|\{)?not_text(?:\]|\})?$/i.test(rawText.trim());
 
     // If STILL empty or contains unexpanded placeholder - reject silently (don't create junk ₹0 entries)
     if (isPlaceholder || !rawText || rawText.trim().length < 3) {
       console.warn('[INGEST DEBUG] MacroDroid placeholder variable or empty body received:', rawText);
-      return res.status(200).json({ 
-        success: false, 
+      return res.status(200).json({
+        success: false,
         error: 'MACRODROID_UNEXPANDED_VARIABLE - MacroDroid sent the variable name literally instead of actual SMS/notification text.',
         tip: 'In MacroDroid HTTP GET configuration, click the Magic Text button (...) to select "SMS Body" or "Notification Text".'
       });
     }
 
-    // Clean multiline newlines into single spaces for robust regex matching
-    const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    // Reject WhatsApp and messaging chat noise immediately
+    const senderApp = String(req.body?.sender || req.query?.sender || '').toLowerCase();
+    if (senderApp.includes('whatsapp') || senderApp.includes('telegram') || senderApp.includes('instagram') || senderApp.includes('facebook')) {
+      return res.status(200).json({
+        success: false,
+        error: 'IGNORED_CHAT_APP',
+        message: 'WhatsApp and social chat notifications are filtered out to prevent clutter.'
+      });
+    }
+
+    // Clean multiline newlines into single spaces and remove phone numbers like +91 73052 71712
+    const cleanText = rawText
+      .replace(/\+91[\s-]?\d{4,5}[\s-]?\d{4,5}/g, '')
+      .replace(/\+91[\s-]?\d+/g, '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     // Pass 1: ₹/Rs/Rs./INR prefix directly before number (e.g. "Rs.1.00", "Rs 1.00", "₹500")
     const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
@@ -69,23 +84,14 @@ module.exports = async (req, res) => {
     // Pass 3: number BEFORE debit/credit keyword (e.g. "1.00 sent", "500 debited")
     const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
     // Pass 4: number AFTER keyword (e.g. "sent Rs.1.00", "paid 450", "paid 500")
-    const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
+    const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|withdrawn)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
     let amount = 0;
     let amtM;
-    if ((amtM = cleanText.match(rsPrefixRegex)))   amount = parseFloat(amtM[1].replace(/,/g, ''));
+    if ((amtM = cleanText.match(rsPrefixRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
     if (!amount && (amtM = cleanText.match(rsSuffixRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
     if (!amount && (amtM = cleanText.match(beforeKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
-    if (!amount && (amtM = cleanText.match(afterKwRegex)))  amount = parseFloat(amtM[1].replace(/,/g, ''));
-
-    // Pass 4: smart fallback — strip 9+ digit ref/account/phone numbers & dates, then grab first decimal
-    if (!amount || amount === 0) {
-      const stripped = cleanText
-        .replace(/\b\d{9,}\b/g, '')
-        .replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
-      const numMatch = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
-      if (numMatch) amount = parseFloat(numMatch[1].replace(/,/g, ''));
-    }
+    if (!amount && (amtM = cleanText.match(afterKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
 
     if (!amount || isNaN(amount) || amount <= 0) {
       console.warn('[INGEST DEBUG] No valid transaction amount found in text:', cleanText);
@@ -100,7 +106,17 @@ module.exports = async (req, res) => {
     // --- CREDIT vs DEBIT DETECTION ---
     const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b|\bwithdrawn\b/i.test(cleanText);
     const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b|\breceived\b/i.test(cleanText);
-    
+
+    // Strict verification: If neither debit nor credit verb is found, reject non-transactional text
+    if (!isDebitText && !isCreditText) {
+      return res.status(200).json({
+        success: false,
+        error: 'NO_TRANSACTION_ACTION_FOUND',
+        message: 'Notification did not contain debit or credit confirmation.',
+        receivedText: cleanText
+      });
+    }
+
     let type = 'Debit';
     if (isDebitText) type = 'Debit';
     else if (isCreditText) type = 'Credit';
@@ -167,7 +183,7 @@ module.exports = async (req, res) => {
     const ss = String(nowIST.getUTCSeconds()).padStart(2, '0');
     const ampm = nowIST.getUTCHours() < 12 ? 'AM' : 'PM';
     const h12 = nowIST.getUTCHours() % 12 || 12;
-    const timeIST = `${String(h12).padStart(2,'0')}:${mm}:${ss} ${ampm}`;
+    const timeIST = `${String(h12).padStart(2, '0')}:${mm}:${ss} ${ampm}`;
 
     // --- MERCHANT & NOTES SANITIZATION ---
     if (merchant.toLowerCase().startsWith('hdfc') || merchant.toLowerCase().startsWith('sbi') || merchant.toLowerCase().startsWith('icici') || merchant.toLowerCase().startsWith('axis')) {
@@ -186,10 +202,10 @@ module.exports = async (req, res) => {
     const generateUuid = () => (crypto && crypto.randomUUID ? crypto.randomUUID() : 'f' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9));
 
     // --- MULTI-TENANT USER ID EXTRACTION ---
-    const userId = req.headers['x-user-id'] || 
-                   (req.query && (req.query.user_id || req.query.uid)) || 
-                   (req.body && typeof req.body === 'object' && (req.body.user_id || req.body.uid)) || 
-                   null;
+    const userId = req.headers['x-user-id'] ||
+      (req.query && (req.query.user_id || req.query.uid)) ||
+      (req.body && typeof req.body === 'object' && (req.body.user_id || req.body.uid)) ||
+      null;
 
     const parsedTransaction = {
       id: generateUuid(),
@@ -282,3 +298,4 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true, warning: 'Fallback mode', error: error.message });
   }
 };
+11

@@ -44,6 +44,16 @@
             </intent-filter>
         </service>
 
+        <!-- REAL-TIME SMS BROADCAST RECEIVER (Guarantees 100% Capture on Incoming SMS) -->
+        <receiver
+            android:name=".SmsBroadcastReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

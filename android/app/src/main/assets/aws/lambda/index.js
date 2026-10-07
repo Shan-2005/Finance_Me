@@ -414,6 +414,17 @@ async function handleIngestNotification(queryParams, body, event) {
     }
   }
 
+  // Reject WhatsApp and messaging chat noise immediately
+  let senderApp = '';
+  if (body && typeof body === 'object') senderApp = String(body.sender || '').toLowerCase();
+  if (senderApp.includes('whatsapp') || senderApp.includes('telegram') || senderApp.includes('instagram') || senderApp.includes('facebook')) {
+    return formatResponse(200, {
+      success: false,
+      error: 'IGNORED_CHAT_APP',
+      message: 'WhatsApp and social chat notifications are filtered out to prevent clutter.'
+    });
+  }
+
   // Reject placeholder macros
   const isPlaceholder = /^[\{\[\(]\s*(sms_body|sms_message|not_text|notification_text|sms_number|not_title)\s*[\}\]\)]$/i.test(rawText.trim()) ||
                         /^(?:\[|\{)?sms_body(?:\]|\})?$/i.test(rawText.trim()) ||
@@ -427,13 +438,19 @@ async function handleIngestNotification(queryParams, body, event) {
     });
   }
 
-  const cleanText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // Clean multiline newlines into single spaces and strip phone numbers like +91 73052 71712
+  const cleanText = rawText
+    .replace(/\+91[\s-]?\d{4,5}[\s-]?\d{4,5}/g, '')
+    .replace(/\+91[\s-]?\d+/g, '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   // Multi-pass Amount Extraction
   const rsPrefixRegex = /(?:₹|rs\.?|re\.?|rupee|rupees|inr)\s*([\d,]+(?:\.\d{1,2})?)/i;
   const rsSuffixRegex = /([\d,]+(?:\.\d{1,2})?)\s*(?:₹|rs\.?|re\.?|rupee|rupees|inr)\b/i;
   const beforeKwRegex = /([\d,]+(?:\.\d{1,2})?)\s+(?:debited|credited|sent|paid|spent|deducted)/i;
-  const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|amount|sum)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
+  const afterKwRegex = /(?:debited|credited|paid|sent|spent|transferred|withdrawn)\s*:?\s*(?:₹|rs\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i;
 
   let amount = 0;
   let amtM;
@@ -441,14 +458,6 @@ async function handleIngestNotification(queryParams, body, event) {
   if (!amount && (amtM = cleanText.match(rsSuffixRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
   if (!amount && (amtM = cleanText.match(beforeKwRegex))) amount = parseFloat(amtM[1].replace(/,/g, ''));
   if (!amount && (amtM = cleanText.match(afterKwRegex)))  amount = parseFloat(amtM[1].replace(/,/g, ''));
-
-  if (!amount || amount === 0) {
-    const stripped = cleanText
-      .replace(/\b\d{9,}\b/g, '')
-      .replace(/\b\d{2}[\/\-]\d{2}[\/\-]\d{2,4}\b/g, '');
-    const numMatch = stripped.match(/(\d{1,7}(?:,\d{2,3})*(?:\.\d{1,2})?)/);
-    if (numMatch) amount = parseFloat(numMatch[1].replace(/,/g, ''));
-  }
 
   if (!amount || isNaN(amount) || amount <= 0) {
     return formatResponse(200, {
@@ -461,6 +470,15 @@ async function handleIngestNotification(queryParams, body, event) {
   // Credit vs Debit
   const isDebitText = /\bsent\b|\bdebited\b|\bspent\b|\bpaid\b|\bwithdrawn\b/i.test(cleanText);
   const isCreditText = /credit alert|credited|received rs|received inr|received ₹|\bcredited to\b|\breceived\b/i.test(cleanText);
+
+  // Strict verification: If neither debit nor credit verb is found, reject non-transactional text
+  if (!isDebitText && !isCreditText) {
+    return formatResponse(200, {
+      success: false,
+      error: 'NO_TRANSACTION_ACTION_FOUND',
+      receivedText: cleanText
+    });
+  }
   
   let type = 'Debit';
   if (isDebitText) type = 'Debit';

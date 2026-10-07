@@ -2204,6 +2204,20 @@ body::before {
   border: 1px solid rgba(66, 133, 244, 0.25);
 }
 
+.note-bank-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-bank-empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 /* Horizontal Snap Scroll for Bank Cards */
 .bank-cards-deck {
   display: flex;
@@ -2243,6 +2257,62 @@ body::before {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.bank-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-card-action {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-card-action:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-card-action:active {
+  transform: scale(0.92);
+}
+
+.btn-note-set-balance {
+  background: #2D6A4F !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 600 !important;
+  border-radius: 20px !important;
+  padding: 5px 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 11.5px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(45, 106, 79, 0.25) !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-note-set-balance:hover {
+  background: #1B4332 !important;
+  transform: translateY(-1px);
+}
+
+.modal-card-balance {
+  max-width: 440px;
+  width: 92%;
 }
 
 .bank-card-brand-wrap {
@@ -2554,5 +2624,2298 @@ body::before {
   margin-left: 6px;
 }
 
+/* ==========================================================================
+   AUTHENTIC INDIAN ₹500 NOTE THEME ([data-theme="note"])
+   ========================================================================== */
+[data-theme="note"],
+body.theme-note {
+  --gpay-bg: #E4E2D8;
+  --note-paper: #EFEEE6;
+  --note-stone: #B9BCAF;
+  --note-terracotta: #A8432A;
+  --note-thread-green: #1F7A57;
+  --note-thread-blue: #2D5FA8;
+  --note-ink: #1F2A26;
+
+  --glass-surface: #EFEEE6;
+  --glass-surface-elevated: #F6F5F0;
+  --glass-surface-hover: #E8E6DE;
+  --glass-border: rgba(31, 42, 38, 0.12);
+  --glass-shadow: 0 4px 20px rgba(31, 42, 38, 0.08);
+
+  --gpay-blue: #2D5FA8;
+  --gpay-blue-light: #2D5FA8;
+  --gpay-blue-grad: linear-gradient(135deg, #1F7A57 0%, #2D5FA8 100%);
+  --gpay-blue-bg: rgba(45, 95, 168, 0.15);
+
+  --gpay-green: #1F7A57;
+  --gpay-green-light: #1F7A57;
+  --gpay-green-grad: linear-gradient(135deg, #1F7A57 0%, #2D5FA8 100%);
+  --gpay-green-bg: rgba(31, 122, 87, 0.15);
+
+  --gpay-red: #A8432A;
+  --gpay-red-light: #A8432A;
+  --gpay-red-grad: linear-gradient(135deg, #A8432A 0%, #87311c 100%);
+  --gpay-red-bg: rgba(168, 67, 42, 0.15);
+
+  --text-main: #1F2A26;
+  --text-muted: #5A645E;
+  --text-sub: #2E3833;
+
+  --hero-grad: #B9BCAF;
+}
+
+[data-theme="note"] body {
+  background-color: #E4E2D8;
+  background-image: 
+    radial-gradient(rgba(31, 42, 38, 0.25) 0.5px, transparent 0.5px),
+    repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(31, 42, 38, 0.02) 38px, rgba(31, 42, 38, 0.02) 39px),
+    linear-gradient(180deg, #E6E4DA 0%, #DFDCD1 100%);
+  background-size: 10px 10px, 100% 100%, 100% 100%;
+  color: #1F2A26;
+}
+
+[data-theme="note"] .app-container,
+body.theme-note .app-container {
+  background: #E4E2D8;
+  background-image: 
+    radial-gradient(rgba(31, 42, 38, 0.22) 0.5px, transparent 0.5px),
+    repeating-linear-gradient(90deg, transparent, transparent 42px, rgba(31, 42, 38, 0.02) 42px, rgba(31, 42, 38, 0.02) 43px);
+  background-size: 8px 8px, 100% 100%;
+  color: #1F2A26;
+  min-height: 100vh;
+}
+
+/* Hide old search header and bottom bar in note theme */
+[data-theme="note"] .gpay-header,
+body.theme-note .gpay-header {
+  display: none !important;
+}
+
+[data-theme="note"] .app-nav,
+body.theme-note .app-nav {
+  display: none !important;
+}
+
+[data-theme="note"] .app-content,
+body.theme-note .app-content {
+  padding-bottom: 40px !important;
+}
+
+/* Indian ₹500 Note Header */
+.note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 10px 18px;
+}
+
+.note-greeting-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.note-greeting-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #5C6460;
+  text-transform: uppercase;
+}
+
+.note-greeting-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1F2A26;
+  margin: 2px 0 0 0;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.note-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(31, 42, 38, 0.16);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #1F2A26;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.05);
+  transition: all 0.2s ease;
+}
+
+.note-circle-btn:active {
+  transform: scale(0.94);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.note-circle-btn .inbox-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #A8432A;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 17px;
+  height: 17px;
+  line-height: 17px;
+  border-radius: 9px;
+  text-align: center;
+  padding: 0 4px;
+  border: 1.5px solid #E4E2D8;
+}
+
+/* Top Nav Tabs */
+.note-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 14px 0 14px;
+  border-bottom: 1px solid rgba(31, 42, 38, 0.12);
+  background: transparent;
+  margin-bottom: 16px;
+}
+
+.note-tab-btn {
+  background: none;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #5C6460;
+  padding: 8px 12px 10px 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+
+.note-tab-btn.active {
+  color: #1F2A26;
+}
+
+.note-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 6px;
+  right: 6px;
+  height: 3.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1F7A57 0%, #2D5FA8 100%);
+  box-shadow: 0 1px 3px rgba(31, 122, 87, 0.4);
+}
+
+/* Indian ₹500 Note Hero Balance Card */
+.note-balance-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(31, 42, 38, 0.05) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  box-shadow: 0 8px 24px rgba(31, 42, 38, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  border-radius: 24px !important;
+  position: relative;
+  overflow: hidden;
+  padding: 22px 20px 24px 20px !important;
+  color: #1F2A26 !important;
+  margin-bottom: 18px;
+}
+
+.note-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.hero-balance-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #4F5852;
+  text-transform: uppercase;
+}
+
+.hero-balance-amount {
+  font-size: 38px;
+  font-weight: 900;
+  color: #1F2A26 !important;
+  letter-spacing: -0.03em;
+  margin: 6px 0 14px 0;
+  line-height: 1;
+}
+
+.hero-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 280px;
+}
+
+.hero-stats-grid .stat-item {
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 14px !important;
+  padding: 8px 14px !important;
+  box-shadow: 0 2px 8px rgba(31, 42, 38, 0.05) !important;
+}
+
+.hero-stats-grid .stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #555E58;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.hero-stats-grid .stat-value.credit {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1A639B !important;
+}
+
+.hero-stats-grid .stat-value.debit {
+  font-size: 16px;
+  font-weight: 800;
+  color: #A8432A !important;
+}
+
+/* Security Thread with stitched windowed segments */
+.note-security-thread {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 76px;
+  width: 9px;
+  background: linear-gradient(180deg, #1F7A57 0%, #2D5FA8 100%);
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.15);
+  mask-image: repeating-linear-gradient(180deg, #000 0px, #000 20px, transparent 20px, transparent 28px);
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0px, #000 20px, transparent 20px, transparent 28px);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Embossed Devanagari 500 */
+.note-numeral-500 {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  font-size: 34px;
+  font-weight: 900;
+  color: rgba(31, 42, 38, 0.25);
+  text-shadow: -1px -1px 0 rgba(255, 255, 255, 0.85), 1px 1px 2px rgba(0, 0, 0, 0.22);
+  font-family: 'Space Grotesk', serif;
+  user-select: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* See-through Register (Overlapping Circles) */
+.note-see-through-register {
+  position: absolute;
+  top: 66px;
+  right: 24px;
+  width: 32px;
+  height: 22px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.35;
+}
+
+.note-see-through-register::before,
+.note-see-through-register::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #1F2A26;
+  top: 2px;
+}
+
+.note-see-through-register::before {
+  left: 0;
+}
+
+.note-see-through-register::after {
+  right: 0;
+}
+
+/* Red Fort Silhouette SVG */
+.note-fort-silhouette {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.35));
+}
+
+.note-fort-silhouette svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.note-fort-silhouette svg path {
+  fill: #8C3823;
+  opacity: 0.92;
+}
+
+/* Micro Lettering */
+.note-micro-lettering {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: rgba(31, 42, 38, 0.6);
+  text-transform: uppercase;
+  margin-top: 14px;
+  font-family: inherit;
+}
+
+/* Quick Actions Grid */
+.note-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0 20px 0;
+  text-align: center;
+}
+
+.note-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-action-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: rgba(31, 42, 38, 0.06);
+  border: 1px solid rgba(31, 42, 38, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #1F2A26;
+  box-shadow: 0 2px 8px rgba(31, 42, 38, 0.05);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.note-action-btn:active .note-action-circle {
+  transform: scale(0.94);
+}
+
+.note-action-circle.action-circle-add {
+  background: #A8432A;
+  color: #FFFFFF;
+  border-color: rgba(168, 67, 42, 0.4);
+  box-shadow: 0 4px 12px rgba(168, 67, 42, 0.3);
+}
+
+.note-action-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2F3934;
+  letter-spacing: 0.02em;
+}
+
+/* Tactile Bleed Lines (///) */
+.note-bleed-lines,
+.note-tactile-bleed {
+  display: inline-flex;
+  gap: 3px;
+  transform: rotate(-35deg);
+  margin-right: 8px;
+  vertical-align: middle;
+  opacity: 0.6;
+}
+
+.note-bleed-lines span,
+.note-tactile-bleed span {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: #1F2A26;
+  border-radius: 1px;
+}
+
+/* Bank Accounts Card */
+.note-bank-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(31, 42, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 20px !important;
+  padding: 18px !important;
+  box-shadow: 0 4px 16px rgba(31, 42, 38, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  margin-bottom: 22px;
+}
+
+.note-bank-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.note-bank-title {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1F2A26;
+}
+
+.note-bank-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: #555E58;
+}
+
+.note-bank-desc {
+  font-size: 13px;
+  color: #4F5852;
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+}
+
+/* Textured Dark Pill Button */
+.btn-note-dark {
+  background: #1F2A26 !important;
+  background-image: repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255, 255, 255, 0.02) 3px, rgba(255, 255, 255, 0.02) 4px) !important;
+  color: #EFEEE6 !important;
+  border-radius: 22px !important;
+  padding: 12px 24px !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  width: 100% !important;
+  text-align: center !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(31, 42, 38, 0.25) !important;
+  cursor: pointer;
+  display: block;
+}
+
+.btn-note-dark:active {
+  transform: scale(0.98);
+}
+
+/* Recent Payments Section */
+.note-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+.note-recent-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #1F2A26;
+  margin: 0;
+}
+
+.note-category-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: #A8432A;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding-right: 14px;
+  font-family: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512' fill='%23A8432A'%3E%3Cpath d='M137.4 374.6c12.5 12.5 32.8 12.5 45.3 0l128-128c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8L32 192c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l128 128z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: 9px;
+}
+
+.note-empty-payments {
+  padding: 16px 2px;
+  color: #656D67;
+  font-size: 13.5px;
+}
+
+/* ==========================================================================
+   INDIAN ₹500 NOTE THEME: ALL SUB-PAGES (INSIGHTS, ADVISOR, SETTINGS)
+   ========================================================================== */
+
+/* Universal Banknote Card */
+[data-theme="note"] .card,
+body.theme-note .card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(31, 42, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 20px !important;
+  padding: 18px !important;
+  box-shadow: 0 4px 16px rgba(31, 42, 38, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  color: #1F2A26 !important;
+  margin-bottom: 16px;
+}
+
+[data-theme="note"] .card-title,
+body.theme-note .card-title {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-theme="note"] .card-subtitle,
+body.theme-note .card-subtitle {
+  color: #5C6460 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+}
+
+/* 1. INSIGHTS (ANALYTICS) */
+[data-theme="note"] .tax-bucket,
+body.theme-note .tax-bucket {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  margin-bottom: 10px !important;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04) !important;
+}
+
+[data-theme="note"] .tax-name,
+body.theme-note .tax-name {
+  color: #1F2A26 !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+}
+
+[data-theme="note"] .tax-amount,
+body.theme-note .tax-amount {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+}
+
+[data-theme="note"] .progress-bar-bg,
+body.theme-note .progress-bar-bg {
+  background: rgba(31, 42, 38, 0.08) !important;
+  height: 8px !important;
+  border-radius: 4px !important;
+  margin-top: 8px !important;
+}
+
+[data-theme="note"] #taxNeedsBar,
+body.theme-note #taxNeedsBar {
+  background: linear-gradient(90deg, #1A639B, #2D5FA8) !important;
+  border-radius: 4px !important;
+}
+
+[data-theme="note"] #taxWantsBar,
+body.theme-note #taxWantsBar {
+  background: linear-gradient(90deg, #A8432A, #C85A3C) !important;
+  border-radius: 4px !important;
+}
+
+[data-theme="note"] #taxInvestBar,
+body.theme-note #taxInvestBar {
+  background: linear-gradient(90deg, #1F7A57, #2D9D72) !important;
+  border-radius: 4px !important;
+}
+
+[data-theme="note"] #taxSavingsBar,
+body.theme-note #taxSavingsBar {
+  background: linear-gradient(90deg, #855F10, #B8861B) !important;
+  border-radius: 4px !important;
+}
+
+/* 2. ADVISOR (SAVINGS STRATEGY) */
+[data-theme="note"] .strategy-hero-card,
+body.theme-note .strategy-hero-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(31, 42, 38, 0.05) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 24px !important;
+  padding: 20px 18px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 8px 24px rgba(31, 42, 38, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  color: #1F2A26 !important;
+}
+
+[data-theme="note"] .strategy-hero-card::before,
+body.theme-note .strategy-hero-card::before {
+  display: none !important;
+}
+
+[data-theme="note"] .strategy-hero-tag,
+body.theme-note .strategy-hero-tag {
+  color: #5C6460 !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+[data-theme="note"] .strategy-saved-amount,
+body.theme-note .strategy-saved-amount {
+  color: #1F2A26 !important;
+  font-size: 34px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.03em !important;
+  margin: 4px 0 12px 0 !important;
+}
+
+[data-theme="note"] .strategy-pill-badge,
+body.theme-note .strategy-pill-badge {
+  background: rgba(31, 122, 87, 0.12) !important;
+  color: #1F7A57 !important;
+  border: 1px solid rgba(31, 122, 87, 0.25) !important;
+  font-weight: 800 !important;
+  border-radius: 12px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+}
+
+[data-theme="note"] .strategy-pill-rating,
+body.theme-note .strategy-pill-rating {
+  background: rgba(168, 67, 42, 0.12) !important;
+  color: #A8432A !important;
+  border: 1px solid rgba(168, 67, 42, 0.25) !important;
+  font-weight: 800 !important;
+  border-radius: 12px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+}
+
+[data-theme="note"] .strategy-score-svg-bg,
+body.theme-note .strategy-score-svg-bg {
+  stroke: rgba(31, 42, 38, 0.1) !important;
+}
+
+[data-theme="note"] .strategy-score-val-big,
+body.theme-note .strategy-score-val-big {
+  color: #1F2A26 !important;
+  font-weight: 900 !important;
+  font-size: 22px !important;
+}
+
+[data-theme="note"] .strategy-score-subtext,
+body.theme-note .strategy-score-subtext {
+  color: #5C6460 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] #healthScoreDesc,
+body.theme-note #healthScoreDesc {
+  color: #5C6460 !important;
+}
+
+/* 3-Column Metrics */
+[data-theme="note"] .strategy-metrics-grid,
+body.theme-note .strategy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+[data-theme="note"] .strategy-metric-card,
+body.theme-note .strategy-metric-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(31, 42, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 18px !important;
+  padding: 14px 10px !important;
+  box-shadow: 0 4px 14px rgba(31, 42, 38, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  text-align: center;
+}
+
+[data-theme="note"] .strategy-metric-icon,
+body.theme-note .strategy-metric-icon {
+  margin: 0 auto 8px auto !important;
+  border-radius: 12px !important;
+}
+
+[data-theme="note"] .strategy-metric-label,
+body.theme-note .strategy-metric-label {
+  color: #5C6460 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+[data-theme="note"] .strategy-metric-val,
+body.theme-note .strategy-metric-val {
+  color: #1F2A26 !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  margin-top: 4px !important;
+}
+
+[data-theme="note"] .strategy-forecast-box,
+body.theme-note .strategy-forecast-box {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(31, 42, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 20px !important;
+  padding: 18px !important;
+  box-shadow: 0 4px 16px rgba(31, 42, 38, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  margin-bottom: 16px !important;
+  color: #1F2A26 !important;
+}
+
+[data-theme="note"] .strategy-forecast-title,
+body.theme-note .strategy-forecast-title {
+  color: #1F2A26 !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] .strategy-forecast-item,
+body.theme-note .strategy-forecast-item {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 14px !important;
+  padding: 12px !important;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04) !important;
+}
+
+[data-theme="note"] #forecast1Year,
+body.theme-note #forecast1Year {
+  color: #1F7A57 !important;
+  font-weight: 900 !important;
+}
+
+[data-theme="note"] #forecast5Year,
+body.theme-note #forecast5Year {
+  color: #1A639B !important;
+  font-weight: 900 !important;
+}
+
+[data-theme="note"] #topMerchantVal,
+body.theme-note #topMerchantVal {
+  color: #1F2A26 !important;
+}
+
+[data-theme="note"] #topCategoryVal,
+body.theme-note #topCategoryVal {
+  color: #A8432A !important;
+}
+
+[data-theme="note"] .strategy-advice-item,
+body.theme-note .strategy-advice-item {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(31, 42, 38, 0.04) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.14) !important;
+  border-radius: 18px !important;
+  padding: 14px !important;
+  box-shadow: 0 3px 12px rgba(31, 42, 38, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  color: #1F2A26 !important;
+}
+
+/* 3. SETTINGS & PROFILE */
+[data-theme="note"] .profile-user-banner,
+body.theme-note .profile-user-banner {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 16px !important;
+  padding: 14px !important;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04) !important;
+}
+
+[data-theme="note"] .profile-avatar-circle,
+body.theme-note .profile-avatar-circle {
+  background: #A8432A !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 3px 10px rgba(168, 67, 42, 0.3) !important;
+}
+
+[data-theme="note"] .profile-name-input,
+body.theme-note .profile-name-input {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] .profile-email-text,
+body.theme-note .profile-email-text {
+  color: #5C6460 !important;
+}
+
+[data-theme="note"] .profile-logout-btn,
+body.theme-note .profile-logout-btn {
+  background: rgba(168, 67, 42, 0.1) !important;
+  color: #A8432A !important;
+  border: 1px solid rgba(168, 67, 42, 0.25) !important;
+  border-radius: 12px !important;
+}
+
+[data-theme="note"] .profile-input-card,
+body.theme-note .profile-input-card {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04) !important;
+}
+
+[data-theme="note"] .profile-input-header label,
+body.theme-note .profile-input-header label {
+  color: #5C6460 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+}
+
+[data-theme="note"] .profile-num-input,
+body.theme-note .profile-num-input,
+[data-theme="note"] .profile-select-input,
+body.theme-note .profile-select-input {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+  background: transparent !important;
+}
+
+[data-theme="note"] .profile-currency-prefix,
+body.theme-note .profile-currency-prefix {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+
+/* Button & Form Controls in Note Theme */
+[data-theme="note"] .btn-secondary,
+body.theme-note .btn-secondary {
+  background: rgba(255, 255, 255, 0.7) !important;
+  color: #1F2A26 !important;
+  border: 1px solid rgba(31, 42, 38, 0.15) !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="note"] .btn:not(.btn-secondary):not(.btn-note-dark):not(.btn-review-cta),
+body.theme-note .btn:not(.btn-secondary):not(.btn-note-dark):not(.btn-review-cta) {
+  background: #1F2A26 !important;
+  color: #EFEEE6 !important;
+  border-radius: 16px !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(31, 42, 38, 0.2) !important;
+}
+
+[data-theme="note"] .parser-textarea,
+body.theme-note .parser-textarea {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(31, 42, 38, 0.15) !important;
+  color: #1F2A26 !important;
+  border-radius: 14px !important;
+  font-family: inherit !important;
+}
+
+[data-theme="note"] .parsed-preview,
+body.theme-note .parsed-preview {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(31, 42, 38, 0.12) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+}
+
+[data-theme="note"] .parsed-row .parsed-key,
+body.theme-note .parsed-row .parsed-key {
+  color: #5C6460 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="note"] .parsed-row .parsed-val,
+body.theme-note .parsed-row .parsed-val {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] #androidNotifStatusText,
+body.theme-note #androidNotifStatusText {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] #androidNotifStatusSub,
+body.theme-note #androidNotifStatusSub {
+  color: #5C6460 !important;
+}
+
+/* Modals in Note Theme */
+[data-theme="note"] .modal-card,
+body.theme-note .modal-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(31, 42, 38, 0.05) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.16) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 16px 40px rgba(31, 42, 38, 0.25) !important;
+  color: #1F2A26 !important;
+}
+
+[data-theme="note"] .modal-title-wrap h3,
+body.theme-note .modal-title-wrap h3 {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="note"] .modal-subtitle,
+body.theme-note .modal-subtitle {
+  color: #5C6460 !important;
+}
+
+[data-theme="note"] .form-input,
+body.theme-note .form-input,
+[data-theme="note"] .form-select,
+body.theme-note .form-select {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(31, 42, 38, 0.15) !important;
+  color: #1F2A26 !important;
+  border-radius: 12px !important;
+}
+
+[data-theme="note"] .form-label,
+body.theme-note .form-label {
+  color: #5C6460 !important;
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   INTELLIGENT PROGRESS BAR & SMS SCANNER DASHBOARD
+   ========================================================================== */
+.modal-overlay {
+  z-index: 99999 !important;
+}
+.modal-overlay.active {
+  display: flex !important;
+}
+
+.sms-permission-card {
+  background: rgba(251, 188, 5, 0.12);
+  border: 1px solid rgba(251, 188, 5, 0.35);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.sms-perm-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.sms-perm-icon {
+  color: #FBBC05;
+  font-size: 20px;
+  margin-top: 2px;
+}
+.sms-perm-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.sms-perm-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.sms-perm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Intelligent Progress Dashboard Box */
+.sms-scan-progress-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.sms-progress-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.sms-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(31, 122, 87, 0.18);
+  border: 1px solid rgba(31, 122, 87, 0.35);
+  color: #1F7A57;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.sms-stage-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1F7A57;
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
+}
+.sms-percent-val {
+  font-family: var(--font-amount);
+  font-size: 18px;
+  font-weight: 800;
+  color: #2D5FA8;
+}
+
+.sms-progress-bar-wrap {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+}
+.sms-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #1F7A57 0%, #2D5FA8 100%);
+  border-radius: 8px;
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+.sms-progress-bar-glow {
+  position: absolute;
+  top: 0; left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: barShine 1.8s infinite;
+}
+@keyframes barShine {
+  0% { left: -50%; }
+  100% { left: 150%; }
+}
+
+.sms-scan-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  margin-bottom: 14px;
+}
+.sms-scan-status-text {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.sms-scan-speed {
+  font-family: var(--font-amount);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Live Dynamic Counters */
+.sms-live-counters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sms-live-counter-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+.sms-counter-icon {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.sms-counter-num {
+  font-family: var(--font-amount);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.sms-counter-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Live Discovery Stream Ticker */
+.sms-live-ticker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(31, 122, 87, 0.1);
+  border: 1px solid rgba(31, 122, 87, 0.25);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  animation: fadeIn 0.3s ease;
+}
+.sms-ticker-icon {
+  color: #1F7A57;
+  font-size: 12px;
+}
+.sms-ticker-text {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Note Theme Overrides for SMS Scanner */
+[data-theme="note"] .sms-scan-progress-box,
+body.theme-note .sms-scan-progress-box {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(31, 42, 38, 0.18) !important;
+  box-shadow: 0 6px 20px rgba(31, 42, 38, 0.1) !important;
+}
+[data-theme="note"] .sms-live-counter-card,
+body.theme-note .sms-live-counter-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(31, 42, 38, 0.12) !important;
+}
+[data-theme="note"] .sms-live-ticker,
+body.theme-note .sms-live-ticker {
+  background: rgba(31, 122, 87, 0.12) !important;
+  border-color: rgba(31, 122, 87, 0.3) !important;
+}
+[data-theme="note"] .sms-scan-status-text,
+body.theme-note .sms-scan-status-text {
+  color: #1F2A26 !important;
+}
+[data-theme="note"] .sms-counter-num,
+body.theme-note .sms-counter-num {
+  color: #1F2A26 !important;
+}
+[data-theme="note"] .review-card,
+body.theme-note .review-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(31, 42, 38, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(31, 42, 38, 0.08) !important;
+}
+[data-theme="note"] .review-merchant-name,
+body.theme-note .review-merchant-name {
+  color: #1F2A26 !important;
+  font-weight: 800 !important;
+}
+[data-theme="note"] .review-cat-chip,
+body.theme-note .review-cat-chip {
+  background: rgba(31, 42, 38, 0.08) !important;
+  color: #1F2A26 !important;
+  border: 1px solid rgba(31, 42, 38, 0.15) !important;
+}
+[data-theme="note"] .review-cat-chip.selected,
+body.theme-note .review-cat-chip.selected {
+  background: #1F7A57 !important;
+  color: #ffffff !important;
+  border-color: #1F7A57 !important;
+}
+[data-theme="note"] .review-snippet,
+body.theme-note .review-snippet {
+  background: rgba(31, 42, 38, 0.05) !important;
+  color: #5C6460 !important;
+  border-left: 3px solid #1F7A57 !important;
+}
+
+/* ==========================================================================
+   BANKNOTE INTALGLIO UPGRADES: INSIGHTS, ADVISOR, SETTINGS & AUTH MODAL
+   ========================================================================== */
+
+/* Insights Hero Card */
+[data-theme="note"] .note-insights-hero,
+body.theme-note .note-insights-hero {
+  background-color: #CACEC3 !important;
+  border: 1px solid rgba(31, 42, 38, 0.16) !important;
+  box-shadow: 0 8px 24px rgba(31, 42, 38, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Category Legend Matrix */
+.insights-legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.insights-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04);
+  position: relative;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.legend-label {
+  font-size: 10.5px;
+  color: #5C6460;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.legend-value {
+  font-size: 13.5px;
+  font-weight: 900;
+  color: #1F2A26;
+  margin-top: 2px;
+}
+
+.legend-pct {
+  font-size: 11px;
+  font-weight: 800;
+  color: #5C6460;
+  background: rgba(31, 42, 38, 0.08);
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+
+/* Spotlight Deep-Dive */
+.spotlight-metric-box {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(31, 42, 38, 0.04);
+}
+
+.spotlight-metric-label {
+  font-size: 10px;
+  color: #5C6460;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.spotlight-metric-val {
+  font-size: 13px;
+  font-weight: 900;
+  color: #1F2A26;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Profile Cloud Connect Button */
+.profile-cloud-btn {
+  background: rgba(31, 122, 87, 0.12);
+  color: #1F7A57;
+  border: 1px solid rgba(31, 122, 87, 0.25);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-cloud-btn:active {
+  transform: scale(0.96);
+  background: rgba(31, 122, 87, 0.2);
+}
+
+/* Banknote Theme Auth Modal */
+[data-theme="note"] .auth-overlay,
+body.theme-note .auth-overlay {
+  background: rgba(31, 42, 38, 0.65) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+[data-theme="note"] .auth-card,
+body.theme-note .auth-card {
+  background-color: #CACEC3 !important;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(31, 42, 38, 0.035) 2px, rgba(31, 42, 38, 0.035) 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(31, 42, 38, 0.05) 100%) !important;
+  border: 1px solid rgba(31, 42, 38, 0.18) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 16px 40px rgba(31, 42, 38, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  color: #1F2A26 !important;
+}
+
+.auth-close-x {
+  background: rgba(31, 42, 38, 0.08);
+  border: 1px solid rgba(31, 42, 38, 0.14);
+  color: #1F2A26;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.auth-close-x:active {
+  background: rgba(31, 42, 38, 0.18);
+  transform: scale(0.92);
+}
+
+[data-theme="note"] .auth-subtitle,
+body.theme-note .auth-subtitle {
+  color: #5C6460 !important;
+}
+
+[data-theme="note"] .auth-tabs,
+body.theme-note .auth-tabs {
+  background: rgba(31, 42, 38, 0.08) !important;
+  border: 1px solid rgba(31, 42, 38, 0.12) !important;
+}
+
+[data-theme="note"] .auth-tab-btn,
+body.theme-note .auth-tab-btn {
+  color: #5C6460 !important;
+}
+
+[data-theme="note"] .auth-tab-btn.active,
+body.theme-note .auth-tab-btn.active {
+  background: #1F2A26 !important;
+  color: #EFEEE6 !important;
+  box-shadow: 0 2px 8px rgba(31, 42, 38, 0.25) !important;
+}
+
+/* Strategy Advice items */
+.advice-card,
+.strategy-advice-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 8px rgba(31, 42, 38, 0.04);
+}
+
+.advice-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.advice-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.advice-desc {
+  font-size: 11px;
+  color: #5C6460;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   ACTIVITY: MONTHLY CALENDAR & CLASSIFIED TIMELINE STYLES
+   ========================================================================== */
+
+.activity-calendar-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.calendar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.calendar-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-cal-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.btn-cal-nav:hover {
+  background: var(--gpay-blue-bg);
+  border-color: var(--gpay-blue);
+  color: var(--gpay-blue-light);
+  transform: scale(1.08);
+}
+
+.calendar-current-month {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.btn-cal-today {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--gpay-blue);
+  background: var(--gpay-blue-bg);
+  color: var(--gpay-blue-light);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-cal-today:hover {
+  background: var(--gpay-blue);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.calendar-month-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.cal-stat-chip {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cal-stat-chip.debit { border-color: rgba(234, 67, 53, 0.2); }
+.cal-stat-chip.credit { border-color: rgba(52, 168, 83, 0.2); }
+.cal-stat-chip.count { border-color: rgba(26, 115, 232, 0.2); }
+
+.cal-stat-chip .stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cal-stat-chip.debit .stat-lbl i { color: #EA4335; }
+.cal-stat-chip.credit .stat-lbl i { color: #34A853; }
+.cal-stat-chip.count .stat-lbl i { color: #1A73E8; }
+
+.cal-stat-chip .stat-val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-day-cell {
+  position: relative;
+  min-height: 38px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: 2px;
+}
+
+.cal-day-cell:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--glass-border);
+  transform: translateY(-1px);
+}
+
+.cal-day-cell.other-month {
+  color: var(--text-muted);
+  opacity: 0.3;
+  cursor: default;
+}
+
+.cal-day-cell.other-month:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+
+.cal-day-cell.is-today {
+  border-color: var(--gpay-blue);
+  color: var(--gpay-blue-light);
+  font-weight: 800;
+}
+
+.cal-day-cell.is-selected {
+  background: var(--gpay-blue) !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.4);
+}
+
+.cal-dots-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+  height: 5px;
+}
+
+.cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.cal-dot.debit { background: #EA4335; }
+.cal-dot.credit { background: #34A853; }
+
+.cal-day-cell.is-selected .cal-dot {
+  background: #ffffff;
+}
+
+.calendar-active-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(26, 115, 232, 0.08);
+  border: 1px solid rgba(26, 115, 232, 0.25);
+  border-radius: 12px;
+  font-size: 11.5px;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.filter-status-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.btn-reset-filter {
+  background: transparent;
+  border: none;
+  color: var(--gpay-blue-light);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-reset-filter:hover {
+  text-decoration: underline;
+}
+
+.activity-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.activity-search-box {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.activity-search-box i.fa-magnifying-glass {
+  position: absolute;
+  left: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.activity-search-box input {
+  width: 100%;
+  padding: 10px 32px 10px 34px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.activity-search-box input:focus {
+  border-color: var(--gpay-blue);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.activity-filter-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.activity-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activity-chip.active {
+  background: var(--gpay-blue);
+  color: #ffffff;
+  border-color: var(--gpay-blue);
+}
+
+.activity-timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.activity-date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.activity-date-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border-left: 3px solid var(--gpay-blue);
+}
+
+.date-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.date-header-left i {
+  color: var(--gpay-blue-light);
+}
+
+.date-header-total {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.activity-item-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.activity-item-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.activity-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-brand-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.activity-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-merchant-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activity-merchant-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.activity-time-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.activity-account-tag {
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.activity-ref-tag {
+  background: rgba(26, 115, 232, 0.12);
+  color: var(--gpay-blue-light);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.activity-cat-tag {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+.activity-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.activity-amount {
+  font-size: 15px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
+.activity-amount.debit { color: #EA4335; }
+.activity-amount.credit { color: #34A853; }
+
+.activity-delete-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.activity-delete-btn:hover {
+  background: rgba(234, 67, 53, 0.15);
+  color: #EA4335;
+  border-color: rgba(234, 67, 53, 0.3);
+  transform: scale(1.1);
+}
+
+.activity-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  border-radius: 20px;
+  border: 1px dashed var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+}
+
+.activity-empty-state i {
+  font-size: 36px;
+  color: var(--gpay-blue-light);
+  opacity: 0.6;
+}
+
+/* ========================================================
+   FINANCE ME BRAND MARK & SITUATIONAL LOGO SYSTEM
+   ======================================================== */
+.mark-situation {
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1), filter 0.25s ease;
+}
+
+/* Situational Color Palettes */
+.mark-ink {
+  --tile: #1d1c1a;
+  --b1: #36b99a;
+  --b2: #e0654a;
+  --g: #efe9dc;
+}
+
+.mark-rust {
+  --tile: #b5432a;
+  --b1: #efe9dc;
+  --b2: #1d1c1a;
+  --g: #efe9dc;
+}
+
+.mark-cream {
+  --tile: #efe9dc;
+  --edge: rgba(0, 0, 0, 0.18);
+  --b1: #1f7a66;
+  --b2: #b5432a;
+  --g: #1d1c1a;
+}
+
+.mark-teal {
+  --tile: #1f7a66;
+  --b1: #36b99a;
+  --b2: #efe9dc;
+  --g: #ffffff;
+}
+
+.mark-syncing {
+  --tile: #1a73e8;
+  --b1: #34a853;
+  --b2: #fbbc04;
+  --g: #ffffff;
+  animation: markPulse 1s infinite alternate ease-in-out;
+}
+
+@keyframes markPulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(26, 115, 232, 0.4)); }
+  100% { transform: scale(1.14); filter: drop-shadow(0 0 8px rgba(26, 115, 232, 0.85)); }
+}
+
+/* Header Brand Lockup */
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  margin-top: 2px;
+}
+
+.brand-mark-svg {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12));
+  transition: transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.brand-lockup:hover .brand-mark-svg,
+.brand-lockup:active .brand-mark-svg {
+  transform: scale(1.1) rotate(-5deg);
+}
+
+.brand-title {
+  font-family: 'Bricolage Grotesque', system-ui, -apple-system, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--note-ink, #1d1c1a);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.brand-title em {
+  font-style: normal;
+  color: #b5432a;
+}
+
+/* Sync Pill Mark */
+.sync-pill-mark {
+  width: 17px;
+  height: 17px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  border-radius: 5px;
+}
+
+/* Bank Account Card Mark */
+.bank-card-mark {
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+/* ========================================================
+   FULLSCREEN ANIMATED ENTRY SPLASH OVERLAY
+   ======================================================== */
+.splash-entry {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: none; /* Hidden by default to ensure instant app layout */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-bottom: 70px;
+  background-color: #e9e5dc;
+  background-image: radial-gradient(rgba(29, 28, 26, 0.13) 1px, transparent 1.3px);
+  background-size: 14px 14px;
+  cursor: pointer;
+  user-select: none;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.45s cubic-bezier(0.7, 0, 0.2, 1), visibility 0.45s ease;
+}
+
+.splash-entry.play {
+  display: flex !important;
+}
+
+.splash-entry.dismissed {
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none !important;
+}
+
+.splash-skyline {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 120px;
+  fill: #b5432a;
+  pointer-events: none;
+}
+
+.splash-stripe {
+  position: absolute;
+  top: 0;
+  right: 46px;
+  width: 9px;
+  height: 62%;
+  background: #1f7a66;
+  pointer-events: none;
+}
+
+.splash-tile {
+  width: 116px;
+  height: 116px;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.32));
+  position: relative;
+}
+
+.splash-word {
+  margin: 6px 0 0;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  padding-bottom: 4px;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+  color: #1d1c1a;
+}
+
+.splash-word span {
+  display: inline-block;
+}
+
+.splash-word .r {
+  color: #b5432a;
+}
+
+.splash-tag {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5b574f;
+  position: relative;
+}
+
+.splash-bar {
+  width: 130px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  margin-top: 10px;
+  position: relative;
+}
+
+.splash-bar i {
+  display: block;
+  height: 100%;
+  background: #1f7a66;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+.splash-skip-btn {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top, 20px));
+  right: 20px;
+  background: rgba(29, 28, 26, 0.08);
+  border: 1px solid rgba(29, 28, 26, 0.15);
+  color: #1d1c1a;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+/* Punchy Orchestrated Entry Sequence */
+.splash-entry.play .splash-skyline {
+  animation: splashRise .45s cubic-bezier(.2, 1.4, .4, 1) 0s both;
+}
+
+.splash-entry.play .splash-stripe {
+  animation: splashDrop .35s cubic-bezier(.6, 0, .2, 1) .05s both;
+}
+
+.splash-entry.play .splash-tile {
+  animation: splashPop .45s cubic-bezier(.3, 1.8, .5, 1) .15s both, splashThump .3s ease-out 1s;
+}
+
+.splash-entry.play .splash-d {
+  stroke-dasharray: 1;
+  animation: splashDraw .25s cubic-bezier(.5, 0, .2, 1) both;
+}
+
+.splash-entry.play .splash-d1 { animation-delay: .45s; }
+.splash-entry.play .splash-d2 { animation-delay: .58s; }
+.splash-entry.play .splash-d3 { animation-delay: .7s; animation-duration: .3s; }
+
+.splash-entry.play .splash-word span {
+  animation: splashUp .35s cubic-bezier(.2, 1.5, .4, 1) calc(.85s + var(--i) * .025s) both;
+}
+
+.splash-entry.play .splash-tag {
+  animation: splashFade .3s ease 1.25s both;
+}
+
+.splash-entry.play .splash-bar i {
+  animation: splashFill .6s cubic-bezier(.5, 0, .2, 1) 1.3s forwards;
+}
+
+.splash-entry.play {
+  animation: splashExit .5s cubic-bezier(.7, 0, .2, 1) 2.2s forwards;
+}
+
+@keyframes splashRise { from { transform: translateY(100%); } }
+@keyframes splashDrop { from { transform: scaleY(0); transform-origin: top; } }
+@keyframes splashPop { from { transform: scale(0) rotate(-28deg); opacity: 0; } }
+@keyframes splashThump { 50% { transform: scale(1.14); } }
+@keyframes splashDraw { from { stroke-dashoffset: 1; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes splashUp { from { transform: translateY(120%) scale(.6); opacity: 0; } }
+@keyframes splashFade { from { opacity: 0; transform: translateY(14px); } }
+@keyframes splashFill { to { transform: scaleX(1); } }
+@keyframes splashExit {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-103%); opacity: 0; pointer-events: none; visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-entry.play * { animation-duration: .01s !important; animation-delay: 0s !important; }
+}
 
 

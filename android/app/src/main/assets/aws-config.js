@@ -1,21 +1,21 @@
 // ============================================================================
 // FINANCE ME - AWS CONFIGURATION (100% Always Free Tier)
-// Fill in these values after deploying aws/template.yaml to your AWS account.
+// Live Serverless Backend in Selected Region: ap-south-1
 // ============================================================================
 
 window.AWS_CONFIG = {
   // Set to true to switch the entire app backend from Supabase to AWS
   enabled: true,
 
-  // AWS Region (e.g. 'ap-south-1' for Mumbai / India, or 'us-east-1')
+  // AWS Selected Region
   region: 'ap-south-1',
 
-  // Amazon Cognito User Pool ID (from CloudFormation Outputs or Cognito Console)
+  // Amazon Cognito User Pool ID (Optional - self-contained JWT auth is used by default)
   userPoolId: '',
 
-  // Amazon Cognito App Client ID (from CloudFormation Outputs or Cognito Console)
+  // Amazon Cognito App Client ID (Optional)
   clientId: '',
 
-  // AWS Lambda / API Gateway Endpoint (Public HTTPS endpoint with built-in CORS)
+  // AWS Live API Gateway & Lambda Endpoint in selected Region ap-south-1
   lambdaFunctionUrl: 'https://n1ej1706me.execute-api.ap-south-1.amazonaws.com'
 };

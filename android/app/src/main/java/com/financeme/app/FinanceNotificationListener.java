@@ -42,7 +42,6 @@ public class FinanceNotificationListener extends NotificationListenerService {
         "in.org.npci.upiapp",                     // BHIM UPI
         "com.dreamplug.androidapp",               // CRED
         "in.amazon.mShop.android.shopping",       // Amazon Pay
-        "com.whatsapp",                           // WhatsApp Payments (UPI)
         "com.myairtelapp",                        // Airtel Thanks / Payments Bank
         "com.mobikwik_new",                       // MobiKwik
         "com.freecharge.android",                 // Freecharge
@@ -50,12 +49,14 @@ public class FinanceNotificationListener extends NotificationListenerService {
         "club.jupiter",                           // Jupiter
         "money.fi",                               // Fi Money
         "com.fampay.in",                          // FamPay
-        "com.google.android.apps.messaging",      // Google Messages
-        "com.samsung.android.messaging",          // Samsung SMS
-        "com.android.mms",                        // Stock Android SMS
+        "com.heytap.mms",                         // Realme HeyTap SMS
         "com.coloros.mms",                        // Realme / Oppo ColorOS SMS
         "com.oppo.mms",                           // Oppo SMS
         "com.oneplus.mms",                        // OnePlus SMS
+        "com.google.android.apps.messaging",      // Google Messages
+        "com.samsung.android.messaging",          // Samsung SMS
+        "com.android.mms",                        // Stock Android SMS
+        "com.microsoft.android.smsorganizer",     // Microsoft SMS Organizer
         "com.miui.sms",                           // Xiaomi MIUI SMS
         "com.xiaomi.mms",                         // Xiaomi MMS
         "com.vivo.mms",                           // Vivo SMS
@@ -77,6 +78,22 @@ public class FinanceNotificationListener extends NotificationListenerService {
         if (sbn == null) return;
 
         String packageName = sbn.getPackageName();
+        if (packageName == null) return;
+
+        // Strictly reject WhatsApp and all chat / social apps immediately
+        String lowerPkg = packageName.toLowerCase();
+        if (lowerPkg.contains("whatsapp") ||
+            lowerPkg.contains("telegram") ||
+            lowerPkg.contains("instagram") ||
+            lowerPkg.contains("facebook") ||
+            lowerPkg.contains("discord") ||
+            lowerPkg.contains("twitter") ||
+            lowerPkg.contains("snapchat") ||
+            lowerPkg.contains("chrome") ||
+            lowerPkg.contains("firefox")) {
+            return;
+        }
+
         Notification notification = sbn.getNotification();
         if (notification == null || notification.extras == null) return;
 
@@ -115,32 +132,43 @@ public class FinanceNotificationListener extends NotificationListenerService {
         String fullContent = sb.toString().replaceAll("\\s+", " ").trim();
         if (fullContent.length() < 5) return;
 
-        // 1. Target Package & Keyword filtering
+        // 1. Strict Target Package check: MUST be a known financial, banking, UPI or SMS messaging package
         boolean isTargetPkg = TARGET_PACKAGES.contains(packageName) ||
                               packageName.contains("messaging") ||
                               packageName.contains("sms") ||
                               packageName.contains("mms") ||
+                              packageName.contains("heytap") ||
+                              packageName.contains("organizer") ||
                               packageName.contains("bank") ||
                               packageName.contains("paisa") ||
                               packageName.contains("upi");
 
+        if (!isTargetPkg) {
+            return;
+        }
+
+        // Must contain genuine banking / transactional keywords
         boolean hasFinancialKeywords = Pattern.compile(
-            "\\b(sent|debited|credited|paid|spent|withdrawn|refund|reversed|cashback|hdfc|sbi|icici|axis|kotak|upi|a/c|rs|₹|inr)\\b",
+            "\\b(debited|credited|refund|reversed|cashback|bill|due|statement|balance|bal|hdfc|sbi|icici|axis|kotak|upi|a/c|rs|₹|inr)\\b",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+        ).matcher(fullContent).find() ||
+        Pattern.compile(
+            "\\b(sent|paid|spent|withdrawn)\\s+(?:rs\\.?|inr|₹|[0-9])",
+            Pattern.CASE_INSENSITIVE
         ).matcher(fullContent).find();
 
-        if (!isTargetPkg && !hasFinancialKeywords) {
+        if (!hasFinancialKeywords) {
             return;
         }
 
         // 2. Reject OTPs, Promos, Non-transactional notifications
         boolean isExplicitFinancial = Pattern.compile(
-            "\\b(debited|credited|refunded|reversed|withdrawn|salary credited|spent rs|paid rs)\\b",
+            "\\b(debited|credited|refunded|reversed|withdrawn|salary credited|spent rs|paid rs|total amt due|total amount due|total due|min due|bill of|statement for|due date|payment due)\\b",
             Pattern.CASE_INSENSITIVE
         ).matcher(fullContent).find();
 
         boolean isNoise = Pattern.compile(
-            "\\b(otp|one time password|verification code|secret code|pre-approved|apply now|flat \\d+% off|declined|insufficient funds|bill due|payment due)\\b",
+            "\\b(otp|one time password|verification code|secret code|pre-approved|apply now|flat \\d+% off|declined|insufficient funds)\\b",
             Pattern.CASE_INSENSITIVE
         ).matcher(fullContent).find();
 
@@ -168,8 +196,10 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
         final PowerManager.WakeLock finalLock = wakeLock;
 
+        long postTime = sbn.getPostTime() > 0 ? sbn.getPostTime() : System.currentTimeMillis();
+
         // 5. Always persist to local queue so notifications received while locked/closed are NEVER lost
-        persistCapturedNotification(fullContent, packageName);
+        persistCapturedNotification(fullContent, packageName, postTime);
 
         // 6. Update local sync timestamp immediately
         updateLastSyncTimestamp();
@@ -177,21 +207,24 @@ public class FinanceNotificationListener extends NotificationListenerService {
         // 7. If MainActivity is alive, immediately flush and notify WebView!
         if (MainActivity.getInstance() != null) {
             MainActivity.getInstance().flushPendingNotificationsToWebView();
-        }
-
-        // 8. Ingest to cloud asynchronously
-        SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
-        String userId = prefs.getString("user_id", "");
-
-        new Thread(() -> {
-            try {
-                sendToIngestionApi(fullContent, packageName, userId);
-            } finally {
-                if (finalLock != null && finalLock.isHeld()) {
-                    try { finalLock.release(); } catch (Exception ignored) {}
-                }
+            if (finalLock != null && finalLock.isHeld()) {
+                try { finalLock.release(); } catch (Exception ignored) {}
             }
-        }).start();
+        } else {
+            // 8. If app is closed/killed, ingest to cloud asynchronously as durable fallback
+            SharedPreferences prefs = getSharedPreferences("FinanceMePrefs", Context.MODE_PRIVATE);
+            String userId = prefs.getString("user_id", "");
+
+            new Thread(() -> {
+                try {
+                    sendToIngestionApi(fullContent, packageName, userId, postTime);
+                } finally {
+                    if (finalLock != null && finalLock.isHeld()) {
+                        try { finalLock.release(); } catch (Exception ignored) {}
+                    }
+                }
+            }).start();
+        }
     }
 
     /** Cleans NBSP, zero-width spaces, and HTML entities */
@@ -210,6 +243,10 @@ public class FinanceNotificationListener extends NotificationListenerService {
 
     /** Stores notification in durable queue so it can be ingested when app opens */
     private synchronized void persistCapturedNotification(String rawText, String packageName) {
+        persistCapturedNotification(rawText, packageName, System.currentTimeMillis());
+    }
+
+    private synchronized void persistCapturedNotification(String rawText, String packageName, long timestamp) {
         try {
             SharedPreferences queuePrefs = getSharedPreferences("FinanceMeCapturedQueue", Context.MODE_PRIVATE);
             String rawJson = queuePrefs.getString("pending_notifications", "[]");
@@ -218,7 +255,7 @@ public class FinanceNotificationListener extends NotificationListenerService {
             JSONObject item = new JSONObject();
             item.put("rawText", rawText);
             item.put("packageName", packageName);
-            item.put("timestamp", System.currentTimeMillis());
+            item.put("timestamp", timestamp > 0 ? timestamp : System.currentTimeMillis());
             array.put(item);
 
             queuePrefs.edit().putString("pending_notifications", array.toString()).apply();
@@ -279,6 +316,10 @@ public class FinanceNotificationListener extends NotificationListenerService {
     }
 
     private void sendToIngestionApi(String rawText, String senderApp, String userId) {
+        sendToIngestionApi(rawText, senderApp, userId, System.currentTimeMillis());
+    }
+
+    private void sendToIngestionApi(String rawText, String senderApp, String userId, long timestamp) {
         boolean sentSuccessfully = false;
         try {
             URL url = new URL(API_URL);
@@ -297,7 +338,7 @@ public class FinanceNotificationListener extends NotificationListenerService {
             jsonPayload.put("rawText", rawText != null ? rawText : "");
             jsonPayload.put("sender", senderApp != null ? senderApp : "");
             jsonPayload.put("user_id", userId != null ? userId : "");
-            jsonPayload.put("timestamp", System.currentTimeMillis());
+            jsonPayload.put("timestamp", timestamp > 0 ? timestamp : System.currentTimeMillis());
 
             byte[] input = jsonPayload.toString().getBytes(StandardCharsets.UTF_8);
             try (OutputStream os = conn.getOutputStream()) {

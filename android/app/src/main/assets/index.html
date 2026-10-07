@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="note">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,73 +8,103 @@
   <!-- PWA Manifest & Meta Tags -->
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="logo.png">
-  <meta name="theme-color" content="#0f1015">
+  <meta name="theme-color" content="#E4E2D8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
-  <!-- Google Fonts, Font Awesome Icons, Chart.js & Supabase JS SDK -->
+  <!-- Google Fonts (Loaded asynchronously to guarantee instantaneous local app launch) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  </noscript>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="aws-config.js"></script>
-  <script src="aws/aws-client.js"></script>
-  <link rel="stylesheet" href="styles.css?v=2.0.2">
+  <script src="crypto-vault.js?v=2.3.0"></script>
+  <script src="aws-config.js?v=2.3.0"></script>
+  <script src="aws/aws-client.js?v=2.3.0"></script>
+  <link rel="stylesheet" href="styles.css?v=2.3.0">
 </head>
-<body>
+<body class="theme-note" data-theme="note">
+
+  <!-- ========================================================
+       GLOBAL SVG SYMBOLS: FINANCE ME BRAND MARK
+       Reusable situational mark with CSS variables:
+       --tile (bg), --edge (border), --b1 (top bar), --b2 (mid bar), --g (rupee glyph)
+       ======================================================== -->
+  <svg width="0" height="0" style="position:absolute; width:0; height:0; overflow:hidden;" aria-hidden="true">
+    <symbol id="mark" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="26" fill="var(--tile, #1d1c1a)" stroke="var(--edge, none)" stroke-width="2"/>
+      <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M27 28H73" stroke="var(--b1, #36b99a)"/>
+        <path d="M27 42H73" stroke="var(--b2, #e0654a)"/>
+        <path d="M32 28H48C66 28 66 56 48 56H32L62 80" stroke="var(--g, #efe9dc)"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- ========================================================
+       ICONIC APP ENTRY ANIMATION SPLASH OVERLAY
+       Plays an orchestrated, punchy entry sequence on launch
+       Tap anywhere or click Skip to bypass instantly
+       ======================================================== -->
+  <div class="splash-entry" id="appSplash" onclick="dismissSplashImmediately()" role="dialog" aria-modal="true" aria-label="Finance Me entry animation. Tap to dismiss.">
+    <div class="splash-stripe"></div>
+    <svg class="splash-skyline" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 120V84H24V74H36V84H70V70H84V84H120V76H132V62Q150 38 168 62V76H180V84H220V72H232V84H270V68H284V84H320V76H332V84H360V120Z"/>
+    </svg>
+    <svg class="splash-tile" viewBox="0 0 100 100" aria-hidden="true">
+      <rect width="100" height="100" rx="26" fill="#1d1c1a"/>
+      <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <path class="splash-d splash-d1" pathLength="1" d="M27 28H73" stroke="#36b99a"/>
+        <path class="splash-d splash-d2" pathLength="1" d="M27 42H73" stroke="#e0654a"/>
+        <path class="splash-d splash-d3" pathLength="1" d="M32 28H48C66 28 66 56 48 56H32L62 80" stroke="#efe9dc"/>
+      </g>
+    </svg>
+    <h1 class="splash-word" id="splashWord" aria-label="Finance Me"></h1>
+    <p class="splash-tag">Know where every rupee went.</p>
+    <div class="splash-bar"><i id="splashProgress"></i></div>
+    <button type="button" class="splash-skip-btn" onclick="event.stopPropagation(); dismissSplashImmediately();">Skip ✕</button>
+  </div>
 
   <!-- DYNAMIC FLUID CONTAINER (Fits Mobile, Tablet & Desktop Natively) -->
   <div class="app-container">
     
-    <!-- GPAY HEADER BAR WITH SEARCH & PROFILE -->
-    <header class="gpay-header">
-      <div class="gpay-search-bar">
-        <!-- UNIQUE INLINE SVG WEB APP BRAND LOGO BADGE -->
-        <div class="app-brand-badge">
-          <svg class="app-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="16" fill="url(#logo-grad)"/>
-            <path d="M8 22L14 15L18 19L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="24" cy="10" r="2.5" fill="#34A853"/>
-            <defs>
-              <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#4285F4"/>
-                <stop offset="1" stop-color="#1a73e8"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <span class="logo-text-finance">Finance</span><span class="logo-text-me">Me</span>
-        </div>
-
-        <input type="text" id="searchInput" class="gpay-search-input" placeholder="Pay friends, merchants, or search..." onkeyup="renderTransactions()">
-
-        <div class="gpay-header-actions">
-          <!-- Notification Inbox / Needs Review Bell -->
-          <button class="refresh-btn inbox-btn" id="inboxBtn" onclick="openInboxModal()" title="Notification Inbox & Review Queue">
-            <i class="fa-solid fa-bell"></i>
-            <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
-          </button>
-
-          <!-- Light / Dark Mode Toggle Button -->
-          <button class="refresh-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
-            <i class="fa-solid fa-moon"></i>
-          </button>
-
-          <!-- Manual Cloud Sync Button -->
-          <button class="refresh-btn" id="refreshBtn" onclick="manualSyncFromSupabase(this)" title="Sync Cloud Data">
-            <i class="fa-solid fa-arrows-rotate"></i>
-          </button>
-
-          <!-- Logout Button -->
-          <button class="refresh-btn" id="logoutBtnHeader" onclick="handleUserLogout()" title="Sign Out / Logout" style="display: none; color: var(--gpay-red-light);">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </button>
-
-          <!-- User Profile Avatar Bubble -->
-          <div class="gpay-profile-pill" onclick="switchTab('settings')" id="gpayHeaderAvatar">
-            S
-          </div>
+    <!-- CURRENCY NOTE HEADER: GREETING & CIRCLE ACTIONS -->
+    <header class="note-header">
+      <div class="note-greeting-col">
+        <div class="note-greeting-label" id="noteGreetingTime">GOOD EVENING</div>
+        <div class="brand-lockup" onclick="replaySplashAnimation()" title="Finance Me — Tap to replay animated intro">
+          <svg class="brand-mark-svg mark-situation mark-ink" id="headerBrandMark" viewBox="0 0 100 100"><use href="#mark"/></svg>
+          <h1 class="brand-title">Finance <em>Me</em></h1>
         </div>
       </div>
+      <div class="note-header-actions">
+        <!-- Notification Inbox / Needs Review Bell -->
+        <button type="button" class="note-circle-btn inbox-btn" id="inboxBtn" onclick="openInboxModal()" title="Notification Inbox & Review Queue">
+          <i class="fa-regular fa-bell"></i>
+          <span class="inbox-badge" id="inboxBadge" style="display: none;">0</span>
+        </button>
+
+        <!-- User Profile Avatar -->
+        <button type="button" class="note-circle-btn profile-btn" onclick="switchTab('settings')" id="gpayHeaderAvatar" title="Profile & Settings">
+          <i class="fa-regular fa-user"></i>
+        </button>
+      </div>
     </header>
+
+    <!-- TOP NOTE NAVIGATION STRIP -->
+    <nav class="note-top-nav" id="noteTopNav">
+      <button type="button" class="note-tab-btn active" onclick="switchTab('dashboard')" id="top-nav-dashboard">HOME</button>
+      <button type="button" class="note-tab-btn" onclick="switchTab('activity')" id="top-nav-activity">ACTIVITY</button>
+      <button type="button" class="note-tab-btn" onclick="switchTab('taxonomy')" id="top-nav-taxonomy">INSIGHTS</button>
+      <button type="button" class="note-tab-btn" onclick="switchTab('strategy')" id="top-nav-strategy">ADVISOR</button>
+    </nav>
+
+    <!-- HIDDEN INPUT TO PRESERVE SEARCH SHORTCUTS IF ACCESSED VIA JS -->
+    <input type="hidden" id="searchInput" value="">
 
     <!-- Scrollable Content Views -->
     <main class="app-content">
@@ -121,7 +151,8 @@
         <!-- Live Background Sync & Inbox Status Bar -->
         <div class="dashboard-sync-row">
           <div class="sync-status-pill" id="syncStatusPill" onclick="triggerManualSync()" title="Click to refresh & trigger background sync">
-            <span class="sync-dot live"></span>
+            <svg class="sync-pill-mark mark-situation mark-teal" id="syncPillMark" viewBox="0 0 100 100"><use href="#mark"/></svg>
+            <span class="sync-dot live" id="syncDot"></span>
             <span id="syncStatusText">Synced just now</span>
             <i class="fa-solid fa-arrows-rotate sync-refresh-icon"></i>
           </div>
@@ -145,34 +176,100 @@
           </button>
         </div>
         
-        <!-- Hero Financial Summary Card -->
-        <div class="card hero-card">
-          <div class="hero-balance-label">Net Monthly Cash Flow</div>
-          <div class="hero-balance-amount maskable-amount" id="dashNetCashFlow">₹0.00</div>
-          
-          <div class="hero-stats-grid">
-            <div class="stat-item">
-              <span class="stat-label"><i class="fa-solid fa-arrow-down-left" style="color: var(--gpay-green-light);"></i> Total Received</span>
-              <span class="stat-value credit maskable-amount" id="dashIncome">₹0.00</span>
+        <!-- Hero Financial Summary Card (Indian ₹500 Note Aesthetic) -->
+        <div class="card hero-card note-balance-card" id="heroBalanceCard">
+          <div class="note-security-thread"></div>
+          <div class="note-numeral-500">५००</div>
+          <div class="note-see-through-register"></div>
+
+          <div class="note-hero-content">
+            <div class="hero-balance-label">NET CASH FLOW · OCT</div>
+            <div class="hero-balance-amount maskable-amount" id="dashNetCashFlow">₹0.00</div>
+            
+            <div class="hero-stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Received</span>
+                <span class="stat-value credit maskable-amount" id="dashIncome">₹0.00</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Paid</span>
+                <span class="stat-value debit maskable-amount" id="dashExpenses">₹0.00</span>
+              </div>
             </div>
-            <div class="stat-item">
-              <span class="stat-label"><i class="fa-solid fa-arrow-up-right" style="color: var(--gpay-red-light);"></i> Total Paid</span>
-              <span class="stat-value debit maskable-amount" id="dashExpenses">₹0.00</span>
+
+            <div class="note-micro-lettering" id="noteMicroLettering">
+              FINANCE ME · FINANCE ME · SYNCED JUST NOW
             </div>
+          </div>
+
+          <!-- Red Fort silhouette SVG -->
+          <div class="note-fort-silhouette">
+            <svg viewBox="0 0 400 55" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,55 L0,38 L15,38 L15,34 L20,34 L20,38 L35,38 L35,34 L40,34 L40,38 L55,38 L55,34 L60,34 L60,38 L80,38 L80,28 L88,28 L88,24 L94,24 L94,28 L102,28 L102,38 L120,38 L120,34 L125,34 L125,38 L140,38 L140,34 L145,34 L145,38 L155,38 L155,18 L165,18 L165,14 L170,14 L170,18 L180,18 L180,14 L195,8 C200,5 205,5 210,8 L225,14 L225,18 L235,18 L235,14 L240,14 L240,18 L250,18 L250,38 L260,38 L260,34 L265,34 L265,38 L280,38 L280,34 L285,34 L285,38 L300,38 L300,28 L308,28 L308,24 L314,24 L314,28 L322,28 L322,38 L345,38 L345,34 L350,34 L350,38 L365,38 L365,34 L370,34 L370,38 L385,38 L385,34 L390,34 L390,38 L400,38 L400,55 Z"/>
+            </svg>
           </div>
         </div>
 
-        <!-- AXIO-GRADE BANK PASSBOOK & RUNNING BALANCES -->
-        <div class="bank-passbook-section" id="bankPassbookSection">
-          <div class="bank-passbook-header">
-            <div class="bank-passbook-title">
-              <i class="fa-solid fa-building-columns" style="color: var(--gpay-blue-light);"></i>
-              <span>Live Bank Passbook</span>
+        <!-- NOTE QUICK ACTION BUTTONS -->
+        <div class="note-actions-grid">
+          <button type="button" class="note-action-btn action-btn-add" onclick="openAddModal()">
+            <div class="note-action-circle action-circle-add">
+              <i class="fa-solid fa-plus"></i>
             </div>
-            <span class="bank-total-balance" id="totalBankBalance">Total: ₹0.00</span>
+            <span class="note-action-label">Add</span>
+          </button>
+
+          <button type="button" class="note-action-btn" onclick="openSmsScanModal()">
+            <div class="note-action-circle">
+              <i class="fa-regular fa-envelope"></i>
+            </div>
+            <span class="note-action-label">Scan SMS</span>
+          </button>
+
+          <button type="button" class="note-action-btn" onclick="switchTab('settings')">
+            <div class="note-action-circle">
+              <i class="fa-solid fa-expand"></i>
+            </div>
+            <span class="note-action-label">Scan QR</span>
+          </button>
+
+          <button type="button" class="note-action-btn" onclick="switchTab('strategy')">
+            <div class="note-action-circle">
+              <i class="fa-regular fa-lightbulb"></i>
+            </div>
+            <span class="note-action-label">Advisor</span>
+          </button>
+        </div>
+
+        <!-- AXIO-GRADE BANK PASSBOOK (INDIAN ₹500 NOTE THEME) -->
+        <div class="card note-bank-card" id="bankPassbookSection">
+          <div class="note-bank-header">
+            <div class="note-bank-title">
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span>Bank accounts</span>
+            </div>
+            <div class="note-bank-header-actions">
+              <span class="note-bank-total" id="totalBankBalance">Total ₹0.00</span>
+              <button type="button" class="btn btn-sm btn-note-set-balance" onclick="openBankBalanceModal()" title="Add or Update Bank Balance">
+                <i class="fa-solid fa-plus"></i> Set Balance
+              </button>
+            </div>
           </div>
-          <div class="bank-cards-deck" id="bankCardsDeck">
-            <!-- Rendered by JS: HDFC, SBI, ICICI cards with verified running balances -->
+
+          <div id="bankAccountsEmptyState" class="note-bank-empty">
+            <p class="note-bank-desc">Track running balances across your accounts. Enter balance manually or scan past SMS.</p>
+            <div class="note-bank-empty-actions">
+              <button type="button" class="btn btn-note-dark" onclick="openBankBalanceModal()">
+                <i class="fa-solid fa-plus"></i> Set Bank Balance
+              </button>
+              <button type="button" class="btn btn-note-outline" onclick="openSmsScanModal()">
+                <i class="fa-regular fa-envelope"></i> Scan past SMS
+              </button>
+            </div>
+          </div>
+
+          <div class="bank-cards-deck" id="bankCardsDeck" style="display: none; margin-top: 14px;">
+            <!-- Rendered by JS if accounts exist -->
           </div>
         </div>
 
@@ -180,7 +277,7 @@
         <div class="bills-due-section" id="billsDueSection" style="display: none;">
           <div class="bills-due-header">
             <div class="bills-due-title">
-              <i class="fa-solid fa-calendar-check" style="color: var(--gpay-red-light);"></i>
+              <i class="fa-solid fa-calendar-check" style="color: #A8432A;"></i>
               <span>Upcoming Bills & Statements</span>
             </div>
             <span class="bills-due-count" id="billsDueCount">0 Due</span>
@@ -190,116 +287,227 @@
           </div>
         </div>
 
-        <!-- GPAY QUICK ACTION BUTTONS -->
-        <div class="gpay-actions-grid">
-          <button class="gpay-action-btn" onclick="openAddModal()">
-            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%); color: #fff;">
-              <i class="fa-solid fa-plus"></i>
-            </div>
-            <span class="gpay-action-label">New Pay</span>
-          </button>
-
-          <button class="gpay-action-btn" onclick="openSmsScanModal()">
-            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%); color: #fff;">
-              <i class="fa-solid fa-envelope-open-text"></i>
-            </div>
-            <span class="gpay-action-label">Scan SMS</span>
-          </button>
-
-          <button class="gpay-action-btn" onclick="switchTab('settings')">
-            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #FBBC05 0%, #f29900 100%); color: #fff;">
-              <i class="fa-solid fa-qrcode"></i>
-            </div>
-            <span class="gpay-action-label">Parser</span>
-          </button>
-
-          <button class="gpay-action-btn" onclick="switchTab('taxonomy')">
-            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #34A853 0%, #0f9d58 100%); color: #fff;">
-              <i class="fa-solid fa-chart-pie"></i>
-            </div>
-            <span class="gpay-action-label">Analytics</span>
-          </button>
-
-          <button class="gpay-action-btn" onclick="switchTab('strategy')">
-            <div class="gpay-action-circle" style="background: linear-gradient(135deg, #EA4335 0%, #d93025 100%); color: #fff;">
-              <i class="fa-solid fa-lightbulb"></i>
-            </div>
-            <span class="gpay-action-label">Advisor</span>
-          </button>
-        </div>
-
-
-
-
-        <!-- Filter & Category Selector -->
-        <div style="display: flex; gap: 8px;">
-          <select id="categoryFilter" class="form-select" onchange="renderTransactions()" style="width: 100%;">
-            <option value="ALL">All Categories & Payments</option>
-            <option value="Unavoidable / Rent">🏠 Unavoidable (Rent / Bills)</option>
+        <!-- RECENT PAYMENTS SECTION -->
+        <div class="note-recent-header" id="recentPaymentsSection">
+          <h2 class="note-recent-title">Recent payments</h2>
+          <select id="categoryFilter" class="note-category-select" onchange="renderTransactions()">
+            <option value="ALL">All categories</option>
+            <option value="Unavoidable / Rent">🏠 Unavoidable</option>
             <option value="Unwanted / Leak">🛍️ Unwanted Leaks</option>
             <option value="Investments">📈 Investments</option>
             <option value="Income">💰 Income</option>
           </select>
         </div>
 
-        <!-- Transaction Activity Stream Header -->
-        <div class="gpay-section-header" style="margin-top: 4px;">
-          <span>Payment History & Transactions</span>
-          <span id="txnCountText">0 payments</span>
-        </div>
-
         <!-- Dynamic Transactions Container -->
         <div class="txn-list" id="txnContainer">
-          <!-- Rendered dynamically by JavaScript -->
+          <div class="note-empty-payments">
+            <p>No payments yet. They will appear here.</p>
+          </div>
         </div>
       </section>
 
       <!-- ==========================================
-           TAB 2: GRAPHICAL BUDGET & CHARTS ANALYTICS
+           TAB: ACTIVITY (MONTHLY CALENDAR & CLASSIFIED TIMELINE)
+           ========================================== -->
+      <section id="tab-activity" class="tab-view">
+        
+        <!-- Interactive Monthly Calendar Card -->
+        <div class="activity-calendar-card">
+          <div class="calendar-header-row">
+            <div class="calendar-month-nav">
+              <button type="button" class="btn-cal-nav" onclick="changeActivityMonth(-1)" title="Previous Month">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <div class="calendar-current-month" id="activityMonthDisplay">
+                <i class="fa-regular fa-calendar" style="color: var(--gpay-blue-light);"></i>
+                <span id="activityMonthLabel">October 2026</span>
+              </div>
+              <button type="button" class="btn-cal-nav" onclick="changeActivityMonth(1)" title="Next Month">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            <button type="button" class="btn-cal-today" onclick="resetActivityToToday()" title="Jump to today">
+              <i class="fa-solid fa-crosshairs"></i> Today
+            </button>
+          </div>
+
+          <!-- Monthly Aggregates Strip -->
+          <div class="calendar-month-stats">
+            <div class="cal-stat-chip debit">
+              <span class="stat-lbl"><i class="fa-solid fa-arrow-down-left"></i> Debits</span>
+              <span class="stat-val" id="activityMonthSpent">₹0.00</span>
+            </div>
+            <div class="cal-stat-chip credit">
+              <span class="stat-lbl"><i class="fa-solid fa-arrow-up-right"></i> Inflow</span>
+              <span class="stat-val" id="activityMonthIncome">₹0.00</span>
+            </div>
+            <div class="cal-stat-chip count">
+              <span class="stat-lbl"><i class="fa-solid fa-receipt"></i> Volume</span>
+              <span class="stat-val" id="activityMonthCount">0 Txns</span>
+            </div>
+          </div>
+
+          <!-- Calendar Days Grid -->
+          <div class="calendar-grid-wrap">
+            <div class="calendar-weekdays">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div class="calendar-days-grid" id="activityDaysGrid">
+              <!-- Dynamically populated via renderActivityCalendarAndTimeline() -->
+            </div>
+          </div>
+
+          <!-- Selected Day Filter Banner -->
+          <div class="calendar-active-filter-bar" id="activityDayFilterBar" style="display: none;">
+            <div class="filter-status-info">
+              <i class="fa-solid fa-calendar-day" style="color: var(--gpay-blue-light);"></i>
+              <span id="activityFilterStatusText">Filtered: 06 Oct 2026</span>
+            </div>
+            <button type="button" class="btn-reset-filter" onclick="clearActivityDayFilter()">
+              <i class="fa-solid fa-rotate-left"></i> Show All Month
+            </button>
+          </div>
+        </div>
+
+        <!-- Activity Search & Type Filter Bar -->
+        <div class="activity-controls-row">
+          <div class="activity-search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="activitySearchInput" placeholder="Search merchant, notes, UPI ref..." oninput="handleActivitySearch(this.value)">
+            <button type="button" class="btn-clear-search" id="clearActivitySearch" onclick="clearActivitySearch()" style="display: none;">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="activity-filter-chips">
+            <button type="button" class="activity-chip active" data-type="all" onclick="setActivityTypeFilter('all')">All</button>
+            <button type="button" class="activity-chip" data-type="debit" onclick="setActivityTypeFilter('debit')">Spent</button>
+            <button type="button" class="activity-chip" data-type="credit" onclick="setActivityTypeFilter('credit')">Received</button>
+          </div>
+        </div>
+
+        <!-- Classified Date & Time Timeline List -->
+        <div class="activity-timeline-container" id="activityTimelineList">
+          <!-- Dynamically populated via renderActivityCalendarAndTimeline() -->
+        </div>
+
+      </section>
+
+      <!-- ==========================================
+           TAB: GRAPHICAL BUDGET & CHARTS ANALYTICS
            ========================================== -->
       <section id="tab-taxonomy" class="tab-view">
         
-        <!-- GRAPH 1: SPENDING DONUT CHART -->
-        <div class="card">
+        <!-- NOTE THEME INSIGHTS LEDGER SUMMARY HERO -->
+        <div class="card hero-card note-balance-card note-insights-hero" style="margin-bottom: 16px;">
+          <div class="note-security-thread"></div>
+          <div class="note-numeral-500">५००</div>
+          <div class="note-see-through-register"></div>
+
+          <div class="note-hero-content">
+            <div class="hero-balance-label">EXPENDITURE VELOCITY · OCT</div>
+            <div class="hero-balance-amount maskable-amount" id="insightsTotalSpend" style="color: #A8432A;">₹0.00</div>
+            
+            <div class="hero-stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Inflow Velocity</span>
+                <span class="stat-value credit maskable-amount" id="insightsTotalIncome">₹0.00</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Spend Velocity</span>
+                <span class="stat-value debit" id="insightsCashVelocity">0% Burn</span>
+              </div>
+            </div>
+
+            <div class="note-micro-lettering">
+              RESERVE CLASSIFIED LEDGER · STATISTICAL INTELLIGENCE · SECURE VAULT
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAPH 1: SPENDING DONUT CHART & TACTILE LEDGER -->
+        <div class="card note-chart-card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-chart-pie" style="color: var(--gpay-blue-light);"></i> Spending Category Breakdown
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-chart-pie" style="color: #1A639B;"></i> Category Breakdown</span>
             </div>
-            <span class="card-subtitle">Visual Graph</span>
+            <span class="card-subtitle">Tactile Distribution</span>
           </div>
 
-          <div style="position: relative; width: 100%; height: 210px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: relative; width: 100%; height: 210px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
             <canvas id="categoryDonutChart"></canvas>
+          </div>
+
+          <!-- Tactile 4-Pillar Category Legend Matrix -->
+          <div class="insights-legend-grid">
+            <div class="insights-legend-item legend-needs">
+              <div class="legend-dot" style="background: #1A639B;"></div>
+              <div class="legend-info">
+                <span class="legend-label">Fixed Needs</span>
+                <span class="legend-value maskable-amount" id="legendNeedsVal">₹0</span>
+              </div>
+              <span class="legend-pct" id="legendNeedsPct">0%</span>
+            </div>
+
+            <div class="insights-legend-item legend-wants">
+              <div class="legend-dot" style="background: #A8432A;"></div>
+              <div class="legend-info">
+                <span class="legend-label">Money Leaks</span>
+                <span class="legend-value maskable-amount" id="legendWantsVal">₹0</span>
+              </div>
+              <span class="legend-pct" id="legendWantsPct">0%</span>
+            </div>
+
+            <div class="insights-legend-item legend-invest">
+              <div class="legend-dot" style="background: #1F7A57;"></div>
+              <div class="legend-info">
+                <span class="legend-label">Investments</span>
+                <span class="legend-value maskable-amount" id="legendInvestVal">₹0</span>
+              </div>
+              <span class="legend-pct" id="legendInvestPct">0%</span>
+            </div>
+
+            <div class="insights-legend-item legend-reserve">
+              <div class="legend-dot" style="background: #855F10;"></div>
+              <div class="legend-info">
+                <span class="legend-label">Cash Reserve</span>
+                <span class="legend-value maskable-amount" id="legendReserveVal">₹0</span>
+              </div>
+              <span class="legend-pct" id="legendReservePct">0%</span>
+            </div>
           </div>
         </div>
 
         <!-- GRAPH 2: CASH FLOW BAR CHART -->
-        <div class="card">
+        <div class="card note-chart-card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-chart-column" style="color: var(--gpay-green-light);"></i> Income vs Expense Comparison
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-chart-column" style="color: #1F7A57;"></i> Liquidity Trajectory</span>
             </div>
-            <span class="card-subtitle">Visual Graph</span>
+            <span class="card-subtitle" id="cashflowTrajectorySubtitle">Inflow vs Outflow</span>
           </div>
 
-          <div style="position: relative; width: 100%; height: 180px;">
+          <div style="position: relative; width: 100%; height: 180px; margin-top: 10px;">
             <canvas id="cashflowBarChart"></canvas>
           </div>
         </div>
 
         <!-- 50/30/20 BUDGET RULE GAUGE -->
-        <div class="card">
+        <div class="card note-budget-card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-sitemap" style="color: var(--gpay-yellow-light);"></i> 50 / 30 / 20 Budget Target Gauges
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-scale-balanced" style="color: #855F10;"></i> 50 / 30 / 20 Rule Allocation</span>
             </div>
-            <span class="card-subtitle">Target Split</span>
+            <span class="card-subtitle">Sovereign Benchmark</span>
           </div>
 
           <!-- Unavoidable Spending Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-house-chimney" style="color: var(--gpay-blue-light);"></i> Needs (Rent/Bills 50%)</span>
+              <span class="tax-name"><i class="fa-solid fa-house-chimney" style="color: #1A639B;"></i> Fixed Needs (50% Target)</span>
               <span class="tax-amount maskable-amount" id="taxNeedsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
@@ -310,7 +518,7 @@
           <!-- Unwanted Spending Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: var(--gpay-red-light);"></i> Unwanted Leaks (Target < 30%)</span>
+              <span class="tax-name"><i class="fa-solid fa-bag-shopping" style="color: #A8432A;"></i> Discretionary Leaks (&lt; 30% Target)</span>
               <span class="tax-amount maskable-amount" id="taxWantsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
@@ -321,7 +529,7 @@
           <!-- Investments Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-arrow-trend-up" style="color: var(--gpay-green-light);"></i> Investments (15% Target)</span>
+              <span class="tax-name"><i class="fa-solid fa-arrow-trend-up" style="color: #1F7A57;"></i> Investments (15% Target)</span>
               <span class="tax-amount maskable-amount" id="taxInvestVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
@@ -332,7 +540,7 @@
           <!-- Savings Bar -->
           <div class="tax-bucket">
             <div class="tax-header">
-              <span class="tax-name"><i class="fa-solid fa-piggy-bank" style="color: var(--gpay-yellow-light);"></i> Savings/Reserve (5% Target)</span>
+              <span class="tax-name"><i class="fa-solid fa-piggy-bank" style="color: #855F10;"></i> Savings Reserve (5% Target)</span>
               <span class="tax-amount maskable-amount" id="taxSavingsVal">₹0 / ₹0</span>
             </div>
             <div class="progress-bar-bg">
@@ -348,12 +556,13 @@
            ========================================== -->
       <section id="tab-strategy" class="tab-view">
         
-        <!-- FUTURISTIC FINANCIAL HEALTH HERO -->
+        <!-- SOVEREIGN FINANCIAL HEALTH HERO -->
         <div class="strategy-hero-card">
+          <div class="note-security-thread"></div>
           <div class="strategy-hero-top">
             <div class="strategy-hero-main">
               <div class="strategy-hero-tag">
-                <i class="fa-solid fa-piggy-bank"></i> Saved This Month
+                <i class="fa-solid fa-piggy-bank"></i> Net Savings Velocity
               </div>
               <div class="strategy-saved-amount maskable-amount" id="strategyTotalSaved">₹0.00</div>
               <div class="strategy-badge-row">
@@ -367,8 +576,8 @@
               <svg class="strategy-score-svg" viewBox="0 0 80 80">
                 <defs>
                   <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#34A853" />
-                    <stop offset="100%" stop-color="#4285F4" />
+                    <stop offset="0%" stop-color="#1F7A57" />
+                    <stop offset="100%" stop-color="#2D5FA8" />
                   </linearGradient>
                 </defs>
                 <circle class="strategy-score-svg-bg" cx="40" cy="40" r="34" />
@@ -376,20 +585,24 @@
               </svg>
               <div class="strategy-score-center-text">
                 <div class="strategy-score-val-big" id="healthScoreVal">85</div>
-                <div class="strategy-score-subtext">Health</div>
+                <div class="strategy-score-subtext">HEALTH</div>
               </div>
             </div>
           </div>
 
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="healthScoreDesc">
+          <div style="font-size: 11px; color: #5C6460; margin-top: 12px; font-weight: 600;" id="healthScoreDesc">
             Based on savings velocity & spending balance
+          </div>
+
+          <div class="note-micro-lettering" style="margin-top: 14px;">
+            FINANCIAL HEALTH DIRECTIVE · ALGORITHMIC AUDIT · VAULT PRESERVE
           </div>
         </div>
 
         <!-- 3-COLUMN METRICS BREAKDOWN -->
         <div class="strategy-metrics-grid">
           <div class="strategy-metric-card">
-            <div class="strategy-metric-icon" style="background: rgba(66, 133, 244, 0.15); color: var(--gpay-blue-light);">
+            <div class="strategy-metric-icon" style="background: rgba(45, 95, 168, 0.15); color: #1A639B;">
               <i class="fa-solid fa-house-lock"></i>
             </div>
             <div class="strategy-metric-label">Needs / Fixed</div>
@@ -397,7 +610,7 @@
           </div>
 
           <div class="strategy-metric-card">
-            <div class="strategy-metric-icon" style="background: rgba(234, 67, 53, 0.15); color: var(--gpay-red-light);">
+            <div class="strategy-metric-icon" style="background: rgba(168, 67, 42, 0.15); color: #A8432A;">
               <i class="fa-solid fa-fire-flame-curved"></i>
             </div>
             <div class="strategy-metric-label">Money Leaks</div>
@@ -405,8 +618,8 @@
           </div>
 
           <div class="strategy-metric-card">
-            <div class="strategy-metric-icon" style="background: rgba(52, 168, 83, 0.15); color: var(--gpay-green-light);">
-              <i class="fa-solid fa-chart-line-up"></i>
+            <div class="strategy-metric-icon" style="background: rgba(31, 122, 87, 0.15); color: #1F7A57;">
+              <i class="fa-solid fa-chart-line"></i>
             </div>
             <div class="strategy-metric-label">Invested</div>
             <div class="strategy-metric-val maskable-amount" id="investmentsSum">₹0</div>
@@ -415,19 +628,22 @@
 
         <!-- SPENDING DEEP-DIVE CARD -->
         <div class="card" style="margin-bottom: 14px;">
-          <div style="font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
-            <span><i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> Spending Insights</span>
-            <span style="font-size: 10px; color: var(--text-muted);" id="strategyMonthYearTag">Current Month</span>
+          <div class="card-header" style="margin-bottom: 10px;">
+            <div class="card-title">
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-bolt" style="color: #855F10;"></i> Spending Spotlight</span>
+            </div>
+            <span style="font-size: 10.5px; color: #5C6460; font-weight: 700;" id="strategyMonthYearTag">Current Month</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
-            <div style="background: var(--glass-surface-elevated); padding: 8px 10px; border-radius: 12px; border: 1px solid var(--glass-border);">
-              <div style="font-size: 10px; color: var(--text-muted);">Top Merchant Spent On</div>
-              <div style="font-weight: 700; color: #fff; margin-top: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" id="topMerchantVal">None logged</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+            <div class="spotlight-metric-box">
+              <div class="spotlight-metric-label">Top Merchant Spent On</div>
+              <div class="spotlight-metric-val" id="topMerchantVal">None logged</div>
             </div>
-            <div style="background: var(--glass-surface-elevated); padding: 8px 10px; border-radius: 12px; border: 1px solid var(--glass-border);">
-              <div style="font-size: 10px; color: var(--text-muted);">Highest Expense Category</div>
-              <div style="font-weight: 700; color: var(--gpay-red-light); margin-top: 2px;" id="topCategoryVal">None logged</div>
+            <div class="spotlight-metric-box">
+              <div class="spotlight-metric-label">Highest Expense Category</div>
+              <div class="spotlight-metric-val" style="color: #A8432A;" id="topCategoryVal">None logged</div>
             </div>
           </div>
         </div>
@@ -436,32 +652,34 @@
         <div class="strategy-forecast-box">
           <div class="strategy-forecast-header">
             <div class="strategy-forecast-title">
-              <i class="fa-solid fa-chart-line" style="color: var(--gpay-green-light);"></i> Wealth Forecast Engine
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-seedling" style="color: #1F7A57;"></i> Sovereign Wealth Forecast</span>
             </div>
-            <span class="card-subtitle">Compounded Growth</span>
+            <span class="card-subtitle">Compounded Yield</span>
           </div>
 
           <div class="strategy-forecast-grid">
             <div class="strategy-forecast-item">
-              <div style="font-size: 10px; color: var(--text-muted);">1-Year Savings Forecast</div>
-              <div class="strategy-forecast-num maskable-amount" id="forecast1Year" style="color: var(--gpay-green-light);">₹0</div>
-              <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Assumes current monthly rate</div>
+              <div style="font-size: 10px; color: #5C6460; font-weight: 700; text-transform: uppercase;">1-Year Savings Projection</div>
+              <div class="strategy-forecast-num maskable-amount" id="forecast1Year" style="color: #1F7A57;">₹0</div>
+              <div style="font-size: 9.5px; color: #737B76; margin-top: 3px;">Assumes current monthly rate</div>
             </div>
 
             <div class="strategy-forecast-item">
-              <div style="font-size: 10px; color: var(--text-muted);">5-Year SIP (12% CAGR)</div>
-              <div class="strategy-forecast-num maskable-amount" id="forecast5Year" style="color: var(--gpay-blue-light);">₹0</div>
-              <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">50% of savings invested</div>
+              <div style="font-size: 10px; color: #5C6460; font-weight: 700; text-transform: uppercase;">5-Year SIP (12% CAGR)</div>
+              <div class="strategy-forecast-num maskable-amount" id="forecast5Year" style="color: #1A639B;">₹0</div>
+              <div style="font-size: 9.5px; color: #737B76; margin-top: 3px;">50% of monthly savings invested</div>
             </div>
           </div>
         </div>
 
         <!-- ACTIONABLE WAYS TO SAVE ADVISORY CONTAINER -->
-        <div class="card-header" style="margin-top: 6px; margin-bottom: 8px;">
+        <div class="card-header" style="margin-top: 6px; margin-bottom: 10px;">
           <div class="card-title">
-            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--gpay-blue-light);"></i> Smart Strategy Recommendations
+            <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+            <span><i class="fa-solid fa-wand-magic-sparkles" style="color: #1A639B;"></i> AI Strategy Recommendations</span>
           </div>
-          <span class="card-subtitle">AI Financial Coach</span>
+          <span class="card-subtitle">Intelligence</span>
         </div>
 
         <div id="waysToSaveContainer" style="display: flex; flex-direction: column; gap: 10px;">
@@ -478,9 +696,10 @@
         <div class="card profile-card-custom">
           <div class="card-header" style="margin-bottom: 14px;">
             <div class="card-title">
-              <i class="fa-solid fa-user-gear" style="color: var(--gpay-blue-light);"></i> Account & Profile Settings
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-user-shield" style="color: #1A639B;"></i> Passbook & Vault Identity</span>
             </div>
-            <span class="card-subtitle" id="userAccountStatusBadge">Verified Member</span>
+            <span class="card-subtitle" id="userAccountStatusBadge">Local Vault Active</span>
           </div>
 
           <!-- USER BANNER -->
@@ -497,20 +716,25 @@
                 <input type="text" id="userNameInput" class="profile-name-input" value="Shan Neeraj" onchange="saveProfileSettings()" title="Click to edit display name" placeholder="Your Name">
                 <i class="fa-solid fa-pen profile-edit-icon" title="Edit Name"></i>
               </div>
-              <div class="profile-email-text" id="userEmailDisplay">Not Signed In</div>
+              <div class="profile-email-text" id="userEmailDisplay">Private Local Vault Mode</div>
             </div>
 
-            <button class="profile-logout-btn" onclick="handleUserLogout()" title="Sign Out">
-              <i class="fa-solid fa-power-off"></i>
-              <span>Logout</span>
-            </button>
+            <div style="display: flex; gap: 6px;">
+              <button class="profile-cloud-btn" id="profileCloudBtn" onclick="openAuthModal()" title="Connect Supabase Cloud Account">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span id="profileCloudBtnText">Cloud</span>
+              </button>
+              <button class="profile-logout-btn" id="logoutBtnHeader" onclick="handleUserLogout()" title="Sign Out" style="display: none;">
+                <i class="fa-solid fa-power-off"></i>
+              </button>
+            </div>
           </div>
 
           <!-- PREFERENCE INPUTS GRID -->
           <div class="profile-settings-grid">
             <div class="profile-input-card">
               <div class="profile-input-header">
-                <i class="fa-solid fa-coins" style="color: var(--gpay-yellow-light);"></i>
+                <i class="fa-solid fa-coins" style="color: #855F10;"></i>
                 <label for="userSalaryInput">Monthly Target Income</label>
               </div>
               <div class="profile-input-wrapper">
@@ -521,7 +745,7 @@
 
             <div class="profile-input-card">
               <div class="profile-input-header">
-                <i class="fa-solid fa-globe" style="color: var(--gpay-blue-light);"></i>
+                <i class="fa-solid fa-globe" style="color: #1A639B;"></i>
                 <label for="userCurrencySelect">Preferred Currency</label>
               </div>
               <div class="profile-input-wrapper">
@@ -540,121 +764,70 @@
         <div class="card" id="androidNotificationCard">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-mobile-screen-button" style="color: var(--gpay-blue-light);"></i> Android Notification Listener
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-mobile-screen-button" style="color: #1F7A57;"></i> Android Notification Engine</span>
             </div>
-            <span class="card-subtitle">Native App Engine</span>
+            <span class="card-subtitle">On-Device Reader</span>
           </div>
 
-          <div style="display: flex; align-items: center; justify-content: space-between; background: var(--glass-surface-elevated); padding: 12px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.65); padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.85); margin-bottom: 10px;">
             <div style="display:flex;align-items:center;gap:10px;">
-              <div id="notifStatusDot" style="width:10px;height:10px;border-radius:50%;background:#888;flex-shrink:0;transition:background 0.3s;"></div>
+              <div id="notifStatusDot" style="width:10px;height:10px;border-radius:50%;background:#1F7A57;flex-shrink:0;transition:background 0.3s;"></div>
               <div>
-                <div style="font-size:13px;font-weight:700;" id="androidNotifStatusText">Checking...</div>
-                <div style="font-size:11px;color:var(--text-muted);" id="androidNotifStatusSub">Detecting notification access status</div>
+                <div style="font-size:13px;font-weight:800;color:#1F2A26;" id="androidNotifStatusText">Active & Monitoring</div>
+                <div style="font-size:11px;color:#5C6460;font-weight:600;" id="androidNotifStatusSub">Listening for UPI, GPay & Bank SMS</div>
               </div>
             </div>
-            <button class="btn" id="androidGrantBtn" onclick="requestAndroidNotificationPermission()" style="font-size: 11px; padding: 6px 12px;">
-              <i class="fa-solid fa-bell"></i> Check Permission
+            <button class="btn btn-secondary" id="androidGrantBtn" onclick="requestAndroidNotificationPermission()" style="font-size: 11px; padding: 6px 12px;">
+              <i class="fa-solid fa-bell"></i> Check
             </button>
           </div>
 
           <div style="margin-top: 8px;">
-            <button class="btn btn-secondary btn-full" onclick="applyGitAutoUpdate()" style="font-size: 11.5px; padding: 8px 12px; justify-content: center; gap: 6px;">
-              <i class="fa-solid fa-download" style="color: var(--gpay-blue-light);"></i> Download Latest APK Update
+            <button class="btn btn-secondary btn-full" onclick="applyGitAutoUpdate()" style="font-size: 11.5px; padding: 10px 14px; justify-content: center; gap: 8px;">
+              <i class="fa-solid fa-download" style="color: #1A639B;"></i> Download Latest APK Update
             </button>
           </div>
 
           <!-- DEVELOPER ACTIVITY LOG (COLLAPSIBLE) -->
-          <details style="margin-top: 12px; background: rgba(0,0,0,0.25); border-radius: 10px; border: 1px solid var(--glass-border); padding: 8px 12px;">
-            <summary style="font-size:11px; font-weight:700; color:var(--text-muted); cursor:pointer;">
-              <i class="fa-solid fa-shield-halved" style="color: var(--gpay-blue-light);"></i> System Status & Diagnostics Log
+          <details style="margin-top: 12px; background: rgba(255, 255, 255, 0.5); border-radius: 12px; border: 1px solid rgba(31, 42, 38, 0.12); padding: 10px 12px;">
+            <summary style="font-size:11px; font-weight:800; color:#5C6460; cursor:pointer;">
+              <i class="fa-solid fa-shield-halved" style="color: #1A639B;"></i> System Status & Diagnostics Log
             </summary>
             <div style="margin-top: 8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                <span style="font-size:10px; color:var(--text-muted);">Background Notification Log</span>
-                <button onclick="refreshAndroidLogs()" class="btn btn-secondary" style="font-size:9.5px; padding:2px 6px;">Refresh Logs</button>
+                <span style="font-size:10px; color:#5C6460; font-weight:700;">Background Notification Log</span>
+                <button onclick="refreshAndroidLogs()" class="btn btn-secondary" style="font-size:9.5px; padding:2px 8px;">Refresh</button>
               </div>
-              <pre id="androidDebugLogs" style="font-family: monospace; font-size: 10px; color: #a0aec0; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin:0;">Waiting for notification activity...</pre>
+              <pre id="androidDebugLogs" style="font-family: monospace; font-size: 10px; color: #1F2A26; background: rgba(255,255,255,0.7); padding: 8px; border-radius: 8px; border: 1px solid rgba(31,42,38,0.08); white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow-y: auto; margin:0;">Waiting for notification activity...</pre>
             </div>
           </details>
         </div>
 
-        <!-- AUTOMATED INGESTION ENGINE & PRIVACY EXPLAINER -->
+        <!-- VAULT SECURITY & CLOUD CONTROLS -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <i class="fa-solid fa-bolt" style="color: var(--gpay-yellow-light);"></i> Automated Bank Reader
+              <span class="note-tactile-bleed"><span></span><span></span><span></span></span>
+              <span><i class="fa-solid fa-vault" style="color: #1A639B;"></i> Vault & Cloud Controls</span>
             </div>
-            <span class="card-subtitle">Auto-Sync Engine</span>
+            <span class="card-subtitle">Local + Supabase</span>
           </div>
 
-          <!-- HOW IT WORKS & PRIVACY GUARANTEE BANNER -->
-          <div style="background: rgba(66, 133, 244, 0.1); border: 1px solid rgba(66, 133, 244, 0.25); border-radius: 14px; padding: 12px; margin-bottom: 14px;">
-            <div style="font-size: 11px; font-weight: 700; color: var(--gpay-blue-light); display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-              <i class="fa-solid fa-shield-halved"></i> How Notification Reader Works & Protects Privacy
-            </div>
-            <ul style="font-size: 10.5px; color: var(--text-muted); line-height: 1.5; padding-left: 16px;">
-              <li><strong>Secure Filtering:</strong> Only reads official payment alerts (Google Pay, PhonePe, Paytm, Bank SMS). Personal chats are ignored completely.</li>
-              <li><strong>Smart Extraction:</strong> Extracts ONLY 4 points: <em>Merchant, Amount, Debit/Credit, and Category</em>. No sensitive bank numbers stored.</li>
-              <li><strong>Instant Cloud Sync:</strong> Auto-captures and syncs directly to your private dashboard in real time.</li>
-            </ul>
-          </div>
-
-          <!-- INTERACTIVE LIVE TEST SAMPLES -->
-          <div style="margin-bottom: 10px;">
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
-              <i class="fa-solid fa-vial"></i> Quick Test Sample Alerts:
-            </div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button class="btn btn-secondary" style="font-size: 9.5px; padding: 4px 8px;" onclick="loadSampleText('swiggy')">Paid ₹480 to Swiggy (GPay)</button>
-              <button class="btn btn-secondary" style="font-size: 9.5px; padding: 4px 8px;" onclick="loadSampleText('hdfc')">Debited ₹12,500 HDFC Rent</button>
-              <button class="btn btn-secondary" style="font-size: 9.5px; padding: 4px 8px;" onclick="loadSampleText('salary')">Credited ₹1,00,000 Salary</button>
-            </div>
-          </div>
-
-          <div class="parser-box">
-            <textarea id="rawNotificationInput" class="parser-textarea" oninput="parseRawNotification()" placeholder="Paste payment SMS (e.g. Paid ₹480 to Swiggy via GPay)..."></textarea>
-            <button class="btn btn-full" onclick="parseRawNotification()">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Extract & Preview Transaction
-            </button>
-          </div>
-
-          <div class="parsed-preview" id="parsedOutputCard" style="display: none; margin-top: 12px;">
-            <div style="font-size: 11px; font-weight: 700; color: var(--gpay-green-light); margin-bottom: 6px; display: flex; justify-content: space-between;">
-              <span><i class="fa-solid fa-check-circle"></i> TRANSACTION DETAILS EXTRACTED</span>
-              <span id="parsedConfidence">Status: Verified</span>
-            </div>
-            <div class="parsed-row"><span class="parsed-key">Merchant:</span> <span class="parsed-val" id="resMerchant">-</span></div>
-            <div class="parsed-row"><span class="parsed-key">Amount:</span> <span class="parsed-val" id="resAmount">-</span></div>
-            <div class="parsed-row"><span class="parsed-key">Type:</span> <span class="parsed-val" id="resType">-</span></div>
-            <div class="parsed-row"><span class="parsed-key">Category:</span> <span class="parsed-val" id="resCategory">-</span></div>
-            <div class="parsed-row"><span class="parsed-key">Timestamp:</span> <span class="parsed-val" id="resTime">-</span></div>
-
-            <button class="btn btn-full" style="margin-top: 10px;" onclick="ingestParsedTransaction()">
-              <i class="fa-solid fa-circle-check"></i> Confirm & Add Transaction
-            </button>
-          </div>
-        </div>
-
-        <!-- Cloud Sync & Controls -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <i class="fa-solid fa-cloud" style="color: var(--gpay-blue-light);"></i> Supabase Database Controls
-            </div>
-            <span class="card-subtitle">Cloud Status</span>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
-            <button class="btn btn-secondary" onclick="togglePrivateMode()" style="justify-content: flex-start; font-size: 12px;">
-              <i class="fa-solid fa-eye-slash" id="privacyIcon"></i> <span id="privacyBtnText">Enable Privacy Mode (Blur Amounts)</span>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px;">
+            <button class="btn btn-secondary" onclick="triggerManualSync()" style="justify-content: flex-start; font-size: 12px; padding: 10px 14px;">
+              <i class="fa-solid fa-arrows-rotate" style="color: #1F7A57;"></i> Sync to Supabase Cloud Now
             </button>
 
-            <button class="btn btn-secondary" onclick="exportTransactionsCSV()" style="justify-content: flex-start; font-size: 12px;">
-              <i class="fa-solid fa-file-csv" style="color: var(--gpay-yellow-light);"></i> Export Transactions to CSV
+            <button class="btn btn-secondary" onclick="togglePrivateMode()" style="justify-content: flex-start; font-size: 12px; padding: 10px 14px;">
+              <i class="fa-solid fa-eye-slash" id="privacyIcon" style="color: #855F10;"></i> <span id="privacyBtnText">Enable Privacy Mode (Blur Amounts)</span>
             </button>
 
-            <button class="btn btn-secondary" style="justify-content: flex-start; font-size: 12px; color: var(--gpay-red-light); border-color: rgba(234, 67, 53, 0.3);" onclick="clearAllRealData()">
+            <button class="btn btn-secondary" onclick="exportTransactionsCSV()" style="justify-content: flex-start; font-size: 12px; padding: 10px 14px;">
+              <i class="fa-solid fa-file-csv" style="color: #1A639B;"></i> Export Transactions to CSV
+            </button>
+
+            <button class="btn btn-secondary" style="justify-content: flex-start; font-size: 12px; padding: 10px 14px; color: #A8432A; border-color: rgba(168, 67, 42, 0.3);" onclick="clearAllRealData()">
               <i class="fa-solid fa-trash-can"></i> Clear All Saved Data
             </button>
           </div>
@@ -669,6 +842,10 @@
       <a class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
         <i class="fa-solid fa-house"></i>
         <span>Home</span>
+      </a>
+      <a class="nav-item" onclick="switchTab('activity')" id="nav-activity">
+        <i class="fa-solid fa-calendar-days"></i>
+        <span>Activity</span>
       </a>
       <a class="nav-item" onclick="switchTab('taxonomy')" id="nav-taxonomy">
         <i class="fa-solid fa-chart-pie"></i>
@@ -834,6 +1011,69 @@
     </div>
   </div>
 
+  <!-- DEDICATED TAKE IN BANK BALANCE MODAL -->
+  <div class="modal-overlay" id="bankBalanceModal">
+    <div class="modal-card modal-card-balance">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-title-icon" style="background: rgba(45, 106, 79, 0.18); color: #2D6A4F;">
+            <i class="fa-solid fa-building-columns"></i>
+          </div>
+          <div>
+            <div class="modal-title" id="bankBalanceModalTitle">Set Bank Balance</div>
+            <div class="modal-subtitle">Add or update account available balance</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeBankBalanceModal()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="bankBalanceForm" onsubmit="saveBankBalanceManual(event)" style="margin-top: 16px;">
+        <input type="hidden" id="editBankKey" value="">
+        
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-landmark"></i> Bank Name</label>
+          <select id="inputBankName" class="form-input form-select" required onchange="handleBankNameChange()">
+            <option value="HDFC Bank">HDFC Bank</option>
+            <option value="State Bank of India">State Bank of India (SBI)</option>
+            <option value="ICICI Bank">ICICI Bank</option>
+            <option value="Axis Bank">Axis Bank</option>
+            <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+            <option value="Punjab National Bank">Punjab National Bank (PNB)</option>
+            <option value="Bank of Baroda">Bank of Baroda</option>
+            <option value="Canara Bank">Canara Bank</option>
+            <option value="Union Bank of India">Union Bank of India</option>
+            <option value="IndusInd Bank">IndusInd Bank</option>
+            <option value="Federal Bank">Federal Bank</option>
+            <option value="Paytm Payments Bank">Paytm Payments Bank</option>
+            <option value="Other">Other Bank (Custom)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="customBankWrap" style="display: none;">
+          <label class="form-label"><i class="fa-solid fa-pen-clip"></i> Custom Bank Name</label>
+          <input type="text" id="inputCustomBank" class="form-input" placeholder="e.g. IDFC FIRST Bank">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-hashtag"></i> Account Last 4 Digits / Mask</label>
+          <input type="text" id="inputAccountMask" class="form-input" placeholder="e.g. 1234 or Primary" maxlength="15" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label"><i class="fa-solid fa-indian-rupee-sign"></i> Available Balance (₹)</label>
+          <input type="number" step="0.01" min="0" id="inputAccountBalance" class="form-input" placeholder="0.00" required autofocus style="font-size: 20px; font-weight: 700; color: #2D6A4F;">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 22px;">
+          <button type="button" class="btn btn-secondary" onclick="closeBankBalanceModal()" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex: 1.5; background: #2D6A4F; color: white;">
+            <i class="fa-solid fa-check"></i> Save Balance
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- DEDICATED NOTIFICATION INBOX & REVIEW MODAL -->
   <div class="modal-overlay" id="inboxModal">
     <div class="modal-card modal-card-inbox">
@@ -901,6 +1141,7 @@
           <button type="button" class="btn btn-sm btn-secondary" onclick="simulateSampleNotification('rent')">+ Rent ₹15k</button>
         </div>
       </div>
+    </div>
   </div>
 
   <!-- AXIO-GRADE HISTORICAL PAST SMS INBOX SCANNER MODAL -->
@@ -924,6 +1165,25 @@
           <p>Scan your phone's SMS inbox to automatically reconstruct your financial passbook, import previous transactions, and compute running bank balances.</p>
         </div>
 
+        <!-- SMS Permission Banner (Shown if permission is missing on Android) -->
+        <div class="sms-permission-card" id="smsPermissionCard" style="display: none;">
+          <div class="sms-perm-header">
+            <div class="sms-perm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="sms-perm-text">
+              <div class="sms-perm-title">SMS Permission Required</div>
+              <div class="sms-perm-desc">Android requires SMS permission to read your past bank statements and transaction messages.</div>
+            </div>
+          </div>
+          <div class="sms-perm-actions">
+            <button type="button" class="btn btn-sm btn-primary" onclick="requestSmsPermissionNative()">
+              <i class="fa-solid fa-shield-check"></i> Grant Permission
+            </button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="handleGrantSmsPermissionClick()">
+              <i class="fa-solid fa-gear"></i> App Settings
+            </button>
+          </div>
+        </div>
+
         <div class="sms-scan-options">
           <label class="sms-scan-label">Select Time Range:</label>
           <div class="sms-range-pills">
@@ -939,12 +1199,51 @@
           </div>
         </div>
 
-        <!-- Progress Bar (Active during scan) -->
+        <!-- Intelligent Real-Time Progress Dashboard -->
         <div class="sms-scan-progress-box" id="smsScanProgressBox" style="display: none;">
-          <div class="sms-progress-bar-wrap">
-            <div class="sms-progress-bar-fill" id="smsScanProgressBar"></div>
+          <div class="sms-progress-header-row">
+            <div class="sms-stage-badge" id="smsStageBadge">
+              <span class="sms-stage-dot"></span>
+              <span id="smsStageName">READING INBOX</span>
+            </div>
+            <div class="sms-percent-val" id="smsScanPercent">0%</div>
           </div>
-          <div class="sms-scan-status-text" id="smsScanStatusText">Scanning inbox messages...</div>
+
+          <div class="sms-progress-bar-wrap">
+            <div class="sms-progress-bar-fill" id="smsScanProgressBar" style="width: 0%;">
+              <div class="sms-progress-bar-glow"></div>
+            </div>
+          </div>
+
+          <div class="sms-scan-status-row">
+            <div class="sms-scan-status-text" id="smsScanStatusText"><i class="fa-solid fa-circle-notch fa-spin"></i> Initializing deep reader...</div>
+            <div class="sms-scan-speed" id="smsScanSpeed">0 msgs scanned</div>
+          </div>
+
+          <!-- Real-Time Dynamic Metric Counters -->
+          <div class="sms-live-counters-grid">
+            <div class="sms-live-counter-card">
+              <div class="sms-counter-icon" style="color: #1F7A57;"><i class="fa-solid fa-receipt"></i></div>
+              <div class="sms-counter-num" id="liveCountSpends">0</div>
+              <div class="sms-counter-label">Spends</div>
+            </div>
+            <div class="sms-live-counter-card">
+              <div class="sms-counter-icon" style="color: #2D5FA8;"><i class="fa-solid fa-building-columns"></i></div>
+              <div class="sms-counter-num" id="liveCountAccounts">0</div>
+              <div class="sms-counter-label">Passbook A/Cs</div>
+            </div>
+            <div class="sms-live-counter-card">
+              <div class="sms-counter-icon" style="color: #8C3823;"><i class="fa-solid fa-credit-card"></i></div>
+              <div class="sms-counter-num" id="liveCountBills">0</div>
+              <div class="sms-counter-label">Card Dues</div>
+            </div>
+          </div>
+
+          <!-- Live Discovery Stream Ticker -->
+          <div class="sms-live-ticker" id="smsLiveTicker" style="display: none;">
+            <i class="fa-solid fa-bolt sms-ticker-icon"></i>
+            <span class="sms-ticker-text" id="smsTickerText">Analyzing messages...</span>
+          </div>
         </div>
 
         <!-- Scan Results Summary -->
@@ -975,8 +1274,14 @@
   </div>
 
   <!-- FULLSCREEN USER AUTHENTICATION OVERLAY (SIGN IN / REGISTER) -->
-  <div id="authOverlay" class="auth-overlay" style="display: flex;">
+  <div id="authOverlay" class="auth-overlay" style="display: none;">
     <div class="auth-card">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: -10px;">
+        <button type="button" class="auth-close-x" onclick="closeAuthModal()" title="Close dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
       <div class="auth-brand">
         <div class="app-brand-badge" style="justify-content: center; margin-bottom: 6px;">
           <svg class="app-logo-svg" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 38px; height: 38px;">
@@ -992,7 +1297,7 @@
           </svg>
           <span class="logo-text-finance" style="font-size: 24px;">Finance</span><span class="logo-text-me" style="font-size: 24px;">Me</span>
         </div>
-        <p class="auth-subtitle">Android Personal Finance & Automatic Notification Engine</p>
+        <p class="auth-subtitle">Encrypted Personal Finance Vault & Cloud Sync</p>
       </div>
 
       <!-- Auth Tabs: Sign In / Register -->
@@ -1053,15 +1358,24 @@
           <input type="password" id="regConfirmPassword" class="form-input" placeholder="Re-type password" minlength="6" required>
         </div>
 
-        <button type="submit" class="btn btn-full" id="registerSubmitBtn" style="padding: 12px; font-size: 14px; background: linear-gradient(135deg, #34A853, #0f9d58);">
+        <button type="submit" class="btn btn-full" id="registerSubmitBtn" style="padding: 12px; font-size: 14px; background: linear-gradient(135deg, #1F7A57, #10B981);">
           <i class="fa-solid fa-user-plus"></i> Create Private Account
         </button>
       </form>
+
+      <!-- GUEST / LOCAL VAULT ESCAPE BUTTON -->
+      <div style="margin-top: 14px;">
+        <button type="button" class="btn btn-secondary btn-full" onclick="continueInLocalVault()" style="padding: 12px; font-size: 13px; font-weight: 800; justify-content: center; gap: 8px;">
+          <i class="fa-solid fa-vault" style="color: #1F7A57;"></i> Continue in Local Vault Mode
+        </button>
+      </div>
       
       <div style="font-size: 11px; text-align: center; color: var(--text-muted); margin-top: 14px;">
-        <i class="fa-solid fa-shield-halved" style="color: var(--gpay-green-light);"></i> Data is strictly private to your user account via Supabase RLS
+        <i class="fa-solid fa-shield-halved" style="color: #1F7A57;"></i> Local Vault stores all records safely on device. Cloud sync is optional.
       </div>
     </div>
+  </div>
+
   <!-- CUSTOM CONFIRMATION MODAL -->
   <div id="customConfirmModal" class="modal-overlay" style="z-index: 99999; align-items: center; justify-content: center;">
     <div class="modal-card" style="max-width: 360px; text-align: center; border: 1px solid rgba(234, 67, 53, 0.3); margin: auto;">
@@ -1077,6 +1391,10 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.0.2"></script>
+  <script src="crypto-vault.js?v=2.3.0"></script>
+  <script src="aws-config.js?v=2.3.0"></script>
+  <script src="aws/aws-client.js?v=2.3.0"></script>
+  <script src="finance-model-weights.js?v=2.4.0"></script>
+  <script src="app.js?v=2.4.0"></script>
 </body>
 </html>

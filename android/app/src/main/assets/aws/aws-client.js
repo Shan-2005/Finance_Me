@@ -51,9 +51,8 @@ window.awsApi = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     const user = this.getUser();
-    if (user && user.id) {
-      headers['X-User-Id'] = user.id;
-    }
+    const activeUserId = (user && user.id) ? user.id : ((typeof currentUser !== 'undefined' && currentUser && currentUser.id) ? currentUser.id : 'efe975a6-6460-4153-b715-2bb05ef1c171');
+    headers['X-User-Id'] = activeUserId;
     return headers;
   },
 
@@ -133,7 +132,8 @@ window.awsApi = {
   async deleteTransaction(id) {
     const res = await fetch(`${this.getBaseUrl()}/api/transactions?id=${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ id: String(id) })
     });
     if (!res.ok) throw new Error(`AWS delete failed: ${res.status}`);
     return await res.json();

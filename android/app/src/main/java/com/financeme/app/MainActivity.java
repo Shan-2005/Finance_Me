@@ -16,6 +16,9 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.net.Uri;
 import android.os.PowerManager;
+import android.database.ContentObserver;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -26,7 +29,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_POST_NOTIFICATIONS = 101;
     private static final int REQUEST_READ_SMS = 1002;
     private static MainActivity instance;
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> nativeRecentCaptures = new java.util.concurrent.ConcurrentHashMap<>();
     private WebView webView;
+    private ContentObserver smsObserver;
 
     public static MainActivity getInstance() {
         return instance;
@@ -50,6 +55,10 @@ public class MainActivity extends AppCompatActivity {
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         webView.clearCache(true);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         
@@ -98,12 +107,15 @@ public class MainActivity extends AppCompatActivity {
 
         // Step 1: Request POST_NOTIFICATIONS runtime permission (Android 13+)
         requestPostNotificationsPermission();
+
+        // Step 2: Auto-check SMS permissions & register ContentObserver for 100% capture
+        checkAndRequestSmsPermissions();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Step 2: Every time app comes to foreground, check if Notification Listener is enabled
+        // Step 3: Every time app comes to foreground, check if Notification Listener is enabled
         if (!isNotificationListenerEnabled()) {
             showNotificationListenerDialog();
         } else {
@@ -116,8 +128,12 @@ public class MainActivity extends AppCompatActivity {
         long lastSync = prefs.getLong("last_sync_timestamp", 0);
         updateLastSyncTimeInWebView(lastSync);
 
-        // Step 3: Flush any notifications captured while phone was locked or app was closed
+        // Step 4: Flush any notifications captured while phone was locked or app was closed
         flushPendingNotificationsToWebView();
+
+        // Step 5: Catch-up on any SMS received while app was in background or closed
+        registerSmsObserver();
+        scanRecentSmsInternal(10);
     }
 
     private void tryRebindListenerService() {
@@ -160,15 +176,124 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_POST_NOTIFICATIONS) {
+            checkAndRequestSmsPermissions();
             // After POST_NOTIFICATIONS result, now check Notification Listener access
             if (!isNotificationListenerEnabled()) {
                 showNotificationListenerDialog();
             }
         } else if (requestCode == REQUEST_READ_SMS) {
             boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                registerSmsObserver();
+                scanRecentSmsInternal(20);
+            } else {
+                new AlertDialog.Builder(this)
+                    .setTitle("SMS Permission Required")
+                    .setMessage("Finance Me needs SMS permission to reconstruct your bank passbook & credit card statements.\n\nTap 'Open Settings' -> Permissions -> SMS -> Allow.")
+                    .setPositiveButton("Open Settings", (d, w) -> {
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(Uri.parse("package:" + getPackageName()));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                        } catch (Exception ignored) {}
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            }
             String js = "if(window.onSmsPermissionResult) window.onSmsPermissionResult(" + granted + ");";
             if (webView != null) webView.post(() -> webView.evaluateJavascript(js, null));
         }
+    }
+
+    /** Requests runtime SMS permissions if not already granted */
+    private void checkAndRequestSmsPermissions() {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                new String[]{android.Manifest.permission.READ_SMS, android.Manifest.permission.RECEIVE_SMS},
+                REQUEST_READ_SMS
+            );
+        } else {
+            registerSmsObserver();
+        }
+    }
+
+    /** Registers a real-time ContentObserver on the Android SMS provider */
+    private void registerSmsObserver() {
+        if (smsObserver != null) return;
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        try {
+            smsObserver = new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange, Uri uri) {
+                    super.onChange(selfChange, uri);
+                    scanRecentSmsInternal(5);
+                }
+            };
+            getContentResolver().registerContentObserver(
+                Uri.parse("content://sms"),
+                true,
+                smsObserver
+            );
+            android.util.Log.d("MainActivity", "Registered SMS ContentObserver successfully");
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Error registering SMS ContentObserver: " + e.getMessage());
+        }
+    }
+
+    /** Scans recent SMS inbox messages to guarantee 100% payment capture */
+    private void scanRecentSmsInternal(int limit) {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        new Thread(() -> {
+            android.net.Uri uri = android.net.Uri.parse("content://sms/inbox");
+            String[] projection = new String[]{"_id", "address", "body", "date"};
+            android.database.Cursor cursor = null;
+            try {
+                SharedPreferences prefs = getSharedPreferences("FinanceMeSmsTracker", Context.MODE_PRIVATE);
+                long lastScannedDate = prefs.getLong("last_scanned_sms_date", System.currentTimeMillis());
+                String selection = "date > ?";
+                String[] selectionArgs = new String[]{String.valueOf(lastScannedDate)};
+
+                cursor = getContentResolver().query(uri, projection, selection, selectionArgs, "date ASC");
+                if (cursor != null && cursor.moveToFirst()) {
+                    int bodyIdx = cursor.getColumnIndex("body");
+                    int addrIdx = cursor.getColumnIndex("address");
+                    int dateIdx = cursor.getColumnIndex("date");
+
+                    java.util.regex.Pattern financialPattern = java.util.regex.Pattern.compile(
+                        "\\b(debited|credited|spent|paid|withdrawn|salary|refund|reversed|avl bal|avail bal|balance|statement|total due|min due|upi ref|a/c|rs\\.?|inr|₹|vpa|neft|imps|rtgs|hdfc|sbi|icici|axis|kotak)\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE
+                    );
+
+                    long newestDate = lastScannedDate;
+                    do {
+                        String body = bodyIdx != -1 ? cursor.getString(bodyIdx) : "";
+                        String sender = addrIdx != -1 ? cursor.getString(addrIdx) : "";
+                        long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0;
+
+                        if (date > newestDate) {
+                            newestDate = date;
+                        }
+
+                        if (body != null && financialPattern.matcher(body).find()) {
+                            android.util.Log.d("MainActivity", "Realtime SMS detected from [" + sender + "]: " + body);
+                            onNativeNotificationCaptured(body, sender, date > 0 ? date : System.currentTimeMillis());
+                        }
+                    } while (cursor.moveToNext());
+
+                    prefs.edit().putLong("last_scanned_sms_date", newestDate).apply();
+                }
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "Error in scanRecentSmsInternal: " + e.getMessage());
+            } finally {
+                if (cursor != null) cursor.close();
+            }
+        }).start();
     }
 
     /** Check if Finance Me is in the Notification Listener whitelist */
@@ -215,11 +340,28 @@ public class MainActivity extends AppCompatActivity {
 
     /** Pass real-time captured notification text directly into WebView JS */
     public void onNativeNotificationCaptured(String rawText, String packageName) {
+        onNativeNotificationCaptured(rawText, packageName, System.currentTimeMillis());
+    }
+
+    public void onNativeNotificationCaptured(String rawText, String packageName, long timestamp) {
+        if (rawText == null || rawText.trim().isEmpty()) return;
+
+        // Native 5-minute atomic deduplication window
+        String cleanSig = rawText.replaceAll("\\s+", " ").trim().toLowerCase();
+        long now = System.currentTimeMillis();
+        Long lastSeen = nativeRecentCaptures.get(cleanSig);
+        if (lastSeen != null && (now - lastSeen) < (5 * 60 * 1000)) {
+            android.util.Log.d("MainActivity", "🛡️ Suppressed duplicate capture at native layer: " + cleanSig);
+            return;
+        }
+        nativeRecentCaptures.put(cleanSig, now);
+
         runOnUiThread(() -> {
             if (webView != null) {
-                String safeText = rawText != null ? rawText.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ") : "";
-                String safePkg = packageName != null ? packageName.replace("'", "\\'") : "";
-                String js = "if(window.onNotificationCaptured) window.onNotificationCaptured('" + safeText + "', '" + safePkg + "');";
+                String safeText = org.json.JSONObject.quote(rawText != null ? rawText : "");
+                String safePkg = org.json.JSONObject.quote(packageName != null ? packageName : "");
+                long validTs = timestamp > 0 ? timestamp : System.currentTimeMillis();
+                String js = "if(window.onNotificationCaptured) window.onNotificationCaptured(" + safeText + ", " + safePkg + ", " + validTs + ");";
                 webView.evaluateJavascript(js, null);
             }
         });
@@ -240,10 +382,11 @@ public class MainActivity extends AppCompatActivity {
                     org.json.JSONObject item = array.getJSONObject(i);
                     String rawText = item.optString("rawText", "");
                     String pkg = item.optString("packageName", "");
+                    long ts = item.optLong("timestamp", System.currentTimeMillis());
                     if (!rawText.isEmpty()) {
-                        String safeText = rawText.replace("\\", "\\\\").replace("'", "\\'").replace("\r", " ").replace("\n", " ");
-                        String safePkg = pkg.replace("'", "\\'");
-                        String js = "if(window.onNotificationCaptured) window.onNotificationCaptured('" + safeText + "', '" + safePkg + "');";
+                        String safeText = org.json.JSONObject.quote(rawText);
+                        String safePkg = org.json.JSONObject.quote(pkg);
+                        String js = "if(window.onNotificationCaptured) window.onNotificationCaptured(" + safeText + ", " + safePkg + ", " + ts + ");";
                         webView.evaluateJavascript(js, null);
                     }
                 }
@@ -308,12 +451,30 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void requestSmsPermission() {
             runOnUiThread(() -> {
+                if (isSmsPermissionGranted()) {
+                    String js = "if(window.onSmsPermissionResult) window.onSmsPermissionResult(true);";
+                    if (webView != null) webView.evaluateJavascript(js, null);
+                    return;
+                }
                 ActivityCompat.requestPermissions(
                     MainActivity.this,
-                    new String[]{android.Manifest.permission.READ_SMS},
+                    new String[]{android.Manifest.permission.READ_SMS, android.Manifest.permission.RECEIVE_SMS},
                     REQUEST_READ_SMS
                 );
             });
+        }
+
+        /** Opens Android Application Details Settings screen to grant permissions manually */
+        @JavascriptInterface
+        public void openAppSettings() {
+            try {
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                android.util.Log.e("AndroidBridge", "Failed to open app settings: " + e.getMessage());
+            }
         }
 
         /**
@@ -351,7 +512,11 @@ public class MainActivity extends AppCompatActivity {
 
                     int count = 0;
                     java.util.regex.Pattern financialPattern = java.util.regex.Pattern.compile(
-                        "\\b(debited|credited|spent|paid|withdrawn|salary|refund|reversed|avl bal|avail bal|balance|statement|total due|min due|upi ref|a/c|rs\\.?|inr|₹)\\b",
+                        "\\b(debited|credited|spent|paid|withdrawn|salary|refund|reversed|avl bal|avail bal|balance|statement|total due|min due|upi ref|a/c|rs\\.?|inr|₹|vpa|neft|imps|rtgs)\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE
+                    );
+                    java.util.regex.Pattern senderPattern = java.util.regex.Pattern.compile(
+                        "(hdfc|sbi|icici|axis|kotak|pnb|bob|canara|union|idfc|indus|yes|rbl|amex|paytm|phonepe|gpay|cred)",
                         java.util.regex.Pattern.CASE_INSENSITIVE
                     );
 
@@ -360,7 +525,14 @@ public class MainActivity extends AppCompatActivity {
                         String sender = addrIdx != -1 ? cursor.getString(addrIdx) : "";
                         long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0;
 
+                        boolean match = false;
                         if (body != null && financialPattern.matcher(body).find()) {
+                            match = true;
+                        } else if (sender != null && senderPattern.matcher(sender).find()) {
+                            match = true;
+                        }
+
+                        if (match && body != null) {
                             org.json.JSONObject obj = new org.json.JSONObject();
                             obj.put("body", body);
                             obj.put("sender", sender != null ? sender : "");
@@ -379,6 +551,125 @@ public class MainActivity extends AppCompatActivity {
             }
 
             return array.toString();
+        }
+
+        /**
+         * Asynchronously streams inbox SMS scan with real-time progress callbacks to WebView.
+         */
+        @JavascriptInterface
+        public void startDeepSmsScanAsync(final int daysLimit) {
+            if (!isSmsPermissionGranted()) {
+                runOnUiThread(() -> {
+                    if (webView != null) webView.evaluateJavascript("if(window.onSmsScanError) window.onSmsScanError('PERMISSION_DENIED');", null);
+                });
+                return;
+            }
+
+            new Thread(() -> {
+                android.net.Uri uri = android.net.Uri.parse("content://sms/inbox");
+                String[] projection = new String[]{"_id", "address", "body", "date"};
+                String selection = null;
+                String[] selectionArgs = null;
+
+                if (daysLimit > 0) {
+                    long cutoff = System.currentTimeMillis() - ((long) daysLimit * 24 * 60 * 60 * 1000);
+                    selection = "date >= ?";
+                    selectionArgs = new String[]{String.valueOf(cutoff)};
+                }
+
+                android.database.Cursor cursor = null;
+                try {
+                    cursor = getContentResolver().query(uri, projection, selection, selectionArgs, "date DESC");
+                    if (cursor == null) {
+                        runOnUiThread(() -> {
+                            if (webView != null) webView.evaluateJavascript("if(window.onSmsScanComplete) window.onSmsScanComplete('[]');", null);
+                        });
+                        return;
+                    }
+
+                    final int total = cursor.getCount();
+                    int bodyIdx = cursor.getColumnIndex("body");
+                    int addrIdx = cursor.getColumnIndex("address");
+                    int dateIdx = cursor.getColumnIndex("date");
+
+                    org.json.JSONArray financialArray = new org.json.JSONArray();
+                    int processed = 0;
+                    int financialCount = 0;
+
+                    java.util.regex.Pattern financialPattern = java.util.regex.Pattern.compile(
+                        "\\b(debited|credited|spent|paid|withdrawn|salary|refund|reversed|avl bal|avail bal|balance|statement|total due|min due|upi ref|a/c|rs\\.?|inr|₹|vpa|neft|imps|rtgs)\\b",
+                        java.util.regex.Pattern.CASE_INSENSITIVE
+                    );
+                    java.util.regex.Pattern senderPattern = java.util.regex.Pattern.compile(
+                        "(hdfc|sbi|icici|axis|kotak|pnb|bob|canara|union|idfc|indus|yes|rbl|amex|paytm|phonepe|gpay|cred)",
+                        java.util.regex.Pattern.CASE_INSENSITIVE
+                    );
+
+                    while (cursor.moveToNext()) {
+                        processed++;
+                        String body = bodyIdx != -1 ? cursor.getString(bodyIdx) : "";
+                        String sender = addrIdx != -1 ? cursor.getString(addrIdx) : "";
+                        long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0;
+
+                        boolean isFinancial = false;
+                        if (body != null && financialPattern.matcher(body).find()) {
+                            isFinancial = true;
+                        } else if (sender != null && senderPattern.matcher(sender).find()) {
+                            isFinancial = true;
+                        }
+
+                        String snippet = "";
+                        if (isFinancial && body != null) {
+                            org.json.JSONObject obj = new org.json.JSONObject();
+                            obj.put("body", body);
+                            obj.put("sender", sender != null ? sender : "");
+                            obj.put("date", date);
+                            financialArray.put(obj);
+                            financialCount++;
+                            snippet = body.replaceAll("[\\r\\n]+", " ").trim();
+                            if (snippet.length() > 50) snippet = snippet.substring(0, 50) + "...";
+                        }
+
+                        // Emit progress periodically or when financial SMS found
+                        if (processed % 15 == 0 || processed == total || isFinancial) {
+                            final int currentProcessed = processed;
+                            final int currentTotal = total;
+                            final int currentFound = financialCount;
+                            final String currentSnippet = snippet.replace("'", "\\'").replace("\"", "\\\"");
+
+                            runOnUiThread(() -> {
+                                if (webView != null) {
+                                    String js = String.format(
+                                        java.util.Locale.US,
+                                        "if(window.onSmsScanProgress) window.onSmsScanProgress(%d, %d, %d, '%s');",
+                                        currentProcessed, currentTotal, currentFound, currentSnippet
+                                    );
+                                    webView.evaluateJavascript(js, null);
+                                }
+                            });
+                        }
+
+                        if (financialCount >= 1000) break; // Safety cap
+                    }
+
+                    // Complete!
+                    final String resultJson = financialArray.toString();
+                    runOnUiThread(() -> {
+                        if (webView != null) {
+                            webView.evaluateJavascript("window.__smsScanResult = " + resultJson + "; if(window.onSmsScanComplete) window.onSmsScanComplete(window.__smsScanResult);", null);
+                        }
+                    });
+
+                } catch (Exception e) {
+                    android.util.Log.e("MainActivity", "Error in async SMS scan: " + e.getMessage());
+                    final String errMsg = e.getMessage() != null ? e.getMessage().replace("'", "\\'") : "Scan error";
+                    runOnUiThread(() -> {
+                        if (webView != null) webView.evaluateJavascript("if(window.onSmsScanError) window.onSmsScanError('" + errMsg + "');", null);
+                    });
+                } finally {
+                    if (cursor != null) cursor.close();
+                }
+            }).start();
         }
 
         /** Returns live background notification debug logs for display on UI */
@@ -495,6 +786,17 @@ public class MainActivity extends AppCompatActivity {
                 android.util.Log.e("AndroidBridge", "Error saving CSV to downloads: " + e.getMessage());
             }
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (smsObserver != null) {
+            try {
+                getContentResolver().unregisterContentObserver(smsObserver);
+            } catch (Exception ignored) {}
+            smsObserver = null;
+        }
+        super.onDestroy();
     }
 
     @Override

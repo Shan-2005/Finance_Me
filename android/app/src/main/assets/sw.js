@@ -1,5 +1,15 @@
-const CACHE_VERSION = 'finance-me-v5-network-first';
-const STATIC_ASSETS = ['/', '/index.html', '/app.js', '/styles.css', '/manifest.json', '/logo.png'];
+const CACHE_VERSION = 'finance-me-v16-brand-logo-animation';
+const STATIC_ASSETS = [
+  '/', 
+  '/index.html', 
+  '/crypto-vault.js',
+  '/app.js', 
+  '/styles.css', 
+  '/manifest.json', 
+  '/logo.png',
+  '/aws-config.js',
+  '/aws/aws-client.js'
+];
 
 // Install: cache core static assets immediately
 self.addEventListener('install', (event) => {
@@ -24,8 +34,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Always go straight to network for API calls and Supabase — never cache these
-  if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase.co')) {
+  // Always go straight to network for API calls, Supabase, and AWS endpoints — never cache these
+  if (
+    url.pathname.startsWith('/api/') || 
+    url.hostname.includes('supabase.co') || 
+    url.hostname.includes('amazonaws.com') || 
+    url.hostname.includes('lambda-url')
+  ) {
     event.respondWith(fetch(event.request));
     return;
   }
