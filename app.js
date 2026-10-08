@@ -88,8 +88,16 @@ function findDuplicateTransaction(candidate, searchLists = [transactions, typeof
 
         // 1. Reference ID Match (Highest confidence: exact UPI / RRN / UTR / Ref)
         const itemRef = (item.referenceId || item.reference_id || extractRefFromAny(item.rawText || item.raw_text || item.notes) || '').trim().toLowerCase();
-        if (candRef && itemRef && candRef.length >= 6 && itemRef.length >= 6 && candRef === itemRef) {
-          return { match: item, reason: 'EXACT_REF_ID' };
+        const candHasRef = candRef && candRef.length >= 6;
+        const itemHasRef = itemRef && itemRef.length >= 6;
+
+        if (candHasRef && itemHasRef) {
+          if (candRef === itemRef) {
+            return { match: item, reason: 'EXACT_REF_ID' };
+          }
+          // CRITICAL FIX: If BOTH items have genuine reference IDs and they DO NOT match,
+          // they are GUARANTEED to be distinct transactions (different UPI/NEFT/IMPS transfers)!
+          continue;
         }
 
         // 2. Exact Signature Match
@@ -103,46 +111,47 @@ function findDuplicateTransaction(candidate, searchLists = [transactions, typeof
           return { match: item, reason: 'EXACT_BODY_TEXT' };
         }
 
-        // 4. Multi-Factor Calendar Day / Proximity Match (Indian Banking Streams)
+        // 4. Time Proximity Deduplication (Indian Banking Streams)
         const itemAmt = Number(item.amount);
         const itemType = item.type || 'Debit';
         if (Math.abs(candAmt - itemAmt) < 0.01 && candType === itemType) {
           const itemTime = item.date ? new Date(item.date).getTime() : Date.now();
-          const itemDay = toCalendarDateStr(item.date || itemTime);
-          const sameDay = candDay && itemDay && candDay === itemDay;
           const diffMs = Math.abs(candTime - itemTime);
 
-          // 4a. Immediate High-Confidence Proximity Deduplication (<= 15 minutes)
-          // If two captures share exact amount & type within 15 minutes, they are the same transaction
-          if (diffMs <= 15 * 60 * 1000) {
-            return { match: item, reason: 'PROXIMITY_TIME_AMOUNT_MATCH' };
+          const itemMask = String(item.accountMask || item.account_mask || '').replace(/[^0-9]/g, '');
+          const maskMatch = candMask && itemMask && candMask === itemMask;
+
+          const itemNormM = normalizeMerchant(item.merchant);
+          const merchantMatch = candNormM && itemNormM && (
+            candNormM === itemNormM ||
+            candNormM.includes(itemNormM) ||
+            itemNormM.includes(candNormM) ||
+            (candNormM.length >= 4 && itemNormM.length >= 4 && candNormM.slice(0, 4) === itemNormM.slice(0, 4))
+          );
+          const isGeneric = !candNormM || candNormM === 'payment' || candNormM === 'upipayment' || candNormM.includes('transfer') || 
+                            !itemNormM || itemNormM === 'payment' || itemNormM === 'upipayment' || itemNormM.includes('transfer');
+
+          // 4a. Short Delivery Window (<= 5 minutes):
+          // Redundant notifications from bank SMS + GPay push arrive within seconds or minutes.
+          if (diffMs <= 5 * 60 * 1000) {
+            if (merchantMatch || isGeneric) {
+              return { match: item, reason: 'PROXIMITY_TIME_AMOUNT_MATCH' };
+            }
           }
 
-          if (sameDay || diffMs <= maxDiffMs) {
-            const itemMask = String(item.accountMask || item.account_mask || '').replace(/[^0-9]/g, '');
-            const maskMatch = candMask && itemMask && candMask === itemMask;
-
-            const itemNormM = normalizeMerchant(item.merchant);
-            const merchantMatch = candNormM && itemNormM && (
-              candNormM === itemNormM ||
-              candNormM.includes(itemNormM) ||
-              itemNormM.includes(candNormM) ||
-              (candNormM.length >= 4 && itemNormM.length >= 4 && candNormM.slice(0, 4) === itemNormM.slice(0, 4))
-            );
-            const isGeneric = !candNormM || candNormM === 'payment' || candNormM === 'upipayment' || candNormM.includes('transfer') || !itemNormM || itemNormM === 'payment' || itemNormM === 'upipayment' || itemNormM.includes('transfer');
-
+          // 4b. Exact same timestamp (e.g. batch backfill / historical import with identical date):
+          if (diffMs === 0) {
             if (maskMatch && (merchantMatch || isGeneric)) {
-              return { match: item, reason: 'SAME_DAY_ACCOUNT_MATCH' };
+              return { match: item, reason: 'SAME_TIMESTAMP_ACCOUNT_MATCH' };
             }
-            if (merchantMatch && (maskMatch || !candMask || !itemMask)) {
-              return { match: item, reason: 'SAME_DAY_MERCHANT_MATCH' };
+            if (merchantMatch) {
+              return { match: item, reason: 'SAME_TIMESTAMP_MERCHANT_MATCH' };
             }
-            if (isGeneric && diffMs <= 12 * 3600 * 1000) {
-              return { match: item, reason: 'SAME_DAY_GENERIC_MATCH' };
-            }
-            if (candBody && itemBody && (candBody.includes(itemNormM) || itemBody.includes(candNormM))) {
-              return { match: item, reason: 'BODY_MERCHANT_CROSS_MATCH' };
-            }
+          }
+
+          // Cross-body match: ONLY if raw body text actually mentions the other merchant AND within 5 minutes:
+          if (diffMs <= 5 * 60 * 1000 && candBody && itemBody && (candBody.includes(itemNormM) || itemBody.includes(candNormM))) {
+            return { match: item, reason: 'BODY_MERCHANT_CROSS_MATCH' };
           }
         }
       }

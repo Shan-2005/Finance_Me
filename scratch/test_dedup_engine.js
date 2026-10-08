@@ -74,8 +74,16 @@ function findDuplicateTransaction(candidate, searchLists = [], toleranceHours = 
 
       // 1. Reference ID Match (Highest confidence: exact UPI / RRN / UTR / Ref)
       const itemRef = (item.referenceId || item.reference_id || extractRefFromAny(item.rawText || item.raw_text || item.notes) || '').trim().toLowerCase();
-      if (candRef && itemRef && candRef.length >= 6 && itemRef.length >= 6 && candRef === itemRef) {
-        return { match: item, reason: 'EXACT_REF_ID' };
+      const candHasRef = candRef && candRef.length >= 6;
+      const itemHasRef = itemRef && itemRef.length >= 6;
+
+      if (candHasRef && itemHasRef) {
+        if (candRef === itemRef) {
+          return { match: item, reason: 'EXACT_REF_ID' };
+        }
+        // CRITICAL FIX: If BOTH items have genuine reference IDs and they DO NOT match,
+        // they are GUARANTEED to be distinct transactions!
+        continue;
       }
 
       // 2. Exact Signature Match
@@ -89,40 +97,47 @@ function findDuplicateTransaction(candidate, searchLists = [], toleranceHours = 
         return { match: item, reason: 'EXACT_BODY_TEXT' };
       }
 
-      // 4. Multi-Factor Calendar Day / Proximity Match (Indian Banking Streams)
+      // 4. Time Proximity Deduplication (Indian Banking Streams)
       const itemAmt = Number(item.amount);
       const itemType = item.type || 'Debit';
       if (Math.abs(candAmt - itemAmt) < 0.01 && candType === itemType) {
         const itemTime = item.date ? new Date(item.date).getTime() : Date.now();
-        const itemDay = toCalendarDateStr(item.date || itemTime);
-        const sameDay = candDay && itemDay && candDay === itemDay;
         const diffMs = Math.abs(candTime - itemTime);
 
-        if (sameDay || diffMs <= maxDiffMs) {
-          const itemMask = String(item.accountMask || item.account_mask || '').replace(/[^0-9]/g, '');
-          const maskMatch = candMask && itemMask && candMask === itemMask;
+        const itemMask = String(item.accountMask || item.account_mask || '').replace(/[^0-9]/g, '');
+        const maskMatch = candMask && itemMask && candMask === itemMask;
 
-          const itemNormM = normalizeMerchant(item.merchant);
-          const merchantMatch = candNormM && itemNormM && (
-            candNormM === itemNormM ||
-            candNormM.includes(itemNormM) ||
-            itemNormM.includes(candNormM) ||
-            (candNormM.length >= 4 && itemNormM.length >= 4 && candNormM.slice(0, 4) === itemNormM.slice(0, 4))
-          );
-          const isGeneric = !candNormM || candNormM === 'payment' || candNormM === 'upipayment' || !itemNormM || itemNormM === 'payment' || itemNormM === 'upipayment';
+        const itemNormM = normalizeMerchant(item.merchant);
+        const merchantMatch = candNormM && itemNormM && (
+          candNormM === itemNormM ||
+          candNormM.includes(itemNormM) ||
+          itemNormM.includes(candNormM) ||
+          (candNormM.length >= 4 && itemNormM.length >= 4 && candNormM.slice(0, 4) === itemNormM.slice(0, 4))
+        );
+        const isGeneric = !candNormM || candNormM === 'payment' || candNormM === 'upipayment' || candNormM.includes('transfer') || 
+                          !itemNormM || itemNormM === 'payment' || itemNormM === 'upipayment' || itemNormM.includes('transfer');
 
+        // 4a. Short Delivery Window (<= 5 minutes):
+        // Redundant notifications from bank SMS + GPay push arrive within seconds or minutes.
+        if (diffMs <= 5 * 60 * 1000) {
+          if (merchantMatch || isGeneric) {
+            return { match: item, reason: 'PROXIMITY_TIME_AMOUNT_MATCH' };
+          }
+        }
+
+        // 4b. Exact same timestamp (e.g. batch backfill / historical import with identical date):
+        if (diffMs === 0) {
           if (maskMatch && (merchantMatch || isGeneric)) {
-            return { match: item, reason: 'SAME_DAY_ACCOUNT_MATCH' };
+            return { match: item, reason: 'SAME_TIMESTAMP_ACCOUNT_MATCH' };
           }
-          if (merchantMatch && (maskMatch || !candMask || !itemMask)) {
-            return { match: item, reason: 'SAME_DAY_MERCHANT_MATCH' };
+          if (merchantMatch) {
+            return { match: item, reason: 'SAME_TIMESTAMP_MERCHANT_MATCH' };
           }
-          if (isGeneric && diffMs <= 12 * 3600 * 1000) {
-            return { match: item, reason: 'SAME_DAY_GENERIC_MATCH' };
-          }
-          if (candBody && itemBody && (candBody.includes(itemNormM) || itemBody.includes(candNormM))) {
-            return { match: item, reason: 'BODY_MERCHANT_CROSS_MATCH' };
-          }
+        }
+
+        // Cross-body match: ONLY if raw body text actually mentions the other merchant AND within 5 minutes:
+        if (diffMs <= 5 * 60 * 1000 && candBody && itemBody && (candBody.includes(itemNormM) || itemBody.includes(candNormM))) {
+          return { match: item, reason: 'BODY_MERCHANT_CROSS_MATCH' };
         }
       }
     }
@@ -146,7 +161,7 @@ const cand2 = { id: '2', amount: 149, type: 'Debit', rawText: 'E-Mandate! Rs.149
 assert.ok(findDuplicateTransaction(cand2, [[t2]]), 'Test 2 Failed: Exact SMS body match');
 console.log('✓ Test 2: Exact SMS body match passed');
 
-// Test 3: Same day + same amount + same account mask
+// Test 3: Same day + same amount + same account mask (diffMs === 0)
 const t3 = { id: '1', amount: 802.1, type: 'Debit', accountMask: '1009', merchant: 'APOLLO PHARMACY', date: '2026-10-01' };
 const cand3 = { id: '2', amount: 802.1, type: 'Debit', accountMask: '1009', merchant: 'Upi Payment', date: '2026-10-01' };
 assert.ok(findDuplicateTransaction(cand3, [[t3]]), 'Test 3 Failed: Same day account mask match');
@@ -171,5 +186,23 @@ assert.strictEqual(findDuplicateTransaction({ amount: 0 }, []), null);
 assert.strictEqual(findDuplicateTransaction({ amount: -100 }, []), null);
 assert.strictEqual(findDuplicateTransaction({ amount: 'invalid' }, []), null);
 console.log('✓ Test 6: Safe error handling passed with 0 exceptions');
+
+// Test 7: USER BUG FIX: Same amount to SAME person at DIFFERENT TIMES (e.g. 1 hour later) must NOT be marked duplicate!
+const t7 = { id: '1', amount: 100, type: 'Debit', merchant: 'Tarunkumar', date: '2026-10-07T10:00:00.000Z' };
+const cand7 = { id: '2', amount: 100, type: 'Debit', merchant: 'Tarunkumar', date: '2026-10-07T11:00:00.000Z' };
+assert.strictEqual(findDuplicateTransaction(cand7, [[t7]]), null, 'Test 7 Failed: Same person at different times must NOT be duplicate');
+console.log('✓ Test 7: Same person & amount at different times correctly treated as distinct payments');
+
+// Test 8: USER BUG FIX: Distinct UPI Ref numbers must NEVER match even if sent within 2 minutes!
+const t8 = { id: '1', amount: 10, type: 'Debit', referenceId: '130894435483', merchant: 'Tarunkumar', date: '2026-10-07T20:40:00.000Z' };
+const cand8 = { id: '2', amount: 10, type: 'Debit', referenceId: '130899999999', merchant: 'Tarunkumar', date: '2026-10-07T20:42:00.000Z' };
+assert.strictEqual(findDuplicateTransaction(cand8, [[t8]]), null, 'Test 8 Failed: Distinct Ref IDs must NEVER match');
+console.log('✓ Test 8: Distinct UPI Reference IDs always preserved as separate transactions');
+
+// Test 9: Rapid redundant notification (within 15 seconds) WITHOUT different Ref IDs SHOULD be deduplicated
+const t9 = { id: '1', amount: 10, type: 'Debit', merchant: 'Tarunkumar', date: '2026-10-07T20:40:00.000Z' };
+const cand9 = { id: '2', amount: 10, type: 'Debit', merchant: 'Tarunkumar', date: '2026-10-07T20:40:15.000Z' };
+assert.ok(findDuplicateTransaction(cand9, [[t9]]), 'Test 9 Failed: Redundant push notifications should be deduplicated');
+console.log('✓ Test 9: Rapid multi-app notification for same payment successfully deduplicated');
 
 console.log('🎉 ALL DEDUPLICATION TESTS PASSED WITH 100% PRECISION!');
